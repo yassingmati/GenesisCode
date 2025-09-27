@@ -1,0 +1,145 @@
+/* src/styles/VerifyEmail.css */
+.email-reminder {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f7f9fc;
+  padding: 20px;
+  font-family: 'Inter', sans-serif;
+}
+
+.reminder-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+}
+
+.reminder-card h2 {
+  color: #333;
+  margin-bottom: 20px;
+  font-size: 1.8rem;
+}
+
+.reminder-icon {
+  margin: 0 auto 20px;
+  width: 80px;
+  height: 80px;
+  background: #f0f7ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reminder-icon svg {
+  width: 40px;
+  height: 40px;
+  fill: #4a90e2;
+}
+
+.reminder-card p {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-size: 1.05rem;
+}
+
+.note {
+  background: #fff8e6;
+  padding: 15px;
+  border-radius: 8px;
+  border-left: 4px solid #ffc107;
+  font-size: 0.95rem;
+  text-align: left;
+  margin-bottom: 20px;
+}
+
+.note ul {
+  padding-left: 20px;
+  margin: 10px 0;
+}
+
+.note li {
+  margin-bottom: 8px;
+}
+
+.resend-button, .check-button {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-bottom: 10px;
+}
+
+.resend-button {
+  background: #4a90e2;
+  color: white;
+  border: none;
+}
+
+.resend-button:hover {
+  background: #3a78c1;
+}
+
+.resend-button:disabled {
+  background: #a0c4f3;
+  cursor: not-allowed;
+}
+
+.check-button {
+  background: #28a745;
+  color: white;
+  border: none;
+}
+
+.check-button:hover {
+  background: #218838;
+}
+
+.message {
+  margin-top: 20px;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.message.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.message.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.actions {
+  margin-top: 25px;
+}
+
+.logout-button {
+  width: 100%;
+  padding: 10px;
+  background: #f8f9fa;
+  color: #495057;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.logout-button:hover {
+  background: #e9ecef;
+}

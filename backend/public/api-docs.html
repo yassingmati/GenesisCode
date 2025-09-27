@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>API Documentation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .endpoint { background: #f5f5f5; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        .method { font-weight: bold; color: #0366d6; }
+        .path { font-family: monospace; }
+        .description { margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1>API Documentation</h1>
+    
+    <div class="endpoint">
+        <div class="method">GET</div>
+        <div class="path">/health</div>
+        <div class="description">Check system health and service status</div>
+    </div>
+    
+    <div class="endpoint">
+        <div class="method">GET</div>
+        <div class="path">/system-info</div>
+        <div class="description">Get detailed system information</div>
+    </div>
+    
+    <div class="endpoint">
+        <div class="method">POST</div>
+        <div class="path">/api/auth/login</div>
+        <div class="description">User authentication</div>
+    </div>
+    
+    <div class="endpoint">
+        <div class="method">POST</div>
+        <div class="path">/api/courses/levels/:levelId/video</div>
+        <div class="description">Upload a video for a level</div>
+    </div>
+    
+    <div class="endpoint">
+        <div class="method">GET</div>
+        <div class="path">/uploads/videos/:filename</div>
+        <div class="description">Access uploaded videos</div>
+    </div>
+    
+    <div class="endpoint">
+        <div class="method">GET</div>
+        <div class="path">/api/courses/videos/:levelId</div>
+        <div class="description">Stream video for a level</div>
+    </div>
+    
+    <h2>More endpoints available in Swagger documentation</h2>
+    <a href="/api/courses/swagger">Swagger API Docs</a>
+</body>
+</html>

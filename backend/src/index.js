@@ -1,0 +1,394 @@
+// server.js
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+const fsp = fs.promises;
+const helmet = require('helmet');
+const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
+const rateLimit = require('express-rate-limit');
+
+const app = express();
+
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+const PORT = process.env.PORT || 5000;
+const UPLOADS_DIR = path.join(__dirname, 'uploads');
+
+// --- Fetch helper: try global fetch first, then node-fetch if available ---
+let fetchFn = globalThis.fetch || null;
+try {
+  if (!fetchFn) {
+    // attempt CommonJS require (note: node-fetch v3 is ESM and may fail here)
+    // Prefer Node 18+ (which has global fetch). If require fails, handlers will throw a clear error.
+    // If you run Node < 18, install node-fetch v2: npm i node-fetch@2
+    // If you use ESM/node-fetch v3, adapt your runtime/import accordingly.
+    // We attempt require to be tolerant in many setups.
+    fetchFn = require('node-fetch');
+  }
+} catch (err) {
+  fetchFn = fetchFn || null;
+}
+
+// Optional Stripe init
+let stripe = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  try {
+    const StripeLib = require('stripe');
+    stripe = StripeLib(process.env.STRIPE_SECRET_KEY);
+    console.log('Stripe initialisé');
+  } catch (err) {
+    console.warn('Impossible d\'initialiser Stripe:', err.message);
+  }
+} else {
+  console.warn('STRIPE_SECRET_KEY non définie — Stripe désactivé');
+}
+
+// Models & Routes (adapter si chemins différents)
+let authRoutes, userRoutes, adminRoutes, courseRoutes, subscriptionRoutes;
+try {
+  authRoutes = require('./routes/authRoutes');
+  userRoutes = require('./routes/userRoutes');
+  adminRoutes = require('./routes/adminRoutes');
+  courseRoutes = require('./routes/courseRoutes');
+  subscriptionRoutes = require('./routes/subscriptionRoutes');
+} catch (err) {
+  // If not present, keep as undefined — routes mounting will be tolerant.
+  console.warn('Quelques routes n\'ont pas été trouvées (vérifie ./routes) :', err.message);
+}
+
+// ---------- Security & headers ----------
+app.set('trust proxy', 1);
+app.use(morgan('dev'));
+app.use(cookieParser());
+
+// Retirer X-Frame-Options (nous gérons CSP manually)
+app.use((req, res, next) => {
+  res.removeHeader('X-Frame-Options');
+  const frameAncestors = [`'self'`, CLIENT_ORIGIN];
+  res.setHeader('Content-Security-Policy', `frame-ancestors ${frameAncestors.join(' ')};`);
+  next();
+});
+
+// Helmet (disable built-in CSP because we set custom above)
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
+}));
+
+// CORS
+app.use(cors({
+  origin: CLIENT_ORIGIN,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
+  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type']
+}));
+app.options('*', cors());
+
+// Rate limit
+const limiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 500,
+  message: 'Trop de requêtes depuis cette IP, réessayez plus tard.'
+});
+app.use('/api/', limiter);
+
+// Serve public (pour y déposer pdf.worker.min.js, assets, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve uploads (videos, pdfs, images) at /uploads/...
+// This makes URLs like http://localhost:5000/uploads/videos/xxx.mp4 work
+app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=300');
+  }
+}));
+
+// ---------- Stripe webhook (raw body) ----------
+// Keep webhook route before express.json() parsers
+if (true) {
+  app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+    if (!stripe) return res.status(500).json({ error: 'Stripe non configuré' });
+
+    const sig = req.headers['stripe-signature'];
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!webhookSecret) {
+      console.error('STRIPE_WEBHOOK_SECRET non défini');
+      return res.status(500).send('Webhook secret not configured');
+    }
+
+    let event;
+    try {
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err) {
+      console.error('Webhook signature verification failed:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    try {
+      switch (event.type) {
+        case 'checkout.session.completed': {
+          const session = event.data.object;
+          if (session?.metadata?.userId) {
+            const User = require('./models/User');
+            await User.findByIdAndUpdate(session.metadata.userId, {
+              'subscription.status': 'active',
+              'subscription.stripeCustomerId': session.customer
+            });
+          }
+          break;
+        }
+        case 'invoice.payment_succeeded': {
+          const invoice = event.data.object;
+          const User = require('./models/User');
+          const user = await User.findOne({ 'subscription.stripeCustomerId': invoice.customer });
+          if (user) {
+            user.subscription.currentPeriodEnd = new Date(invoice.lines.data[0].period.end * 1000);
+            await user.save();
+          }
+          break;
+        }
+        case 'customer.subscription.deleted': {
+          const subscription = event.data.object;
+          const User = require('./models/User');
+          await User.findOneAndUpdate(
+            { 'subscription.stripeCustomerId': subscription.customer },
+            { 'subscription.status': 'canceled' }
+          );
+          break;
+        }
+        default:
+          // ignore other events
+      }
+
+      res.json({ received: true });
+    } catch (err) {
+      console.error('Erreur traitement webhook:', err);
+      res.status(500).json({ error: 'Erreur de traitement webhook' });
+    }
+  });
+}
+
+// Body parsers (après webhook)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Language middleware
+app.use((req, res, next) => {
+  req.language = req.acceptsLanguages(['fr', 'en', 'ar']) || 'fr';
+  next();
+});
+
+// ---------- Helper: validate URLs (avoid SSRF) ----------
+function isHttpUrl(u) {
+  try {
+    const url = new URL(u);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (e) {
+    return false;
+  }
+}
+
+// ---------- Proxy endpoints ----------
+// Note: client expects /api/courses/proxyVideo (we expose both /api/proxyVideo and /api/courses/proxyVideo for compatibility)
+
+// Generic proxy for files (PDF/images/etc.)
+async function proxyFileHandler(req, res) {
+  const url = req.query.url;
+  if (!url || !isHttpUrl(url)) return res.status(400).json({ error: 'url param required (http/https)' });
+
+  const fetcher = fetchFn || globalThis.fetch;
+  if (!fetcher) return res.status(500).json({ error: 'fetch not available on server. Use Node 18+ or install node-fetch.' });
+
+  try {
+    const upstream = await fetcher(url, { method: 'GET' });
+    if (!upstream.ok) return res.status(502).send('Upstream error');
+
+    const contentType = upstream.headers.get ? upstream.headers.get('content-type') : upstream.headers['content-type'];
+    const contentLength = upstream.headers.get ? upstream.headers.get('content-length') : upstream.headers['content-length'];
+
+    if (contentType) res.setHeader('Content-Type', contentType);
+    if (contentLength) res.setHeader('Content-Length', contentLength);
+    res.setHeader('Cache-Control', 'public, max-age=300');
+
+    // pipe stream (node-fetch Response.body is a stream)
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error('proxyFile error:', err && err.message ? err.message : err);
+    res.status(500).json({ error: 'proxy failed' });
+  }
+}
+
+// Video proxy with Range support (forward Range header to upstream)
+async function proxyVideoHandler(req, res) {
+  const url = req.query.url;
+  if (!url || !isHttpUrl(url)) return res.status(400).json({ error: 'url param required (http/https)' });
+
+  const fetcher = fetchFn || globalThis.fetch;
+  if (!fetcher) return res.status(500).json({ error: 'fetch not available on server. Use Node 18+ or install node-fetch.' });
+
+  try {
+    // Forward Range header if provided by client
+    const headers = {};
+    if (req.headers.range) headers.Range = req.headers.range;
+
+    const upstream = await fetcher(url, { method: 'GET', headers });
+    if (!upstream.ok) {
+      // upstream may return 206/200 but if not ok treat as error
+      return res.status(502).send('Upstream video error');
+    }
+
+    // Forward useful headers
+    const forwardHeaders = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'cache-control'];
+    for (const h of forwardHeaders) {
+      const v = upstream.headers.get ? upstream.headers.get(h) : upstream.headers[h];
+      if (v) res.setHeader(h, v);
+    }
+
+    const status = upstream.status || 200;
+    res.status(status);
+    upstream.body.pipe(res);
+  } catch (err) {
+    console.error('proxyVideo error:', err && err.message ? err.message : err);
+    res.status(500).json({ error: 'proxy video failed' });
+  }
+}
+
+// mount for backward compatibility
+app.get('/api/proxyFile', proxyFileHandler);
+app.get('/api/proxyVideo', proxyVideoHandler);
+
+// mount under /api/courses to match client API_BASE = /api/courses
+app.get('/api/courses/proxyFile', proxyFileHandler);
+app.get('/api/courses/proxyVideo', proxyVideoHandler);
+
+// ---------- Media route for local video streaming (Range support) ----------
+app.get('/media/videos/:filename', async (req, res) => {
+  try {
+    const filePath = path.join(UPLOADS_DIR, 'videos', path.basename(req.params.filename));
+    if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+
+    const stat = await fsp.stat(filePath);
+    const fileSize = stat.size;
+    const range = req.headers.range;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, '').split('-');
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      if (isNaN(start) || isNaN(end) || start > end) return res.status(416).send('Requested Range Not Satisfiable');
+
+      const chunkSize = (end - start) + 1;
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type': 'video/mp4',
+      });
+
+      const stream = fs.createReadStream(filePath, { start, end });
+      stream.pipe(res);
+      stream.on('error', err => {
+        console.error('stream error', err);
+        res.end();
+      });
+    } else {
+      res.writeHead(200, {
+        'Content-Length': fileSize,
+        'Content-Type': 'video/mp4',
+      });
+      fs.createReadStream(filePath).pipe(res);
+    }
+  } catch (err) {
+    console.error('media/videos error:', err);
+    res.status(500).send('Server error');
+  }
+});
+
+// ---------- Static PDFs: keep dedicated static route if needed ----------
+app.use('/uploads/pdfs', express.static(path.join(__dirname, 'uploads', 'pdfs'), {
+  setHeaders: (res) => {
+    res.setHeader('Cache-Control', 'public, max-age=300');
+  }
+}));
+
+// ---------- Mount main API routes (if present) ----------
+if (authRoutes) app.use('/api/auth', authRoutes);
+if (userRoutes) app.use('/api/users', userRoutes);
+if (adminRoutes) app.use('/api/admin', adminRoutes);
+if (subscriptionRoutes) app.use('/api/subscriptions', subscriptionRoutes);
+if (courseRoutes) app.use('/api/courses', courseRoutes);
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err && err.stack ? err.stack : err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: 'Erreur interne du serveur' });
+});
+
+// 404
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route non trouvée' });
+});
+
+// ---------- DB connection & server start ----------
+const connectDB = async () => {
+  try {
+    const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI;
+    if (!mongoURI) throw new Error('URI MongoDB non définie (MONGODB_URI/MONGO_URI)');
+    await mongoose.connect(mongoURI);
+    console.log('✅ Connecté à MongoDB');
+
+    // create uploads folders if missing
+    await fsp.mkdir(path.join(__dirname, 'uploads', 'videos'), { recursive: true });
+    await fsp.mkdir(path.join(__dirname, 'uploads', 'pdfs'), { recursive: true });
+  } catch (err) {
+    console.error('Erreur connexion MongoDB:', err.message);
+    throw err;
+  }
+};
+
+let server;
+(async () => {
+  try {
+    await connectDB();
+    server = app.listen(PORT, () => {
+      console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+      console.log(`Client autorisé en iframe: ${CLIENT_ORIGIN}`);
+    });
+  } catch (err) {
+    console.error('Impossible de démarrer le serveur:', err);
+    process.exit(1);
+  }
+})();
+
+// Graceful shutdown
+const shutdown = async (signal) => {
+  console.log(`Signal ${signal} reçu — fermeture...`);
+  try {
+    if (server) {
+      server.close(() => console.log('HTTP server closed'));
+    }
+    await mongoose.connection.close();
+    console.log('MongoDB déconnecté');
+    process.exit(0);
+  } catch (err) {
+    console.error('Erreur lors de la fermeture:', err);
+    process.exit(1);
+  }
+};
+
+process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => shutdown('SIGTERM'));

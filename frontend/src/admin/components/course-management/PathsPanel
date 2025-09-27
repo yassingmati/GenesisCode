@@ -1,0 +1,333 @@
+// src/components/course-management/PathsPanel.jsx
+import React, { useEffect, useState, useMemo } from 'react';
+import { toast } from 'react-toastify';
+import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
+import {
+  SearchBar, Pagination, ConfirmDialog, FormModal, ActionPrimary,
+  Grid, Card, CardTitle, CardMeta, CardActions, IconButton,
+  Tiny, EmptyState, pickTitle, inputStyle, selectStyle, textareaStyle
+} from './ReusableComponents';
+import { api } from '../../utils/api';
+
+export default function PathsPanel({ onOpenCreate }) {
+  const [paths, setPaths] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [page, setPage] = useState(1);
+  const perPage = 8;
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ 
+    category: '', 
+    fr_name: '', en_name: '', ar_name: '', 
+    fr_description: '', en_description: '', ar_description: '', 
+    order: 0 
+  });
+  const [confirm, setConfirm] = useState({ open: false, id: null });
+
+  useEffect(() => {
+    fetchPaths();
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (onOpenCreate) {
+      onOpenCreate(() => {
+        setEditing(null);
+        setForm({ 
+          category: '', 
+          fr_name: '', en_name: '', ar_name: '', 
+          fr_description: '', en_description: '', ar_description: '', 
+          order: 0 
+        });
+        setModalOpen(true);
+      });
+    }
+  }, [onOpenCreate]);
+
+  const fetchPaths = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/paths');
+      setPaths(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      toast.error('Impossible de charger les parcours');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const { data } = await api.get('/categories');
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filteredPaths = useMemo(() => {
+    const q = (query || '').trim().toLowerCase();
+    let filtered = paths.filter(path => {
+      const name = pickTitle(path).toLowerCase();
+      return !q || name.includes(q) || String(path._id).includes(q);
+    });
+
+    if (filterCategory) {
+      filtered = filtered.filter(path => 
+        String(path.category?._id || path.category) === String(filterCategory)
+      );
+    }
+
+    return filtered;
+  }, [paths, query, filterCategory]);
+
+  const pages = Math.max(1, Math.ceil(filteredPaths.length / perPage));
+  const pagedPaths = filteredPaths.slice((page - 1) * perPage, page * perPage);
+
+  const handleSubmit = async () => {
+    if (!form.category) {
+      toast.error('Choisir une catégorie');
+      return;
+    }
+    if (!form.fr_name?.trim()) {
+      toast.error('Nom FR requis');
+      return;
+    }
+
+    try {
+      const payload = {
+        category: form.category,
+        translations: {
+          fr: { name: form.fr_name, description: form.fr_description },
+          en: { name: form.en_name, description: form.en_description },
+          ar: { name: form.ar_name, description: form.ar_description }
+        },
+        order: form.order
+      };
+
+      if (editing) {
+        await api.put(`/paths/${editing._id}`, payload);
+        toast.success('Parcours mis à jour');
+      } else {
+        await api.post('/paths', payload);
+        toast.success('Parcours créé');
+      }
+      setModalOpen(false);
+      fetchPaths();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error || 'Erreur sauvegarde');
+    }
+  };
+
+  const startEdit = (path) => {
+    setEditing(path);
+    setForm({
+      category: path.category?._id || path.category || '',
+      fr_name: path.translations?.fr?.name || '',
+      en_name: path.translations?.en?.name || '',
+      ar_name: path.translations?.ar?.name || '',
+      fr_description: path.translations?.fr?.description || '',
+      en_description: path.translations?.en?.description || '',
+      ar_description: path.translations?.ar?.description || '',
+      order: path.order || 0
+    });
+    setModalOpen(true);
+  };
+
+  const askDelete = (id) => setConfirm({ open: true, id });
+  const confirmDelete = async () => {
+    try {
+      await api.delete(`/paths/${confirm.id}`);
+      toast.success('Parcours supprimé');
+      setConfirm({ open: false, id: null });
+      fetchPaths();
+    } catch (err) {
+      console.error(err);
+      toast.error('Impossible de supprimer');
+    }
+  };
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <SearchBar 
+            value={query} 
+            onChange={v => { setQuery(v); setPage(1); }} 
+            placeholder="Rechercher parcours..." 
+          />
+          <select 
+            value={filterCategory} 
+            onChange={e => setFilterCategory(e.target.value)} 
+            style={selectStyle()}
+          >
+            <option value="">Toutes catégories</option>
+            {categories.map(cat => (
+              <option key={cat._id} value={cat._id}>
+                {pickTitle(cat)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <ActionPrimary onClick={() => setModalOpen(true)}>
+          <FiPlus /> Nouveau parcours
+        </ActionPrimary>
+      </div>
+
+      <div style={{ marginTop: '16px' }}>
+        {loading ? (
+          <Grid>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i}>
+                <div style={{ height: '18px', background: '#f3f4f6', borderRadius: '4px' }} />
+              </Card>
+            ))}
+          </Grid>
+        ) : pagedPaths.length ? (
+          <>
+            <Grid>
+              {pagedPaths.map(path => (
+                <Card key={path._id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <div>
+                      <CardTitle>{pickTitle(path) || 'Sans nom'}</CardTitle>
+                      <CardMeta>
+                        {(path.translations?.fr?.description || '').substring(0, 70)}
+                      </CardMeta>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <Tiny>
+                        {path.category?.translations?.fr?.name || path.category?._id || ''}
+                      </Tiny>
+                    </div>
+                  </div>
+                  <CardActions>
+                    <IconButton onClick={() => startEdit(path)}>
+                      <FiEdit />
+                    </IconButton>
+                    <IconButton danger onClick={() => askDelete(path._id)}>
+                      <FiTrash2 />
+                    </IconButton>
+                  </CardActions>
+                </Card>
+              ))}
+            </Grid>
+
+            <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Tiny>
+                Affichage {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredPaths.length)} / {filteredPaths.length}
+              </Tiny>
+              <Pagination 
+                page={page} 
+                pages={pages} 
+                onPrev={() => setPage(p => Math.max(1, p - 1))} 
+                onNext={() => setPage(p => Math.min(pages, p + 1))} 
+              />
+            </div>
+          </>
+        ) : (
+          <EmptyState>
+            <h3>Aucun parcours</h3>
+            <p>Crée ton premier parcours.</p>
+            <ActionPrimary onClick={() => setModalOpen(true)}>
+              <FiPlus /> Nouveau parcours
+            </ActionPrimary>
+          </EmptyState>
+        )}
+      </div>
+
+      <FormModal 
+        open={modalOpen} 
+        title={editing ? 'Éditer parcours' : 'Nouveau parcours'} 
+        onClose={() => setModalOpen(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button onClick={() => setModalOpen(false)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #eef2ff' }}>
+              Annuler
+            </button>
+            <ActionPrimary onClick={handleSubmit}>
+              <FiPlus /> Sauvegarder
+            </ActionPrimary>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Catégorie</div>
+            <select 
+              value={form.category} 
+              onChange={e => setForm(f => ({ ...f, category: e.target.value }))} 
+              style={selectStyle()}
+            >
+              <option value="">Sélectionner</option>
+              {categories.map(cat => (
+                <option key={cat._id} value={cat._id}>
+                  {pickTitle(cat)}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Ordre</div>
+            <input 
+              type="number" 
+              value={form.order} 
+              onChange={e => setForm(f => ({ ...f, order: +e.target.value }))} 
+              style={inputStyle()} 
+            />
+          </label>
+
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Français)</div>
+            <input 
+              value={form.fr_name} 
+              onChange={e => setForm(f => ({ ...f, fr_name: e.target.value }))} 
+              style={inputStyle()} 
+            />
+          </label>
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Anglais)</div>
+            <input 
+              value={form.en_name} 
+              onChange={e => setForm(f => ({ ...f, en_name: e.target.value }))} 
+              style={inputStyle()} 
+            />
+          </label>
+
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Arabe)</div>
+            <input 
+              value={form.ar_name} 
+              onChange={e => setForm(f => ({ ...f, ar_name: e.target.value }))} 
+              style={inputStyle()} 
+            />
+          </label>
+
+          <label style={{ gridColumn: '1 / -1' }}>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Description (Français)</div>
+            <textarea 
+              value={form.fr_description} 
+              onChange={e => setForm(f => ({ ...f, fr_description: e.target.value }))} 
+              style={textareaStyle()} 
+            />
+          </label>
+        </div>
+      </FormModal>
+
+      <ConfirmDialog 
+        open={confirm.open} 
+        title="Supprimer parcours" 
+        message="Voulez-vous vraiment supprimer ce parcours et son contenu ?"
+        onCancel={() => setConfirm({ open: false, id: null })} 
+        onConfirm={confirmDelete} 
+      />
+    </>
+  );
+}

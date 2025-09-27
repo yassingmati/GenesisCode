@@ -1,0 +1,774 @@
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { useTranslation } from '../../hooks/useTranslation';
+import './CourseStyles.css';
+
+const API_BASE = 'http://localhost:5000/api/courses';
+const API_ORIGIN = 'http://localhost:5000';
+const PROXY_FILE = `${API_BASE}/proxyFile`;
+const PROXY_VIDEO = `${API_BASE}/proxyVideo`;
+const LANGS = [{ code: 'fr', label: 'Français' }, { code: 'en', label: 'English' }, { code: 'ar', label: 'العربية' }];
+
+export default function LevelPagePdfAutoProxy() {
+  const { levelId } = useParams();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+
+  const [level, setLevel] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const [lang, setLang] = useState('fr');
+
+  // PDF state - simplified for continuous vertical display
+  const [pdfDirectUrl, setPdfDirectUrl] = useState(null);
+  const [pdfEffectiveUrl, setPdfEffectiveUrl] = useState(null);
+  const [pdfMode, setPdfMode] = useState(null);
+  const [pdfStatusMsg, setPdfStatusMsg] = useState(null);
+
+  // Video state
+  const [videoEffectiveUrl, setVideoEffectiveUrl] = useState(null);
+  const [videoStatusMsg, setVideoStatusMsg] = useState(null);
+
+  const [orderedLevelIds, setOrderedLevelIds] = useState([]);
+
+  // Video controls / UI
+  const videoRef = useRef(null);
+  const videoContainerRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  // Load level metadata
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${API_BASE}/levels/${levelId}`);
+        if (!res.ok) throw new Error('Niveau introuvable');
+        const l = await res.json();
+
+        // Normalize urls
+        const vids = {};
+        const pdfs = {};
+        if (l.videos) {
+          for (const k of ['fr','en','ar']) {
+            if (l.videos[k]) vids[k] = l.videos[k].startsWith('http') ? l.videos[k] : `${API_ORIGIN}${l.videos[k]}`;
+          }
+        }
+        if (l.pdfs) {
+          for (const k of ['fr','en','ar']) {
+            if (l.pdfs[k]) pdfs[k] = l.pdfs[k].startsWith('http') ? l.pdfs[k] : `${API_ORIGIN}${l.pdfs[k]}`;
+          }
+        }
+        l.videos = vids;
+        l.pdfs = pdfs;
+
+        if (!mounted) return;
+        setLevel(l);
+      } catch (err) {
+        console.error(err);
+        if (mounted) setError(err.message || 'Erreur de chargement');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+
+    // Load sequence
+    (async () => {
+      try {
+        const catsRes = await fetch(`${API_BASE}/categories`);
+        const cats = await catsRes.json();
+        const seq = [];
+        for (const cat of cats) {
+          const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`);
+          const paths = await pRes.json();
+          paths.sort((a,b)=>(a.order||0)-(b.order||0));
+          for (const p of paths) {
+            const lvRes = await fetch(`${API_BASE}/paths/${p._1d}/levels`).catch(()=>({json:()=>[]}));
+            const lvls = await lvRes.json();
+            lvls.sort((a,b)=>(a.order||0)-(b.order||0));
+            for (const ll of lvls) seq.push(ll._id);
+          }
+        }
+        setOrderedLevelIds(seq);
+      } catch (e) {
+        console.warn('cannot build sequence', e);
+      }
+    })();
+
+    return ()=> mounted = false;
+  }, [levelId]);
+
+  const isBlockedByFrameHeaders = (headers) => {
+    try {
+      const xfo = headers.get('x-frame-options');
+      if (xfo) {
+        const v = xfo.toLowerCase();
+        if (v.includes('deny') || v.includes('sameorigin')) return true;
+      }
+      const csp = headers.get('content-security-policy');
+      if (csp) {
+        const m = /frame-ancestors\s+([^;]+)/i.exec(csp);
+        if (m && m[1]) {
+          const fa = m[1].trim();
+          if (fa === "'none'") return true;
+          const origin = window.location.origin;
+          if (!fa.includes("'self'") && !fa.includes(origin)) return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  // PDF probe - MODIFIÉ pour supprimer l'espace entre les pages
+  useEffect(() => {
+    setPdfDirectUrl(null);
+    setPdfEffectiveUrl(null);
+    setPdfMode(null);
+    setPdfStatusMsg(null);
+
+    if (!level) return;
+    const candidate = level.pdfs?.[lang] ?? null;
+    if (!candidate) return;
+
+    let cancelled = false;
+
+    const probe = async () => {
+      if (window.location.protocol === 'https:' && candidate.startsWith('http:')) {
+        const proxyUrl = `${PROXY_FILE}?url=${encodeURIComponent(candidate)}`;
+        if (!cancelled) {
+          setPdfDirectUrl(candidate);
+          // Paramètres modifiés pour supprimer l'espace entre les pages
+          setPdfEffectiveUrl(`${proxyUrl}#toolbar=0&scroll=continuous&view=FitH`);
+          setPdfMode('proxy');
+          setPdfStatusMsg('Affichage via proxy');
+        }
+        return;
+      }
+
+      try {
+        const head = await fetch(candidate, { method: 'HEAD' });
+        if (!head.ok) {
+          const proxyUrl = `${PROXY_FILE}?url=${encodeURIComponent(candidate)}`;
+          if (!cancelled) {
+            setPdfDirectUrl(candidate);
+            setPdfEffectiveUrl(`${proxyUrl}#toolbar=0&scroll=continuous&view=FitH`);
+            setPdfMode('proxy');
+            setPdfStatusMsg('Affichage via proxy');
+          }
+          return;
+        }
+
+        if (isBlockedByFrameHeaders(head.headers)) {
+          const proxyUrl = `${PROXY_FILE}?url=${encodeURIComponent(candidate)}`;
+          if (!cancelled) {
+            setPdfDirectUrl(candidate);
+            setPdfEffectiveUrl(`${proxyUrl}#toolbar=0&scroll=continuous&view=FitH`);
+            setPdfMode('proxy');
+            setPdfStatusMsg('Affichage via proxy');
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setPdfDirectUrl(candidate);
+          // Affichage direct avec défilement continu et pages fusionnées
+          setPdfEffectiveUrl(`${candidate}#toolbar=0&scroll=continuous&view=FitH`);
+          setPdfMode('direct');
+          setPdfStatusMsg(null);
+        }
+      } catch (err) {
+        const proxyUrl = `${PROXY_FILE}?url=${encodeURIComponent(candidate)}`;
+        if (!cancelled) {
+          setPdfDirectUrl(candidate);
+          setPdfEffectiveUrl(`${proxyUrl}#toolbar=0&scroll=continuous&view=FitH`);
+          setPdfMode('proxy');
+          setPdfStatusMsg('Affichage via proxy');
+        }
+      }
+    };
+
+    probe();
+    return () => { cancelled = true; };
+  }, [level, lang]);
+
+  // Video probe
+  useEffect(() => {
+    setVideoEffectiveUrl(null);
+    setVideoStatusMsg(null);
+    if (!level) return;
+    const candidate = level.videos?.[lang] ?? null;
+    if (!candidate) return;
+
+    let cancelled = false;
+    (async () => {
+      if (window.location.protocol === 'https:' && candidate.startsWith('http:')) {
+        const proxyUrl = `${PROXY_VIDEO}?url=${encodeURIComponent(candidate)}`;
+        if (!cancelled) {
+          setVideoEffectiveUrl(proxyUrl);
+          setVideoStatusMsg('Lecture via proxy');
+        }
+        return;
+      }
+      try {
+        const h = await fetch(candidate, { method: 'HEAD' });
+        if (h.ok) {
+          if (!cancelled) {
+            setVideoEffectiveUrl(candidate);
+            setVideoStatusMsg(null);
+          }
+        } else {
+          if (!cancelled) {
+            const proxyUrl = `${PROXY_VIDEO}?url=${encodeURIComponent(candidate)}`;
+            setVideoEffectiveUrl(proxyUrl);
+            setVideoStatusMsg('Lecture via proxy');
+          }
+        }
+      } catch (e) {
+        if (!cancelled) {
+          const proxyUrl = `${PROXY_VIDEO}?url=${encodeURIComponent(candidate)}`;
+          setVideoEffectiveUrl(proxyUrl);
+          setVideoStatusMsg('Lecture via proxy');
+        }
+      }
+    })();
+    return () => cancelled = true;
+  }, [level, lang]);
+
+  const handleVideoError = useCallback(async () => {
+    if (!level) return;
+    const candidate = level.videos?.[lang];
+    if (!candidate) return;
+    const proxyUrl = `${PROXY_VIDEO}?url=${encodeURIComponent(candidate)}`;
+    if (videoEffectiveUrl !== proxyUrl) {
+      setVideoEffectiveUrl(proxyUrl);
+      setVideoStatusMsg('Erreur lecture → proxy');
+    } else {
+      setVideoStatusMsg('Erreur même via proxy');
+    }
+  }, [level, videoEffectiveUrl, lang]);
+
+  // Enhanced video UI handlers
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onTime = () => {
+      if (v.duration && !isNaN(v.duration)) {
+        setProgress(v.currentTime || 0);
+        setDuration(v.duration);
+      }
+    };
+
+    v.addEventListener('play', onPlay);
+    v.addEventListener('pause', onPause);
+    v.addEventListener('timeupdate', onTime);
+    v.addEventListener('loadedmetadata', onTime);
+
+    return () => {
+      v.removeEventListener('play', onPlay);
+      v.removeEventListener('pause', onPause);
+      v.removeEventListener('timeupdate', onTime);
+      v.removeEventListener('loadedmetadata', onTime);
+    };
+  }, [videoEffectiveUrl]);
+
+  const togglePlay = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    if (v.paused) v.play().catch(()=>{});
+    else v.pause();
+  };
+
+  const seek = (e) => {
+    const v = videoRef.current;
+    if (!v || !v.duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = Math.max(0, Math.min(1, x / rect.width));
+    v.currentTime = percent * v.duration;
+  };
+
+  const openVideoFullscreen = () => {
+    const el = videoContainerRef.current || videoRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  };
+
+  // Navigation
+  const idx = orderedLevelIds.findIndex(id => String(id) === String(levelId));
+  const prevId = idx > 0 ? orderedLevelIds[idx - 1] : null;
+  const nextId = idx >= 0 && idx < orderedLevelIds.length - 1 ? orderedLevelIds[idx + 1] : null;
+  const openExercises = () => navigate(`/cours/level/${levelId}/exercises`);
+
+  if (loading) return (
+    <div style={{ 
+      padding: 48, 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center',
+      fontFamily: 'Inter, system-ui',
+      color: '#666',
+      minHeight: '100vh'
+    }}>
+      {t('loading')}...
+    </div>
+  );
+  
+  if (error) return (
+    <div style={{ 
+      padding: 48, 
+      textAlign: 'center',
+      fontFamily: 'Inter, system-ui',
+      color: '#dc3545',
+      minHeight: '100vh'
+    }}>
+      {error}
+    </div>
+  );
+  
+  if (!level) return (
+    <div style={{ 
+      padding: 48, 
+      textAlign: 'center',
+      fontFamily: 'Inter, system-ui',
+      color: '#666',
+      minHeight: '100vh'
+    }}>
+      {t('levelNotFound')}
+    </div>
+  );
+
+  return (
+    <div style={{ 
+      minHeight: '100vh',
+      background: 'linear-gradient(135deg, #f5f7ff 0%, #eef2ff 100%)',
+      fontFamily: 'Inter, system-ui'
+    }}>
+      {/* Header minimaliste */}
+      <div style={{
+        background: 'rgb(108, 79, 242)',
+        backdropFilter: 'blur(8px)',
+        padding: '12px 20px',
+        borderBottom: '1px solid rgba(0,0,0,0.05)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        position: 'sticky',
+        top: 0,
+        zIndex: 100
+      }}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {/* Logo GenesisCode */}
+          <div 
+            onClick={() => navigate('/dashboard')}
+            style={{
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              padding: '4px',
+              gap: '8px'
+            }}
+          >
+            <div style={{ fontSize: '24px' }}>🚀</div>
+            <span style={{ 
+              color: 'white', 
+              fontWeight: '700', 
+              fontSize: '18px' 
+            }}>
+              GenesisCode
+            </span>
+            <img 
+              src="/images/logo-removebg-preview.png" 
+              alt="Logo" 
+              style={{ 
+                height: '40px',
+                width: 'auto',
+                filter: 'brightness(0) invert(1)'
+              }}
+            />
+          </div>
+          <h1 style={{ 
+            margin: 0, 
+            fontSize: '1.15rem',
+            color: '#FFFFFFFF',
+            fontWeight: 700
+          }}>
+            {level.translations?.[lang]?.title || level.translations?.fr?.title}
+          </h1>
+        </div>
+        
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          <select 
+            value={lang} 
+            onChange={e => setLang(e.target.value)}
+            style={{
+              padding: '8px 12px',
+              borderRadius: 8,
+              border: '1px solid #e6e9ef',
+              background: 'white',
+              fontWeight: 600,
+              fontSize: '0.9rem'
+            }}
+          >
+            {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+          </select>
+          
+          <button 
+            onClick={() => {
+              const url = pdfMode === 'proxy' 
+                ? `${PROXY_FILE}?url=${encodeURIComponent(pdfDirectUrl)}` 
+                : pdfDirectUrl;
+              if (url) window.open(url, '_blank', 'noopener');
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #667eea, #764ba2)',
+              color: 'white',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: 10,
+              cursor: 'pointer',
+              fontWeight: 700,
+              fontSize: '0.9rem'
+            }}
+             >
+               📄 {t('openPdf')}
+             </button>
+        </div>
+      </div>
+
+      {/* Main Content - Full screen PDF with wider sidebar for bigger video */}
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: '1fr 480px',
+        height: 'calc(100vh - 64px)'
+      }}>
+        {/* PDF Section - MODIFIÉ pour supprimer l'espace entre les pages */}
+        <section style={{ 
+          position: 'relative',
+          background: '#fff',
+          margin: 0,
+          padding: 0,
+          overflow: 'hidden'
+        }}>
+          {/* PDF Status Message - Minimal */}
+          {pdfStatusMsg && (
+            <div style={{ 
+              position: 'absolute',
+              top: 12,
+              left: 12,
+              background: 'rgba(255, 193, 7, 0.95)',
+              color: '#856404',
+              padding: '6px 10px',
+              borderRadius: 6,
+              fontSize: '0.85rem',
+              zIndex: 10
+            }}>
+              {pdfStatusMsg}
+            </div>
+          )}
+
+          {/* PDF Viewer - MODIFIÉ pour pages fusionnées sans espace */}
+          <div style={{ 
+            width: '100%',
+            height: '100%',
+            background: '#fff',
+            margin: 0,
+            padding: 0,
+            border: 'none'
+          }}>
+            {!pdfEffectiveUrl ? (
+              <div style={{ 
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: '100%',
+                color: '#6c757d'
+              }}>
+                <div style={{ fontSize: 64, marginBottom: 16 }}>📄</div>
+                 <div style={{ fontSize: '1.1rem' }}>{t('noPdfAvailable')}</div>
+                 <div style={{ fontSize: '0.9rem', marginTop: 8 }}>{t('selectOtherLanguage')}</div>
+              </div>
+            ) : (
+              <iframe
+                title="PDF Viewer"
+                src={pdfEffectiveUrl}
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  border: 'none',
+                  display: 'block',
+                  margin: 0,
+                  padding: 0
+                }}
+              />
+            )}
+          </div>
+        </section>
+
+        {/* Video Sidebar - Now larger and redesigned */}
+        <aside style={{ 
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
+          borderLeft: '1px solid rgba(15,23,42,0.06)',
+          padding: 18,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16
+        }}>
+          {/* Video Section */}
+          <div>
+            <div style={{ 
+              fontWeight: 700, 
+              marginBottom: 10,
+              color: '#0f172a',
+              fontSize: '0.95rem'
+            }}>
+               🎬 {t('video')} — {LANGS.find(l => l.code === lang)?.label}
+            </div>
+
+            <div ref={videoContainerRef} style={{ 
+              background: '#000', 
+              borderRadius: 12, 
+              overflow: 'hidden',
+              boxShadow: '0 8px 20px rgba(15,23,42,0.08)'
+            }}>
+              {videoEffectiveUrl ? (
+                <div style={{ position: 'relative', width: '100%', height: 360 }}>
+                  <video
+                    ref={videoRef}
+                    key={videoEffectiveUrl}
+                    src={videoEffectiveUrl}
+                    controls
+                    style={{ 
+                      width: '100%',
+                      height: '100%',
+                      display: 'block',
+                      background: '#000'
+                    }}
+                    onError={handleVideoError}
+                  />
+
+                  {/* Play overlay when paused */}
+                  {!isPlaying && (
+                    <div onClick={togglePlay} style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      background: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.35))'
+                    }}>
+                      <div style={{
+                        width: 84,
+                        height: 84,
+                        borderRadius: 84,
+                        background: 'rgba(255,255,255,0.12)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        <div style={{ fontSize: 34, color: 'white' }}>▶</div>
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              ) : (
+                <div style={{ 
+                  color: '#6c757d', 
+                  textAlign: 'center',
+                  padding: 36,
+                  height: 200,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>🎬</div>
+                   <div style={{ fontSize: '0.95rem' }}>{t('noVideo')}</div>
+                </div>
+              )}
+            </div>
+
+            {videoStatusMsg && (
+              <div style={{ 
+                background: 'rgba(255, 193, 7, 0.1)',
+                color: '#856404',
+                padding: 8,
+                borderRadius: 8,
+                marginTop: 8,
+                fontSize: '0.85rem'
+              }}>
+                {videoStatusMsg}
+              </div>
+            )}
+
+            {/* Progress and controls */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+              <div onClick={togglePlay} style={{
+                background: 'transparent',
+                border: '1px solid rgba(15,23,42,0.06)',
+                padding: 8,
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 700
+               }}>{isPlaying ? t('pause') : t('play')}</div>
+
+              <div onClick={openVideoFullscreen} style={{
+                background: 'transparent',
+                border: '1px solid rgba(15,23,42,0.06)',
+                padding: 8,
+                borderRadius: 8,
+                cursor: 'pointer',
+                fontWeight: 700
+               }}>
+                 {t('enlargeVideo')}
+               </div>
+
+              <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#6b7280' }}>
+                {duration ? `${Math.floor(progress/60)}:${String(Math.floor(progress%60)).padStart(2,'0')} / ${Math.floor(duration/60)}:${String(Math.floor(duration%60)).padStart(2,'0')}` : ''}
+              </div>
+            </div>
+
+            {/* Clickable progress bar */}
+            <div onClick={seek} style={{
+              height: 8,
+              background: 'rgba(15,23,42,0.06)',
+              borderRadius: 8,
+              marginTop: 8,
+              cursor: 'pointer',
+              overflow: 'hidden'
+            }}>
+              <div style={{ width: duration ? `${(progress/duration)*100}%` : '0%', height: '100%', background: 'linear-gradient(90deg,#667eea,#764ba2)' }} />
+            </div>
+
+          </div>
+
+          {/* Navigation Section */}
+          <div style={{ 
+            background: 'white',
+            borderRadius: 12,
+            padding: 1,
+            border: '1px solid rgba(15,23,42,0.04)'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: 12 }}>
+              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>
+                {level.translations?.[lang]?.title}
+              </div>
+              {level.tags?.length > 0 && (
+                <div style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: 6 }}>
+                  {level.tags.join(', ')}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button 
+                onClick={() => prevId ? navigate(`/cours/level/${prevId}`) : navigate('/cours')}
+                style={{
+                  background: prevId ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#e6e9ef',
+                  color: prevId ? 'white' : '#94a3b8',
+                  border: 'none',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  cursor: prevId ? 'pointer' : 'not-allowed',
+                  fontWeight: 700,
+                  fontSize: '0.95rem'
+                }}
+              >
+                 ← {t('previousLesson')}
+               </button>
+              
+              <button 
+                onClick={openExercises}
+                style={{
+                  background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.95rem'
+                }}
+              >
+                 📝 {t('exercises')} →
+               </button>
+
+              {nextId && (
+                <button 
+                  onClick={() => navigate(`/cours/level/${nextId}`)}
+                  style={{
+                    background: 'linear-gradient(135deg, #fb7c2a, #ef4444)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    cursor: 'pointer',
+                    fontWeight: 700,
+                    fontSize: '0.95rem'
+                  }}
+                >
+                   {t('nextLesson')} →
+                 </button>
+              )}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{ 
+            background: 'white',
+            borderRadius: 12,
+            padding: 12,
+            border: '1px solid rgba(15,23,42,0.04)'
+          }}>
+             <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.95rem', color: '#0f172a' }}>
+               {t('quickActions')}
+             </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button 
+                onClick={() => window.print()}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(15,23,42,0.06)',
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                 🖨️ {t('print')}
+               </button>
+              <button 
+                onClick={() => {
+                  const currentUrl = window.location.href;
+                  navigator.clipboard.writeText(currentUrl);
+                }}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(15,23,42,0.06)',
+                  padding: '8px 10px',
+                  borderRadius: 8,
+                  cursor: 'pointer',
+                  fontSize: '0.85rem'
+                }}
+              >
+                 🔗 {t('copyLink')}
+               </button>
+            </div>
+          </div>
+
+        </aside>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,257 @@
+// src/components/course-management/CategoriesPanel.jsx
+import React, { useEffect, useState, useMemo } from 'react';
+import { toast } from 'react-toastify';
+import { FiPlus, FiEdit, FiTrash2 } from 'react-icons/fi';
+import {
+  SearchBar, Pagination, ConfirmDialog, FormModal, ActionPrimary,
+  Grid, Card, CardHeader, CardTitle, CardMeta, CardActions, IconButton,
+  Tiny, EmptyState, pickTitle, inputStyle
+} from './ReusableComponents';
+import { api } from '../../utils/api';
+
+export default function CategoriesPanel({ onOpenCreate }) {
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const perPage = 8;
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ fr: '', en: '', ar: '', order: 0 });
+  const [confirm, setConfirm] = useState({ open: false, id: null });
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    if (onOpenCreate) {
+      onOpenCreate(() => {
+        setEditing(null);
+        setForm({ fr: '', en: '', ar: '', order: 0 });
+        setModalOpen(true);
+      });
+    }
+  }, [onOpenCreate]);
+
+  const fetchCategories = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/categories');
+      setCategories(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error(err);
+      toast.error('Impossible de charger les catégories');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredCategories = useMemo(() => {
+    const q = (query || '').trim().toLowerCase();
+    return categories.filter(cat => {
+      const name = pickTitle(cat).toLowerCase();
+      return !q || name.includes(q) || String(cat._id).includes(q);
+    });
+  }, [categories, query]);
+
+  const pages = Math.max(1, Math.ceil(filteredCategories.length / perPage));
+  const pagedCategories = filteredCategories.slice((page - 1) * perPage, page * perPage);
+
+  const handleSubmit = async () => {
+    if (!form.fr?.trim() || !form.en?.trim() || !form.ar?.trim()) {
+      toast.error('Remplis tous les noms (FR/EN/AR)');
+      return;
+    }
+
+    try {
+      const payload = {
+        translations: {
+          fr: { name: form.fr },
+          en: { name: form.en },
+          ar: { name: form.ar }
+        },
+        order: form.order
+      };
+
+      if (editing) {
+        await api.put(`/categories/${editing._id}`, payload);
+        toast.success('Catégorie mise à jour');
+      } else {
+        await api.post('/categories', payload);
+        toast.success('Catégorie créée');
+      }
+      setModalOpen(false);
+      fetchCategories();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.response?.data?.error || 'Erreur sauvegarde');
+    }
+  };
+
+  const startEdit = (category) => {
+    setEditing(category);
+    setForm({
+      fr: category.translations?.fr?.name || '',
+      en: category.translations?.en?.name || '',
+      ar: category.translations?.ar?.name || '',
+      order: category.order || 0
+    });
+    setModalOpen(true);
+  };
+
+  const askDelete = (id) => setConfirm({ open: true, id });
+  const confirmDelete = async () => {
+    try {
+      await api.delete(`/categories/${confirm.id}`);
+      toast.success('Catégorie supprimée');
+      setConfirm({ open: false, id: null });
+      fetchCategories();
+    } catch (err) {
+      console.error(err);
+      toast.error('Impossible de supprimer');
+    }
+  };
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <SearchBar 
+          value={query} 
+          onChange={v => { setQuery(v); setPage(1); }} 
+          placeholder="Rechercher catégories..." 
+        />
+        <ActionPrimary onClick={() => setModalOpen(true)}>
+          <FiPlus /> Nouvelle catégorie
+        </ActionPrimary>
+      </div>
+
+      <div style={{ marginTop: '14px' }}>
+        {loading ? (
+          <Grid>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Card key={i}>
+                <div style={{ height: '18px', background: '#f3f4f6', borderRadius: '4px', marginBottom: '8px' }} />
+                <div style={{ height: '10px', background: '#f3f4f6', borderRadius: '4px', marginBottom: '8px' }} />
+                <div style={{ height: '12px', background: '#f3f4f6', borderRadius: '4px', width: '60%' }} />
+              </Card>
+            ))}
+          </Grid>
+        ) : pagedCategories.length ? (
+          <>
+            <Grid>
+              {pagedCategories.map(cat => (
+                <Card key={cat._id}>
+                  <CardHeader>
+                    <div>
+                      <CardTitle>{pickTitle(cat) || 'Sans nom'}</CardTitle>
+                      <CardMeta>Ordre: {cat.order || 0}</CardMeta>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <Tiny>ID</Tiny>
+                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                        {String(cat._id).slice(0, 8)}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardActions>
+                    <IconButton onClick={() => startEdit(cat)}>
+                      <FiEdit />
+                    </IconButton>
+                    <IconButton danger onClick={() => askDelete(cat._id)}>
+                      <FiTrash2 />
+                    </IconButton>
+                  </CardActions>
+                </Card>
+              ))}
+            </Grid>
+
+            <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Tiny>
+                Affichage {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredCategories.length)} / {filteredCategories.length}
+              </Tiny>
+              <Pagination 
+                page={page} 
+                pages={pages} 
+                onPrev={() => setPage(p => Math.max(1, p - 1))} 
+                onNext={() => setPage(p => Math.min(pages, p + 1))} 
+              />
+            </div>
+          </>
+        ) : (
+          <EmptyState>
+            <h3>Aucune catégorie</h3>
+            <p>Crée la première catégorie pour démarrer.</p>
+            <ActionPrimary onClick={() => setModalOpen(true)}>
+              <FiPlus /> Nouvelle catégorie
+            </ActionPrimary>
+          </EmptyState>
+        )}
+      </div>
+
+      <FormModal 
+        open={modalOpen} 
+        title={editing ? 'Éditer catégorie' : 'Nouvelle catégorie'} 
+        onClose={() => setModalOpen(false)}
+        footer={
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button onClick={() => setModalOpen(false)} style={{ padding: '8px 12px', borderRadius: '8px', background: '#fff', border: '1px solid #eef2ff' }}>
+              Annuler
+            </button>
+            <ActionPrimary onClick={handleSubmit}>
+              <FiPlus /> {editing ? 'Sauvegarder' : 'Créer'}
+            </ActionPrimary>
+          </div>
+        }
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Français)</div>
+            <input 
+              value={form.fr} 
+              onChange={e => setForm(f => ({ ...f, fr: e.target.value }))} 
+              required 
+              style={inputStyle()} 
+            />
+          </label>
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Anglais)</div>
+            <input 
+              value={form.en} 
+              onChange={e => setForm(f => ({ ...f, en: e.target.value }))} 
+              required 
+              style={inputStyle()} 
+            />
+          </label>
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Arabe)</div>
+            <input 
+              value={form.ar} 
+              onChange={e => setForm(f => ({ ...f, ar: e.target.value }))} 
+              required 
+              style={inputStyle()} 
+            />
+          </label>
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Ordre</div>
+            <input 
+              type="number" 
+              value={form.order} 
+              onChange={e => setForm(f => ({ ...f, order: +e.target.value }))} 
+              style={inputStyle()} 
+            />
+          </label>
+        </div>
+      </FormModal>
+
+      <ConfirmDialog 
+        open={confirm.open} 
+        title="Confirmer suppression" 
+        message="La suppression est définitive et supprimera tout le contenu lié. Continuer ?"
+        onCancel={() => setConfirm({ open: false, id: null })} 
+        onConfirm={confirmDelete} 
+      />
+    </>
+  );
+}

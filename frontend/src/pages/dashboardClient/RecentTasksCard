@@ -1,0 +1,55 @@
+import React from 'react';
+
+const RecentTasksCard = ({ onViewAll }) => {
+  const tasks = [
+    { text: 'Réunion d\'équipe', status: 'done', time: '9:00 - 10:00' },
+    { text: 'Rapport mensuel', status: 'progress', time: '10:30 - 12:00' },
+    { text: 'Refonte UI', status: 'pending', time: '14:00 - 16:00' },
+    { text: 'Révision code', status: 'done', time: '16:30 - 17:30' }
+  ];
+
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'done': return '✓';
+      case 'progress': return '↻';
+      case 'pending': return '!';
+      default: return '';
+    }
+  };
+
+  const getStatusClass = (status) => {
+    switch(status) {
+      case 'done': return 'status-done';
+      case 'progress': return 'status-progress';
+      case 'pending': return 'status-pending';
+      default: return '';
+    }
+  };
+
+  return (
+    <div className="card tasks-card">
+      <div className="tasks-header">
+        <h2 className="card-title">Tâches récentes</h2>
+        <button className="btn btn-sm btn-primary" onClick={onViewAll}>
+          Voir tout
+        </button>
+      </div>
+      <ul className="task-list">
+        {tasks.map((task, index) => (
+          <li key={index} className="task-item">
+            <div className={`task-status ${getStatusClass(task.status)}`}>
+              {getStatusIcon(task.status)}
+            </div>
+            <div className="task-info">
+              <p className="task-text">{task.text}</p>
+              <p className="task-time">{task.time}</p>
+            </div>
+            <div className="task-action"></div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default RecentTasksCard;

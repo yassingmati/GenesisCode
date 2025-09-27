@@ -1,0 +1,72 @@
+.verified-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: #f7f9fc;
+  padding: 20px;
+  font-family: 'Inter', sans-serif;
+}
+
+.verified-card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  max-width: 500px;
+  width: 100%;
+  text-align: center;
+}
+
+.verified-icon {
+  margin: 0 auto 20px;
+  width: 100px;
+  height: 100px;
+  background: #e6f7e6;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.verified-icon svg {
+  width: 50px;
+  height: 50px;
+  fill: #28a745;
+}
+
+.verified-card h2 {
+  color: #28a745;
+  margin-bottom: 20px;
+  font-size: 1.8rem;
+}
+
+.verified-card p {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 20px;
+  font-size: 1.05rem;
+}
+
+.redirect-message {
+  color: #6c757d;
+  font-size: 0.95rem;
+  margin-top: 30px;
+}
+
+.login-button {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.3s;
+  margin-top: 20px;
+}
+
+.login-button:hover {
+  background: #218838;
+}

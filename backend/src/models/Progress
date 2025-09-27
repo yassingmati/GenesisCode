@@ -1,0 +1,13 @@
+// src/models/Progress.js
+const { Schema, model, Types } = require('mongoose');
+
+const progressSchema = new Schema({
+  user:      { type: Types.ObjectId, ref: 'User',     required: true },
+  exercise:  { type: Types.ObjectId, ref: 'Exercise', required: true },
+  xp:        { type: Number,         required: true },
+  date:      { type: Date,           default: Date.now }
+}, {
+  timestamps: true
+});
+
+module.exports = model('Progress', progressSchema);
