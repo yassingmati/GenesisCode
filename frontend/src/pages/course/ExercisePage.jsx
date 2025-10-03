@@ -3,75 +3,89 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
+import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
 import './CourseStyles.css';
+import './ExerciseEnhancements.css';
 
 const API_BASE = 'http://localhost:5000/api/courses';
 
 // =========================
-// COMPOSANT PRINCIPAL - PAGE D'EXERCICES
+// HELPER FUNCTIONS
+// =========================
+
+const getUserId = () => {
+  const stored = localStorage.getItem('userId');
+  if (stored) return stored;
+  const newId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+  localStorage.setItem('userId', newId);
+  return newId;
+};
+
+const getCompletedExercises = () => {
+  const stored = localStorage.getItem('completedExercises');
+  return stored ? JSON.parse(stored) : {};
+};
+
+const markExerciseCompleted = (exerciseId, result) => {
+  const completed = getCompletedExercises();
+  completed[exerciseId] = {
+    completed: result.correct,
+    pointsEarned: result.pointsEarned,
+    pointsMax: result.pointsMax,
+    xpEarned: result.xpEarned,
+    completedAt: new Date().toISOString()
+  };
+  localStorage.setItem('completedExercises', JSON.stringify(completed));
+  return completed;
+};
+
+// =========================
+// COMPOSANT PRINCIPAL
 // =========================
 
 export default function ExercisePage() {
   const { levelId } = useParams();
   const navigate = useNavigate();
-  const { language, currentLanguage } = useLanguage();
+  const { language } = useLanguage();
   const { t } = useTranslation();
 
-  // État du niveau actuel et de la progression
+  // États principaux
   const [level, setLevel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [completedExercises, setCompletedExercises] = useState(new Set());
+  const [completedExercises, setCompletedExercises] = useState(getCompletedExercises());
 
-  // État pour l'exercice en cours
+  // États pour l'exercice actif
   const [activeExercise, setActiveExercise] = useState(null);
   const [userAnswer, setUserAnswer] = useState(null);
   const [submissionResult, setSubmissionResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Récupération des données du niveau
+  // Charger les données du niveau
   const fetchLevelData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔍 Chargement du niveau:', levelId);
       
       const response = await fetch(`${API_BASE}/levels/${levelId}`);
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to load level data.');
+        throw new Error('Impossible de charger le niveau');
       }
+      
       const data = await response.json();
       
-      console.log('📊 Données reçues:', data);
-      console.log('📝 Exercices bruts:', data.exercises);
+      // Les données arrivent déjà normalisées du backend avec la langue appropriée
+      const normalizedExercises = (data.exercises || []).map((ex, index) => ({
+        ...ex,
+        name: ex.name || `Exercice ${index + 1}`,
+        question: ex.question || 'Question non disponible',
+        explanation: ex.explanation || ''
+      }));
       
-      // Normaliser les exercices avec priorité à la langue sélectionnée
-      const normalizedExercises = (data.exercises || []).map((ex, index) => {
-        const normalized = {
-          ...ex,
-          name: ex.translations?.[language]?.name || 
-                ex.translations?.fr?.name || 
-                ex.translations?.en?.name || 
-                ex.name || 
-                `Exercice ${index + 1}`,
-          question: ex.translations?.[language]?.question || 
-                    ex.translations?.fr?.question || 
-                    ex.translations?.en?.question || 
-                    ex.question || 
-                    'Question non disponible'
-        };
-        console.log(`📋 Exercice ${index + 1}:`, normalized);
-        return normalized;
-      });
-      
-      data.exercises = normalizedExercises;
-      console.log('✅ Exercices normalisés:', normalizedExercises);
-      
-      setLevel(data);
+      setLevel({ ...data, exercises: normalizedExercises });
     } catch (e) {
-      console.error('❌ Erreur lors du chargement:', e);
-      setError(e.message || 'Erreur inconnue lors du chargement du niveau.');
+      console.error('Erreur de chargement:', e);
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -81,51 +95,47 @@ export default function ExercisePage() {
     fetchLevelData();
   }, [fetchLevelData]);
 
-  // Récupération de l'ID utilisateur
-  const getUserId = () => {
-    return localStorage.getItem('userId') || 'user-' + Date.now();
-  };
-
-  // Soumission d'un exercice
-  const submitExercise = useCallback(async (exerciseId, answer) => {
+  // Soumettre un exercice
+  const submitExercise = useCallback(async (exerciseId, answer, extraData = {}) => {
     try {
       setIsSubmitting(true);
       setError(null);
 
+      const payload = {
+        answer,
+        userId: getUserId(),
+        ...extraData
+      };
+
       const response = await fetch(`${API_BASE}/exercises/${exerciseId}/submit`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          answer,
-          userId: getUserId()
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur lors de la soumission');
+        throw new Error(errorData.error || 'Erreur de soumission');
       }
 
       const result = await response.json();
       setSubmissionResult(result);
       
-      if (result.correct) {
-        setCompletedExercises(prev => new Set([...prev, exerciseId]));
-      }
+      // Marquer comme complété localement
+      const updated = markExerciseCompleted(exerciseId, result);
+      setCompletedExercises(updated);
 
       return result;
     } catch (e) {
       console.error('Erreur de soumission:', e);
-      setError(e.message || 'Erreur lors de la soumission de l\'exercice');
+      setError(e.message);
       throw e;
     } finally {
       setIsSubmitting(false);
     }
   }, []);
 
-  // Gestion de l'ouverture d'un exercice
+  // Gestionnaires d'événements
   const handleExerciseClick = useCallback((exercise) => {
     setActiveExercise(exercise);
     setUserAnswer(null);
@@ -133,7 +143,6 @@ export default function ExercisePage() {
     setError(null);
   }, []);
 
-  // Gestion de la fermeture de l'exercice
   const handleCloseExercise = useCallback(() => {
     setActiveExercise(null);
     setUserAnswer(null);
@@ -141,12 +150,19 @@ export default function ExercisePage() {
     setError(null);
   }, []);
 
-  // Gestion de la soumission
   const handleSubmit = useCallback(async () => {
-    if (!activeExercise || !userAnswer) return;
+    if (!activeExercise || (!userAnswer && activeExercise.type !== 'Code')) return;
     
     try {
-      await submitExercise(activeExercise._id, userAnswer);
+      let submissionData = userAnswer;
+      let extraData = {};
+
+      // Gestion spéciale pour les exercices Code
+      if (activeExercise.type === 'Code' && activeExercise._meta?.manualPass) {
+        extraData.passed = true;
+      }
+
+      await submitExercise(activeExercise._id, submissionData, extraData);
     } catch (e) {
       // L'erreur est déjà gérée dans submitExercise
     }
@@ -157,19 +173,19 @@ export default function ExercisePage() {
     if (!level?.exercises) return { total: 0, completed: 0, progress: 0 };
     
     const total = level.exercises.length;
-    const completed = completedExercises.size;
+    const completed = Object.values(completedExercises).filter(ex => ex.completed).length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     return { total, completed, progress };
   }, [level, completedExercises]);
 
-  // Rendu des états de chargement et d'erreur
+  // États de chargement
   if (loading) {
     return (
       <div className="exercise-page">
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <p>{t('loading')} {t('exercises').toLowerCase()}...</p>
+          <p>Chargement des exercices...</p>
         </div>
       </div>
     );
@@ -180,10 +196,10 @@ export default function ExercisePage() {
       <div className="exercise-page">
         <div className="error-container">
           <div className="error-icon">⚠️</div>
-          <h2>{t('error')} {t('loading').toLowerCase()}</h2>
+          <h2>Erreur de chargement</h2>
           <p>{error}</p>
           <button className="btn-primary" onClick={fetchLevelData}>
-            {t('retry')}
+            Réessayer
           </button>
         </div>
       </div>
@@ -195,10 +211,9 @@ export default function ExercisePage() {
       <div className="exercise-page">
         <div className="error-container">
           <div className="error-icon">❌</div>
-          <h2>{t('levelNotFound')}</h2>
-          <p>{t('levelNotFoundDesc')}</p>
-          <button className="btn-primary" onClick={() => navigate('/cours')}>
-            {t('back')} {t('courses').toLowerCase()}
+          <h2>Niveau non trouvé</h2>
+          <button className="btn-primary" onClick={() => navigate('/courses')}>
+            Retour aux cours
           </button>
         </div>
       </div>
@@ -210,33 +225,24 @@ export default function ExercisePage() {
       {/* Header du niveau */}
       <header className="exercise-header">
         <div className="header-left">
-           <button 
-             className="btn-back" 
-             onClick={() => navigate('/cours')}
-           >
-             <span className="icon">←</span>
-             <span className="text">{t('back')}</span>
-           </button>
-           
-           {/* Logo GenesisCode */}
-           <div className="logo-container" onClick={() => navigate('/dashboard')}>
-             <div className="logo-icon">🚀</div>
-             <span className="logo-text">GenesisCode</span>
-           </div>
-           
+          <button className="btn-back" onClick={() => navigate('/courses')}>
+            <span className="icon">←</span>
+            <span className="text">Retour</span>
+          </button>
+          
           <div className="level-info">
-            <h1 className="level-title">{level.name || 'Niveau sans nom'}</h1>
+            <h1 className="level-title">{level.title || 'Niveau sans nom'}</h1>
             <div className="level-meta">
-              <span className="level-order">Niveau {level.order || '?'}</span>
               <span className="exercise-count">
                 {levelStats.completed}/{levelStats.total} exercices
               </span>
             </div>
           </div>
         </div>
-         <div className="header-right">
-           <div className="progress-container">
-             <span className="progress-text">{t('progress')}: {levelStats.progress}%</span>
+        
+        <div className="header-right">
+          <div className="progress-container">
+            <span className="progress-text">Progression: {levelStats.progress}%</span>
             <div className="progress-bar">
               <div 
                 className="progress-fill" 
@@ -249,149 +255,50 @@ export default function ExercisePage() {
 
       {/* Liste des exercices */}
       <main className="exercise-main">
-         <div className="exercises-container">
-           <h2 className="exercises-title">{t('exercises')}</h2>
-           
-           {/* Message si pas d'exercices */}
-           {!level.exercises || level.exercises.length === 0 ? (
-             <div className="no-exercises">
-               <div className="no-exercises-icon">📝</div>
-               <h3>Aucun exercice disponible</h3>
-               <p>Ce niveau ne contient pas encore d'exercices.</p>
-               <button 
-                 className="btn-primary" 
-                 onClick={() => navigate('/cours')}
-               >
-                 {t('back')} {t('courses').toLowerCase()}
-               </button>
-             </div>
-           ) : (
-             <div className="exercises-grid">
-               {level.exercises.map((exercise, index) => (
-                 <motion.div
-                   key={exercise._id || `exercise-${index}`}
-                   className={`exercise-card ${completedExercises.has(exercise._id) ? 'completed' : ''}`}
-                   onClick={() => handleExerciseClick(exercise)}
-                   whileHover={{ scale: 1.02 }}
-                   whileTap={{ scale: 0.98 }}
-                   initial={{ opacity: 0, y: 20 }}
-                   animate={{ opacity: 1, y: 0 }}
-                   transition={{ delay: index * 0.1 }}
-                 >
-                   <div className="card-header">
-                     <div className="exercise-number">{index + 1}</div>
-                     <div className="exercise-type-badge">{exercise.type || 'Exercice'}</div>
-                   </div>
-                   <div className="card-content">
-                     <h3 className="exercise-title">
-                       {exercise.name || `Exercice ${index + 1}`}
-                     </h3>
-                     <p className="exercise-question">
-                       {exercise.question && exercise.question.length > 100 
-                         ? `${exercise.question.substring(0, 100)}...` 
-                         : exercise.question || 'Description non disponible'
-                       }
-                     </p>
-                     {completedExercises.has(exercise._id) && (
-                       <div className="exercise-progress">
-                         <span className="xp-earned">+50 XP</span>
-                         <span className="completion-badge">Terminé</span>
-                       </div>
-                     )}
-                   </div>
-                    <div className="card-actions">
-                      <button className="btn-start">
-                        {completedExercises.has(exercise._id) ? t('retry') : t('start')}
-                      </button>
-                    </div>
-                 </motion.div>
-               ))}
-             </div>
-           )}
+        <div className="exercises-container">
+          <h2 className="exercises-title">Exercices</h2>
+          
+          {!level.exercises || level.exercises.length === 0 ? (
+            <div className="no-exercises">
+              <div className="no-exercises-icon">📝</div>
+              <h3>Aucun exercice disponible</h3>
+              <p>Ce niveau ne contient pas encore d'exercices.</p>
+            </div>
+          ) : (
+            <div className="exercises-grid">
+              {level.exercises.map((exercise, index) => {
+                const isCompleted = completedExercises[exercise._id]?.completed || false;
+                const exerciseProgress = completedExercises[exercise._id];
+                
+                return (
+                  <ExerciseCard
+                    key={exercise._id}
+                    exercise={exercise}
+                    index={index}
+                    isCompleted={isCompleted}
+                    progress={exerciseProgress}
+                    onClick={() => handleExerciseClick(exercise)}
+                  />
+                );
+              })}
+            </div>
+          )}
         </div>
       </main>
 
       {/* Modal d'exercice */}
       <AnimatePresence>
         {activeExercise && (
-          <motion.div 
-            className="modal-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleCloseExercise}
-          >
-            <motion.div 
-              className="modal-content"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="modal-header">
-                <h3 className="modal-title">{activeExercise.name}</h3>
-                <button className="btn-close" onClick={handleCloseExercise}>
-                  ×
-                </button>
-              </div>
-              
-              <div className="modal-body">
-                <div className="exercise-question-full">
-                  <p>{activeExercise.question}</p>
-                </div>
-                
-                {/* Rendu spécifique selon le type d'exercice */}
-                <ExerciseRenderer 
-                  exercise={activeExercise}
-                  userAnswer={userAnswer}
-                  setUserAnswer={setUserAnswer}
-                  submissionResult={submissionResult}
-                />
-                
-                {/* Affichage des erreurs */}
-                {error && (
-                  <div className="error-message">
-                    <span className="error-icon">⚠️</span>
-                    {error}
-                  </div>
-                )}
-                
-                {/* Résultat de soumission */}
-                {submissionResult && (
-                  <div className={`submission-result ${submissionResult.correct ? 'correct' : 'incorrect'}`}>
-                    <div className="result-icon">
-                      {submissionResult.correct ? '✅' : '❌'}
-                    </div>
-                     <div className="result-content">
-                       <h4>{submissionResult.correct ? t('correct') : t('incorrect')}</h4>
-                      {submissionResult.explanation && (
-                        <p>{submissionResult.explanation}</p>
-                      )}
-                      {submissionResult.xpEarned > 0 && (
-                        <span className="xp-earned">+{submissionResult.xpEarned} XP</span>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="modal-footer">
-                 <button 
-                   className="btn-secondary" 
-                   onClick={handleCloseExercise}
-                 >
-                   {t('close')}
-                 </button>
-                 <button 
-                   className="btn-primary" 
-                   onClick={handleSubmit}
-                   disabled={!userAnswer || isSubmitting}
-                 >
-                   {isSubmitting ? t('loading') + '...' : t('submit')}
-                 </button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <ExerciseModal
+            exercise={activeExercise}
+            userAnswer={userAnswer}
+            setUserAnswer={setUserAnswer}
+            submissionResult={submissionResult}
+            isSubmitting={isSubmitting}
+            error={error}
+            onClose={handleCloseExercise}
+            onSubmit={handleSubmit}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -399,261 +306,231 @@ export default function ExercisePage() {
 }
 
 // =========================
-// COMPOSANT RENDEUR D'EXERCICES
+// COMPOSANT CARTE D'EXERCICE
 // =========================
 
-function ExerciseRenderer({ exercise, userAnswer, setUserAnswer, submissionResult }) {
-  const handleAnswerChange = (value) => {
-    setUserAnswer(value);
+function ExerciseCard({ exercise, index, isCompleted, progress, onClick }) {
+  const navigate = useNavigate();
+  const { levelId } = useParams();
+  
+  const getDifficultyInfo = (difficulty) => {
+    switch (difficulty) {
+      case 'easy': return { color: '#4CAF50', label: '😊 Facile' };
+      case 'hard': return { color: '#f44336', label: '🔥 Difficile' };
+      default: return { color: '#ff9800', label: '🎯 Moyen' };
+    }
   };
 
-  switch (exercise.type) {
-    case 'QCM':
-      return (
-        <QCMExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    case 'TextInput':
-      return (
-        <TextInputExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    case 'Code':
-      return (
-        <CodeExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    case 'DragDrop':
-      return (
-        <DragDropExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    case 'OrderBlocks':
-      return (
-        <OrderBlocksExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    case 'FillInTheBlank':
-      return (
-        <FillInTheBlankExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    case 'SpotTheError':
-      return (
-        <SpotTheErrorExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    case 'Matching':
-      return (
-        <MatchingExercise 
-          exercise={exercise}
-          userAnswer={userAnswer}
-          onAnswerChange={handleAnswerChange}
-          submissionResult={submissionResult}
-        />
-      );
-    
-    default:
-      return (
-        <div className="exercise-error">
-          <p>Type d'exercice non supporté: {exercise.type}</p>
+  const difficultyInfo = getDifficultyInfo(exercise.difficulty);
+  const points = exercise.points || 10;
+
+  const handleCardClick = (e) => {
+    // Empêcher la propagation si c'est le bouton "Commencer"
+    if (e.target.closest('.btn-start')) {
+      e.stopPropagation();
+      navigate(`/courses/levels/${levelId}/exercises/${exercise._id}`);
+    } else {
+      // Garder l'ancien comportement pour le modal si on clique ailleurs sur la carte
+      onClick();
+    }
+  };
+
+  return (
+    <motion.div
+      className={`exercise-card ${isCompleted ? 'completed' : ''}`}
+      onClick={handleCardClick}
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+    >
+      <div className="card-header">
+        <div className="exercise-number">{index + 1}</div>
+        <div className="exercise-type-badge">{exercise.type}</div>
+        <div 
+          className="points-badge" 
+          style={{ backgroundColor: difficultyInfo.color }}
+        >
+          {points} pts
         </div>
-      );
-  }
+      </div>
+      
+      <div className="card-content">
+        <h3 className="exercise-title">{exercise.name}</h3>
+        <p className="exercise-question">
+          {exercise.question.length > 100 
+            ? `${exercise.question.substring(0, 100)}...` 
+            : exercise.question
+          }
+        </p>
+        
+        <div className="meta-info">
+          <span className="difficulty" style={{ backgroundColor: `${difficultyInfo.color}20`, color: difficultyInfo.color }}>
+            {difficultyInfo.label}
+          </span>
+        </div>
+      </div>
+      
+      <div className="card-footer">
+        {isCompleted ? (
+          <div className="completion-info">
+            <span className="completion-badge">✅ Terminé</span>
+            {progress && (
+              <div className="score-info">
+                <span className="score">{progress.pointsEarned}/{progress.pointsMax}</span>
+                <span className="xp">+{progress.xpEarned} XP</span>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button className="btn-start">
+            📝 Commencer
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
 }
 
 // =========================
-// COMPOSANTS D'EXERCICES SPÉCIFIQUES
+// MODAL D'EXERCICE
 // =========================
 
-function QCMExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  const options = exercise.options || [];
+function ExerciseModal({ exercise, userAnswer, setUserAnswer, submissionResult, isSubmitting, error, onClose, onSubmit }) {
+  const [attempts, setAttempts] = useState(0);
+
+  const handleAnswer = (answer) => {
+    setUserAnswer(answer);
+    onSubmit();
+  };
+
+  const handleTest = async (userAnswer) => {
+    // Simulation d'un test de code
+    return {
+      success: true,
+      message: 'Code exécuté avec succès',
+      details: {
+        lines: userAnswer.split('\n').length,
+        language: exercise?.language || 'javascript'
+      }
+    };
+  };
+
+  return (
+    <motion.div 
+      className="modal-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      onClick={onClose}
+    >
+      <motion.div 
+        className="modal-content"
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.9, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="modal-header">
+          <div className="exercise-info">
+            <h3 className="modal-title">{exercise.name}</h3>
+            <div className="exercise-meta">
+              <span className="type-badge">{exercise.type}</span>
+              <span className="points-info">{exercise.points || 10} points</span>
+            </div>
+          </div>
+          <button className="btn-close" onClick={onClose}>×</button>
+        </div>
+        
+        <div className="modal-body">
+          <ExerciseAnswerInterface
+            exercise={exercise}
+            onAnswer={handleAnswer}
+            onTest={handleTest}
+            attempts={attempts}
+            maxAttempts={exercise.attemptsAllowed || 3}
+            isSubmitting={isSubmitting}
+          />
+          
+          {/* Affichage des erreurs */}
+          {error && (
+            <div className="error-message">
+              <span className="error-icon">⚠️</span>
+              {error}
+            </div>
+          )}
+          
+          {/* Résultat de soumission */}
+          {submissionResult && (
+            <SubmissionResult result={submissionResult} />
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// =========================
+// COMPOSANTS D'EXERCICES SPÉCIFIQUES (LEGACY - À SUPPRIMER)
+// =========================
+
+// =========================
+// RÉSULTAT DE SOUMISSION
+// =========================
+
+function SubmissionResult({ result }) {
+  const scorePercentage = result.pointsMax > 0 ? Math.round((result.pointsEarned / result.pointsMax) * 100) : 0;
   
   return (
-    <div className="exercise-qcm">
-      <div className="options-container">
-        {options.map((option, index) => (
-          <label key={index} className="option-item">
-            <input
-              type="checkbox"
-              checked={userAnswer?.includes(index) || false}
-              onChange={(e) => {
-                const currentAnswers = userAnswer || [];
-                if (e.target.checked) {
-                  onAnswerChange([...currentAnswers, index]);
-                } else {
-                  onAnswerChange(currentAnswers.filter(i => i !== index));
-                }
-              }}
-            />
-            <span className="option-text">{option}</span>
-          </label>
-        ))}
+    <div className={`submission-result ${result.correct ? 'correct' : 'incorrect'}`}>
+      <div className="result-header">
+        <div className="status">
+          {result.correct ? '✅ Correct !' : '❌ Incorrect'}
+        </div>
+        <div className="score-display">
+          <span className="score">{result.pointsEarned}/{result.pointsMax}</span>
+          <span className="percentage">({scorePercentage}%)</span>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function TextInputExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  return (
-    <div className="exercise-text-input">
-      <textarea
-        className="text-input"
-        value={userAnswer || ''}
-        onChange={(e) => onAnswerChange(e.target.value)}
-        placeholder="Tapez votre réponse ici..."
-        rows={4}
-      />
-    </div>
-  );
-}
-
-function CodeExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  return (
-    <div className="exercise-code">
-      <div className="code-editor">
-        <textarea
-          className="code-textarea"
-          value={userAnswer || ''}
-          onChange={(e) => onAnswerChange(e.target.value)}
-          placeholder="Tapez votre code ici..."
-          rows={10}
-        />
-      </div>
-      {exercise.testCases && exercise.testCases.length > 0 && (
-        <div className="test-cases">
-          <h4>Cas de test :</h4>
-          {exercise.testCases.map((testCase, index) => (
-            <div key={index} className="test-case">
-              <strong>Input:</strong> {testCase.input} → <strong>Expected:</strong> {testCase.expected}
+      
+      {result.xpEarned > 0 && (
+        <div className="xp-earned">
+          🌟 +{result.xpEarned} XP gagné !
+        </div>
+      )}
+      
+      {result.explanation && (
+        <div className="explanation">
+          <h4>Explication :</h4>
+          <p>{result.explanation}</p>
+        </div>
+      )}
+      
+      {result.details && result.details.type === 'QCM' && (
+        <div className="qcm-details">
+          <h4>Détails QCM :</h4>
+          <div className="comparison">
+            <div>Vos réponses : {result.details.user?.join(', ') || 'Aucune'}</div>
+            <div>Bonnes réponses : {result.details.correct?.join(', ') || 'N/A'}</div>
+          </div>
+        </div>
+      )}
+      
+      {result.details && result.details.tests && (
+        <div className="tests-results">
+          <h4>Résultats des tests :</h4>
+          {result.details.tests.map((test, i) => (
+            <div key={i} className={`test-result ${test.passed ? 'passed' : 'failed'}`}>
+              <strong>{test.name || `Test ${i+1}`}</strong>
+              <span className="test-status">
+                {test.passed ? '✅ Réussi' : '❌ Échec'}
+                {test.points && ` (+${test.points} pts)`}
+              </span>
             </div>
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-function DragDropExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  return (
-    <div className="exercise-dragdrop">
-      <p>Pour cet exercice, utilisez le format : [&#123;"element": "élément", "target": "cible"&#125;]</p>
-      <textarea
-        className="json-input"
-        value={userAnswer || ''}
-        onChange={(e) => onAnswerChange(e.target.value)}
-        placeholder='[{"element": "élément", "target": "cible"}]'
-        rows={3}
-      />
-    </div>
-  );
-}
-
-function OrderBlocksExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  const blocks = exercise.blocks || [];
-  
-  return (
-    <div className="exercise-order-blocks">
-      <div className="blocks-container">
-        {blocks.map((block, index) => (
-          <div key={block.id} className="code-block">
-            <div className="block-number">{index + 1}</div>
-            <pre className="block-code">{block.code}</pre>
-          </div>
-        ))}
-      </div>
-      <p>Indiquez l'ordre correct (ex: [0, 1, 2, 3])</p>
-      <input
-        type="text"
-        className="order-input"
-        value={userAnswer || ''}
-        onChange={(e) => onAnswerChange(e.target.value)}
-        placeholder="[0, 1, 2, 3]"
-      />
-    </div>
-  );
-}
-
-function FillInTheBlankExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  return (
-    <div className="exercise-fill-blank">
-      <div className="code-snippet">
-        <pre>{exercise.codeSnippet}</pre>
-      </div>
-      <textarea
-        className="blank-input"
-        value={userAnswer || ''}
-        onChange={(e) => onAnswerChange(e.target.value)}
-        placeholder="Tapez les mots manquants..."
-        rows={3}
-      />
-    </div>
-  );
-}
-
-function SpotTheErrorExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  return (
-    <div className="exercise-spot-error">
-      <div className="code-snippet">
-        <pre>{exercise.codeSnippet}</pre>
-      </div>
-      <textarea
-        className="error-input"
-        value={userAnswer || ''}
-        onChange={(e) => onAnswerChange(e.target.value)}
-        placeholder="Décrivez l'erreur que vous avez trouvée..."
-        rows={3}
-      />
-    </div>
-  );
-}
-
-function MatchingExercise({ exercise, userAnswer, onAnswerChange, submissionResult }) {
-  return (
-    <div className="exercise-matching">
-      <p>Format : [&#123;"prompt": "prompt-id", "match": "match-id"&#125;]</p>
-      <textarea
-        className="json-input"
-        value={userAnswer || ''}
-        onChange={(e) => onAnswerChange(e.target.value)}
-        placeholder='[{"prompt": "prompt-id", "match": "match-id"}]'
-        rows={4}
-      />
     </div>
   );
 }

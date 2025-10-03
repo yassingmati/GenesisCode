@@ -43,6 +43,19 @@ const validateId = (param, location = 'params') => (req, res, next) => {
   next();
 };
 
+/**
+ * User ID validator middleware - accepts any non-empty string
+ */
+const validateUserId = (param = 'userId', location = 'params') => (req, res, next) => {
+  const id = req[location][param];
+  if (!id || typeof id !== 'string' || id.trim().length === 0) {
+    return res.status(400).json({
+      error: `UserId requis pour ${param}`
+    });
+  }
+  next();
+};
+
 // local catchErrors helper for async route handlers (convenience)
 const catchErrors = fn => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -88,8 +101,52 @@ router.get('/levels/:id/exercises', validateId('id'), catchErrors(CourseControll
 router.post('/exercises', catchErrors(CourseController.createExercise));
 router.get('/exercises/:id', validateId('id'), catchErrors(CourseController.getExercise));
 router.put('/exercises/:id', validateId('id'), catchErrors(CourseController.updateExercise));
+
+/**
+ * POST /exercises/:id/submit
+ * Submit an exercise answer with enhanced scoring system
+ * 
+ * Body formats by exercise type:
+ * - QCM: { userId, answer: [indices] }
+ * - TextInput/FillInTheBlank: { userId, answer: "text" }
+ * - Code: { userId, passed: boolean } OR { userId, passedCount, totalCount, tests: [...] }
+ * - DragDrop/OrderBlocks/Matching: { userId, answer: [...] }
+ * 
+ * Response: {
+ *   correct: boolean,
+ *   pointsEarned: number,
+ *   pointsMax: number,
+ *   xpEarned: number,
+ *   explanation?: string,
+ *   details: object,
+ *   revealSolutions?: boolean
+ * }
+ */
 router.post('/exercises/:id/submit', validateId('id'), catchErrors(CourseController.submitExercise));
 router.delete('/exercises/:id', validateId('id'), catchErrors(CourseController.deleteExercise));
+
+/* ===========================
+   Progress & Statistics Routes
+   =========================== */
+// Progrès d'un utilisateur pour un exercice spécifique
+router.get('/users/:userId/exercises/:exerciseId/progress', 
+  validateUserId('userId'), 
+  validateId('exerciseId'), 
+  catchErrors(CourseController.getUserExerciseProgress)
+);
+
+// Statistiques globales d'un utilisateur
+router.get('/users/:userId/stats', 
+  validateUserId('userId'), 
+  catchErrors(CourseController.getUserStats)
+);
+
+// Progrès d'un utilisateur pour un niveau complet
+router.get('/users/:userId/levels/:levelId/progress', 
+  validateUserId('userId'), 
+  validateId('levelId'), 
+  catchErrors(CourseController.getUserLevelProgress)
+);
 
 /* ===========================
    Media (videos)

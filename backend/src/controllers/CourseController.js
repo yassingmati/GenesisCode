@@ -80,7 +80,14 @@ const safeUnlink = async (relPath) => {
 
 /* Validate Exercise (logique mise à jour) */
 const validateExercise = (ex, partial = false) => {
-  const types = ['QCM', 'DragDrop', 'TextInput', 'Code', 'OrderBlocks', 'FillInTheBlank', 'SpotTheError', 'Matching'];
+  const types = [
+    // Types existants
+    'QCM', 'DragDrop', 'TextInput', 'Code', 'OrderBlocks', 'FillInTheBlank', 'SpotTheError', 'Matching',
+    // Nouveaux types pour algorithmes et programmation
+    'Algorithm', 'FlowChart', 'Trace', 'Debug', 'CodeCompletion', 'PseudoCode', 'Complexity', 
+    'DataStructure', 'ScratchBlocks', 'VisualProgramming', 'AlgorithmSteps', 'ConceptMapping', 
+    'CodeOutput', 'Optimization'
+  ];
 
   if (!partial || ('type' in ex)) {
     if (!ex.type || !types.includes(ex.type)) {
@@ -165,7 +172,8 @@ const validateExercise = (ex, partial = false) => {
       // Validation des test cases
       if (!partial && ex.testCases) {
         for (const testCase of ex.testCases) {
-          if (!testCase.input || !testCase.expected) {
+          if (testCase.input === undefined || testCase.input === null || 
+              testCase.expected === undefined || testCase.expected === null) {
             const err = new Error('Chaque test case doit avoir un input et un expected');
             err.status = 400;
             throw err;
@@ -244,6 +252,152 @@ const validateExercise = (ex, partial = false) => {
             throw err;
           }
         }
+      }
+      break;
+
+    // Nouveaux types d'exercices
+    case 'Algorithm':
+    case 'AlgorithmSteps':
+      if ((!partial || 'algorithmSteps' in ex) && (!Array.isArray(ex.algorithmSteps) || ex.algorithmSteps.length === 0)) {
+        const err = new Error('Algorithm/AlgorithmSteps nécessite des étapes d\'algorithme');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'FlowChart':
+      if ((!partial || 'flowChartNodes' in ex) && (!Array.isArray(ex.flowChartNodes) || ex.flowChartNodes.length === 0)) {
+        const err = new Error('FlowChart nécessite des nœuds d\'organigramme');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'Trace':
+      if ((!partial || 'traceVariables' in ex) && (!Array.isArray(ex.traceVariables) || ex.traceVariables.length === 0)) {
+        const err = new Error('Trace nécessite des variables à tracer');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'codeSnippet' in ex) && typeof ex.codeSnippet !== 'string') {
+        const err = new Error('Trace nécessite un code à tracer');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'Debug':
+      if ((!partial || 'debugErrors' in ex) && (!Array.isArray(ex.debugErrors) || ex.debugErrors.length === 0)) {
+        const err = new Error('Debug nécessite des erreurs à identifier');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'codeSnippet' in ex) && typeof ex.codeSnippet !== 'string') {
+        const err = new Error('Debug nécessite un code avec erreurs');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'CodeCompletion':
+      if ((!partial || 'codeTemplate' in ex) && typeof ex.codeTemplate !== 'string') {
+        const err = new Error('CodeCompletion nécessite un template de code');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'codeGaps' in ex) && (!Array.isArray(ex.codeGaps) || ex.codeGaps.length === 0)) {
+        const err = new Error('CodeCompletion nécessite des emplacements à compléter');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'PseudoCode':
+      if ((!partial || 'pseudoCodeStructure' in ex) && !ex.pseudoCodeStructure) {
+        const err = new Error('PseudoCode nécessite une structure attendue');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'Complexity':
+      if ((!partial || 'complexityAnalysis' in ex) && !ex.complexityAnalysis) {
+        const err = new Error('Complexity nécessite une analyse de complexité');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'codeSnippet' in ex) && typeof ex.codeSnippet !== 'string') {
+        const err = new Error('Complexity nécessite un code à analyser');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'DataStructure':
+      if ((!partial || 'dataStructureType' in ex) && typeof ex.dataStructureType !== 'string') {
+        const err = new Error('DataStructure nécessite un type de structure');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'dataStructureOperations' in ex) && (!Array.isArray(ex.dataStructureOperations) || ex.dataStructureOperations.length === 0)) {
+        const err = new Error('DataStructure nécessite des opérations');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'ScratchBlocks':
+      if ((!partial || 'scratchBlocks' in ex) && (!Array.isArray(ex.scratchBlocks) || ex.scratchBlocks.length === 0)) {
+        const err = new Error('ScratchBlocks nécessite des blocs Scratch');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'VisualProgramming':
+      if ((!partial || 'visualElements' in ex) && (!Array.isArray(ex.visualElements) || ex.visualElements.length === 0)) {
+        const err = new Error('VisualProgramming nécessite des éléments visuels');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'ConceptMapping':
+      if ((!partial || 'concepts' in ex) && (!Array.isArray(ex.concepts) || ex.concepts.length === 0)) {
+        const err = new Error('ConceptMapping nécessite des concepts');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'definitions' in ex) && (!Array.isArray(ex.definitions) || ex.definitions.length === 0)) {
+        const err = new Error('ConceptMapping nécessite des définitions');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'CodeOutput':
+      if ((!partial || 'codeSnippet' in ex) && typeof ex.codeSnippet !== 'string') {
+        const err = new Error('CodeOutput nécessite un code');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'expectedOutput' in ex) && !ex.expectedOutput) {
+        const err = new Error('CodeOutput nécessite une sortie attendue');
+        err.status = 400;
+        throw err;
+      }
+      break;
+
+    case 'Optimization':
+      if ((!partial || 'codeSnippet' in ex) && typeof ex.codeSnippet !== 'string') {
+        const err = new Error('Optimization nécessite un code à optimiser');
+        err.status = 400;
+        throw err;
+      }
+      if ((!partial || 'optimizationCriteria' in ex) && (!Array.isArray(ex.optimizationCriteria) || ex.optimizationCriteria.length === 0)) {
+        const err = new Error('Optimization nécessite des critères d\'optimisation');
+        err.status = 400;
+        throw err;
       }
       break;
   }
@@ -488,7 +642,7 @@ class CourseController {
     const level = await Level.findById(req.params.id)
       .populate({
         path: 'exercises',
-        select: '-solutions -testCases'
+        select: '-solutions' // Garder testCases mais cacher solutions
       })
       .lean();
 
@@ -497,12 +651,44 @@ class CourseController {
     const translation = getTranslation(level, lang) || getTranslation(level, 'fr') || {};
     const exercises = (level.exercises || []).map(ex => {
       const exTrans = getTranslation(ex, lang) || getTranslation(ex, 'fr') || {};
-      return {
+      
+      // Créer l'objet exercice avec toutes les informations nécessaires
+      const exerciseData = {
         _id: ex._id,
+        translations: ex.translations,
         name: exTrans?.name || null,
+        question: exTrans?.question || null,
+        explanation: exTrans?.explanation || null,
         type: ex.type,
-        question: exTrans?.question || null
+        points: ex.points || 10,
+        difficulty: ex.difficulty || 'medium',
+        timeLimit: ex.timeLimit,
+        attemptsAllowed: ex.attemptsAllowed,
+        hint: ex.hint,
+        showSolutionAfterAttempts: ex.showSolutionAfterAttempts,
+        shuffle: ex.shuffle,
+        allowPartial: ex.allowPartial,
+        options: ex.options || [],
+        elements: ex.elements || [],
+        targets: ex.targets || [],
+        blocks: ex.blocks || [],
+        codeSnippet: ex.codeSnippet,
+        language: ex.language,
+        prompts: ex.prompts || [],
+        matches: ex.matches || []
       };
+
+      // Ajouter testCases mais filtrer les informations sensibles
+      if (ex.testCases && ex.testCases.length > 0) {
+        exerciseData.testCases = ex.testCases.map(tc => ({
+          input: tc.input,
+          expected: tc.expected,
+          points: tc.points,
+          public: tc.public || false
+        }));
+      }
+
+      return exerciseData;
     });
 
     res.json({
@@ -561,19 +747,51 @@ class CourseController {
 
     const level = await Level.findById(req.params.id).populate({
       path: 'exercises',
-      select: '-solutions -testCases'
+      select: '-solutions' // Garder testCases mais cacher solutions
     });
 
     if (!level) return res.status(404).json({ error: 'Niveau non trouvé' });
 
     const exercises = (level.exercises || []).map(ex => {
       const exTrans = getTranslation(ex, lang) || getTranslation(ex, 'fr') || {};
-      return {
+      
+      // Créer l'objet exercice avec toutes les informations nécessaires
+      const exerciseData = {
         _id: ex._id,
+        translations: ex.translations,
         name: exTrans?.name || null,
+        question: exTrans?.question || null,
+        explanation: exTrans?.explanation || null,
         type: ex.type,
-        question: exTrans?.question || null
+        points: ex.points || 10,
+        difficulty: ex.difficulty || 'medium',
+        timeLimit: ex.timeLimit,
+        attemptsAllowed: ex.attemptsAllowed,
+        hint: ex.hint,
+        showSolutionAfterAttempts: ex.showSolutionAfterAttempts,
+        shuffle: ex.shuffle,
+        allowPartial: ex.allowPartial,
+        options: ex.options || [],
+        elements: ex.elements || [],
+        targets: ex.targets || [],
+        blocks: ex.blocks || [],
+        codeSnippet: ex.codeSnippet,
+        language: ex.language,
+        prompts: ex.prompts || [],
+        matches: ex.matches || []
       };
+
+      // Ajouter testCases mais filtrer les informations sensibles
+      if (ex.testCases && ex.testCases.length > 0) {
+        exerciseData.testCases = ex.testCases.map(tc => ({
+          input: tc.input,
+          expected: tc.expected,
+          points: tc.points,
+          public: tc.public || false
+        }));
+      }
+
+      return exerciseData;
     });
 
     res.json(exercises);
@@ -585,13 +803,44 @@ class CourseController {
     const exercise = await Exercise.findById(req.params.id);
     if (!exercise) return res.status(404).json({ error: 'Exercice non trouvé' });
 
-    const result = exercise.toObject();
-    delete result.solutions;
-    delete result.testCases;
+    const lang = getLang(req);
+    const translation = getTranslation(exercise, lang) || getTranslation(exercise, 'fr') || {};
+    
+    const result = {
+      _id: exercise._id,
+      translations: exercise.translations,
+      name: translation?.name || null,
+      question: translation?.question || null,
+      explanation: translation?.explanation || null,
+      type: exercise.type,
+      points: exercise.points || 10,
+      difficulty: exercise.difficulty || 'medium',
+      timeLimit: exercise.timeLimit,
+      attemptsAllowed: exercise.attemptsAllowed,
+      hint: exercise.hint,
+      showSolutionAfterAttempts: exercise.showSolutionAfterAttempts,
+      shuffle: exercise.shuffle,
+      allowPartial: exercise.allowPartial,
+      options: exercise.options || [],
+      elements: exercise.elements || [],
+      targets: exercise.targets || [],
+      blocks: exercise.blocks || [],
+      codeSnippet: exercise.codeSnippet,
+      language: exercise.language,
+      prompts: exercise.prompts || [],
+      matches: exercise.matches || [],
+      level: exercise.level
+    };
 
-    const translation = getTranslation(exercise, getLang(req)) || getTranslation(exercise, 'fr') || {};
-    result.name = translation?.name || null;
-    result.question = translation?.question || null;
+    // Ajouter testCases mais filtrer les informations sensibles
+    if (exercise.testCases && exercise.testCases.length > 0) {
+      result.testCases = exercise.testCases.map(tc => ({
+        input: tc.input,
+        expected: tc.expected,
+        points: tc.points,
+        public: tc.public || false
+      }));
+    }
 
     res.json(result);
   });
@@ -619,15 +868,24 @@ class CourseController {
   static submitExercise = catchErrors(async (req, res) => {
     if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: 'ID invalide' });
 
+    // Pour submitExercise, nous avons besoin des solutions, donc pas de select pour les exclure
     const exercise = await Exercise.findById(req.params.id);
     if (!exercise) return res.status(404).json({ error: 'Exercice non trouvé' });
 
     let isCorrect = false;
+    let pointsEarned = 0;
+    let xp = 0;
+    let details = {};
     const { answer, userId } = req.body;
     const type = exercise.type;
 
     if (!userId) return res.status(400).json({ error: 'userId requis' });
     if (!answer && type !== 'Code') return res.status(400).json({ error: 'Réponse requise' });
+    
+    // Valider que userId est un ObjectId valide ou au moins une chaîne
+    if (typeof userId !== 'string' || userId.trim().length === 0) {
+      return res.status(400).json({ error: 'userId doit être une chaîne non vide' });
+    }
 
     // Validation des solutions selon le type d'exercice
     const solutions = exercise.solutions || [];
@@ -636,89 +894,431 @@ class CourseController {
     }
 
     switch (type) {
-      case 'QCM':
-        // Pour QCM, vérifier que la réponse est un tableau d'indices valides
-        if (!Array.isArray(answer)) {
-          isCorrect = false;
-        } else {
-          // Vérifier que tous les indices de réponse sont valides et correspondent aux solutions
-          const validIndices = answer.every(idx => 
-            Number.isInteger(idx) && idx >= 0 && idx < (exercise.options?.length || 0)
-          );
-          if (validIndices) {
-            // Comparer avec les solutions (indices des bonnes réponses)
-            const sortedUserAnswer = [...answer].sort((a, b) => a - b);
-            const sortedSolutions = [...solutions].sort((a, b) => a - b);
-            isCorrect = JSON.stringify(sortedUserAnswer) === JSON.stringify(sortedSolutions);
+      case 'QCM': {
+        // solutions stockées comme array d'option ids (ou indices) -> supporter les deux
+        const user = Array.isArray(answer) ? answer : [answer];
+        const correctAnswers = exercise.solutions || [];
+        // normaliser (si indices fournis, convertir en ids si options sont objets)
+        const normalize = (arr) => {
+          if (exercise.options && exercise.options.length && typeof exercise.options[0] === 'object') {
+            // solutions can be option ids or indice numbers
+            return arr.map(a => {
+              if (typeof a === 'number') return exercise.options[a]?.id;
+              return a;
+            }).filter(Boolean);
           }
+          return arr;
+        };
+        const userNorm = normalize(user);
+        const correctNorm = normalize(correctAnswers);
+
+        // calcul points partiels si allowPartial
+        const pointsMax = exercise.points || 10;
+        if (exercise.allowPartial) {
+          const perOption = pointsMax / Math.max(correctNorm.length, 1);
+          // each correctly selected option gives perOption, but penalize wrong extra selections optional
+          const matched = userNorm.filter(u => correctNorm.includes(u)).length;
+          pointsEarned = perOption * matched;
+          // optional: subtract for wrong picks -> here we don't subtract but you can:
+          // const wrong = userNorm.filter(u => !correctNorm.includes(u)).length;
+          // pointsEarned = Math.max(0, pointsEarned - wrong * (perOption/2));
+        } else {
+          const sortedU = [...userNorm].sort();
+          const sortedC = [...correctNorm].sort();
+          pointsEarned = (JSON.stringify(sortedU) === JSON.stringify(sortedC)) ? pointsMax : 0;
         }
+        isCorrect = pointsEarned >= pointsMax;
+        xp = Math.round(pointsEarned); // ou autre conversion
+        details = { type: 'QCM', user: userNorm, correct: correctNorm, pointsEarned, pointsMax };
         break;
+      }
+
+      case 'Matching':
+      case 'DragDrop':
+      case 'OrderBlocks': {
+        // comparer structure et attribuer points par paire/bloc correct
+        const pointsMax = exercise.points || 10;
+        let earned = 0;
+        if (type === 'Matching') {
+          const pairs = exercise.solutions || []; // ex: [{promptId: 'p1', matchId: 'm2'}]
+          const totalPairs = pairs.length || 1;
+          const perPair = pointsMax / totalPairs;
+          for (const pair of pairs) {
+            // answer should be array of {promptId, matchId} or map
+            const found = (Array.isArray(answer) ? answer : []).some(a => a.promptId === pair.promptId && a.matchId === pair.matchId);
+            if (found) earned += perPair;
+          }
+        } else if (type === 'OrderBlocks') {
+          // solution is array of block ids in correct order
+          const solution = exercise.solutions?.[0] || []; // assume one solution
+          const userOrder = Array.isArray(answer) ? answer : [];
+          const minLen = Math.min(solution.length, userOrder.length);
+          const per = pointsMax / solution.length;
+          for (let i=0;i<minLen;i++) if (solution[i] === userOrder[i]) earned += per;
+        } else if (type === 'DragDrop') {
+          // similar logic basique
+          const solution = exercise.solutions?.[0] || {}; // map elementId->targetId
+          const userMap = answer || {};
+          const keys = Object.keys(solution || {});
+          const per = pointsMax / Math.max(keys.length,1);
+          for (const k of keys) if (userMap[k] === solution[k]) earned += per;
+        }
+        pointsEarned = Math.round(earned * 100) / 100;
+        isCorrect = pointsEarned >= (exercise.points || 10);
+        xp = Math.round(pointsEarned);
+        details = { pointsEarned, pointsMax: exercise.points || 10 };
+        break;
+      }
 
       case 'TextInput':
-      case 'FillInTheBlank':
-        // Comparaison insensible à la casse et aux espaces
-        const normalizedAnswer = String(answer || '').trim().toLowerCase();
-        isCorrect = solutions.some(solution => 
-          String(solution).trim().toLowerCase() === normalizedAnswer
-        );
+      case 'FillInTheBlank': {
+        // support regex solutions, arrays of synonyms, case-insensitive match, numeric ranges etc.
+        const normalized = String(answer || '').trim();
+        const solutions = exercise.solutions || [];
+        let matched = false;
+        for (const sol of solutions) {
+          if (typeof sol === 'string') {
+            if (normalized.toLowerCase() === sol.trim().toLowerCase()) { matched = true; break; }
+          } else if (sol && sol.regex) {
+            const re = new RegExp(sol.regex, sol.flags || 'i');
+            if (re.test(normalized)) { matched = true; break; }
+          } else if (sol && sol.range) {
+            const val = Number(normalized);
+            if (!Number.isNaN(val) && val >= sol.range.min && val <= sol.range.max) { matched = true; break; }
+          }
+        }
+        pointsEarned = matched ? (exercise.points || 10) : 0;
+        isCorrect = matched;
+        xp = pointsEarned;
+        details = { matched };
         break;
+      }
 
-      case 'SpotTheError':
+      case 'SpotTheError': {
         // Comparaison exacte pour les erreurs de code
-        isCorrect = solutions.some(solution => 
+        const matched = solutions.some(solution => 
           JSON.stringify(solution) === JSON.stringify(answer)
         );
+        pointsEarned = matched ? (exercise.points || 10) : 0;
+        isCorrect = matched;
+        xp = pointsEarned;
+        details = { matched };
         break;
+      }
 
-      case 'DragDrop':
-      case 'OrderBlocks':
-      case 'Matching':
-        // Comparaison exacte des structures de données
-        try {
-          const normalizedAnswer = Array.isArray(answer) ? answer : [answer];
-          const normalizedSolutions = solutions.map(sol => 
-            Array.isArray(sol) ? sol : [sol]
-          );
-          isCorrect = normalizedSolutions.some(solution => 
-            JSON.stringify(solution) === JSON.stringify(normalizedAnswer)
-          );
-        } catch (e) {
-          console.error('Error comparing structured answers:', e);
-          isCorrect = false;
-        }
-        break;
-
-      case 'Code':
-        // Pour les exercices de code, on s'appuie sur le flag 'passed' du frontend
+      case 'Code': {
+        // Accept either { passed: boolean } OR { passedCount, totalCount, tests: [{name,passed,message,points}] }
+        const pointsMax = exercise.points || exercise.testCases?.reduce((s,tc)=>s+ (tc.points||0), 0) || 10;
         if (typeof req.body.passed === 'boolean') {
+          pointsEarned = req.body.passed ? pointsMax : 0;
           isCorrect = req.body.passed;
+          details = { passed: req.body.passed };
+        } else if (typeof req.body.passedCount === 'number' && typeof req.body.totalCount === 'number') {
+          const ratio = req.body.totalCount === 0 ? 0 : (req.body.passedCount / req.body.totalCount);
+          pointsEarned = Math.round(ratio * pointsMax * 100) / 100;
+          isCorrect = pointsEarned >= pointsMax;
+          details = { passedCount: req.body.passedCount, totalCount: req.body.totalCount, tests: req.body.tests || [] };
+        } else if (Array.isArray(req.body.tests)) {
+          // tests array with points per test -> sum
+          const tests = req.body.tests;
+          let earned = 0;
+          for (const t of tests) {
+            if (t.passed) earned += (t.points || 1);
+          }
+          pointsEarned = Math.min(pointsMax, earned);
+          isCorrect = pointsEarned >= pointsMax;
+          details = { tests };
         } else {
-          return res.status(400).json({ error: 'Pour Code, fournissez "passed": true/false' });
+          return res.status(400).json({ error: 'Pour Code, fournissez passed:true/false ou passedCount/totalCount ou tests[]' });
         }
+        xp = Math.round(pointsEarned); // conversion simple
         break;
+      }
+
+      // Nouveaux types d'exercices pour algorithmes et programmation
+      case 'Algorithm':
+      case 'AlgorithmSteps': {
+        // Vérifier l'ordre des étapes d'algorithme
+        const userOrder = Array.isArray(answer) ? answer : [];
+        const correctOrder = exercise.solutions?.[0] || [];
+        const pointsMax = exercise.points || 10;
+        
+        if (JSON.stringify(userOrder) === JSON.stringify(correctOrder)) {
+          pointsEarned = pointsMax;
+          isCorrect = true;
+        } else if (exercise.allowPartial) {
+          // Points partiels basés sur les étapes correctes dans l'ordre
+          let correct = 0;
+          const minLen = Math.min(userOrder.length, correctOrder.length);
+          for (let i = 0; i < minLen; i++) {
+            if (userOrder[i] === correctOrder[i]) correct++;
+          }
+          pointsEarned = Math.round((correct / correctOrder.length) * pointsMax);
+          isCorrect = pointsEarned >= pointsMax;
+        }
+        xp = pointsEarned;
+        details = { userOrder, correctOrder, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'FlowChart': {
+        // Vérifier la structure de l'organigramme
+        const userNodes = answer?.nodes || [];
+        const userConnections = answer?.connections || [];
+        const correctStructure = exercise.solutions?.[0] || {};
+        const pointsMax = exercise.points || 10;
+        
+        // Logique simple de comparaison (peut être complexifiée)
+        const structureMatch = JSON.stringify(userNodes) === JSON.stringify(correctStructure.nodes) &&
+                              JSON.stringify(userConnections) === JSON.stringify(correctStructure.connections);
+        
+        pointsEarned = structureMatch ? pointsMax : 0;
+        isCorrect = structureMatch;
+        xp = pointsEarned;
+        details = { structureMatch, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'Trace': {
+        // Vérifier le traçage d'exécution
+        const userTrace = answer?.trace || [];
+        const correctTrace = exercise.solutions?.[0] || [];
+        const pointsMax = exercise.points || 10;
+        
+        if (exercise.allowPartial) {
+          // Points partiels pour chaque étape correcte
+          let correctSteps = 0;
+          userTrace.forEach((step, i) => {
+            if (correctTrace[i] && JSON.stringify(step) === JSON.stringify(correctTrace[i])) {
+              correctSteps++;
+            }
+          });
+          pointsEarned = Math.round((correctSteps / correctTrace.length) * pointsMax);
+        } else {
+          pointsEarned = JSON.stringify(userTrace) === JSON.stringify(correctTrace) ? pointsMax : 0;
+        }
+        isCorrect = pointsEarned >= pointsMax;
+        xp = pointsEarned;
+        details = { userTrace, correctTrace, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'Debug': {
+        // Vérifier l'identification des erreurs
+        const userErrors = Array.isArray(answer) ? answer : [];
+        const correctErrors = exercise.solutions || [];
+        const pointsMax = exercise.points || 10;
+        
+        if (exercise.allowPartial) {
+          const foundErrors = userErrors.filter(err => correctErrors.some(correctErr => 
+            correctErr.line === err.line && correctErr.type === err.type));
+          pointsEarned = Math.round((foundErrors.length / correctErrors.length) * pointsMax);
+        } else {
+          const allFound = correctErrors.every(correctErr => 
+            userErrors.some(err => correctErr.line === err.line && correctErr.type === err.type));
+          pointsEarned = allFound ? pointsMax : 0;
+        }
+        isCorrect = pointsEarned >= pointsMax;
+        xp = pointsEarned;
+        details = { userErrors, correctErrors, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'CodeCompletion': {
+        // Vérifier la complétion de code
+        const userCode = answer?.completions || {};
+        const correctCode = exercise.solutions?.[0] || {};
+        const pointsMax = exercise.points || 10;
+        
+        if (exercise.allowPartial) {
+          const gaps = Object.keys(correctCode);
+          let correctCompletions = 0;
+          gaps.forEach(gap => {
+            if (userCode[gap] && userCode[gap].trim() === correctCode[gap].trim()) {
+              correctCompletions++;
+            }
+          });
+          pointsEarned = Math.round((correctCompletions / gaps.length) * pointsMax);
+        } else {
+          const allCorrect = Object.keys(correctCode).every(gap => 
+            userCode[gap] && userCode[gap].trim() === correctCode[gap].trim());
+          pointsEarned = allCorrect ? pointsMax : 0;
+        }
+        isCorrect = pointsEarned >= pointsMax;
+        xp = pointsEarned;
+        details = { userCode, correctCode, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'PseudoCode': {
+        // Vérifier la structure du pseudo-code
+        const userPseudo = String(answer || '').trim();
+        const correctStructure = exercise.solutions?.[0] || '';
+        const pointsMax = exercise.points || 10;
+        
+        // Comparaison simple ou utilisation de mots-clés
+        const matched = userPseudo.toLowerCase() === correctStructure.toLowerCase();
+        pointsEarned = matched ? pointsMax : 0;
+        isCorrect = matched;
+        xp = pointsEarned;
+        details = { userPseudo, matched, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'Complexity': {
+        // Vérifier l'analyse de complexité
+        const userComplexity = answer?.complexity || '';
+        const correctComplexity = exercise.solutions?.[0] || '';
+        const pointsMax = exercise.points || 10;
+        
+        const matched = userComplexity.toLowerCase() === correctComplexity.toLowerCase();
+        pointsEarned = matched ? pointsMax : 0;
+        isCorrect = matched;
+        xp = pointsEarned;
+        details = { userComplexity, correctComplexity, matched, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'DataStructure': {
+        // Vérifier les opérations sur les structures de données
+        const userOperations = answer?.operations || [];
+        const correctOperations = exercise.solutions || [];
+        const pointsMax = exercise.points || 10;
+        
+        if (exercise.allowPartial) {
+          let correctOps = 0;
+          userOperations.forEach((op, i) => {
+            if (correctOperations[i] && JSON.stringify(op) === JSON.stringify(correctOperations[i])) {
+              correctOps++;
+            }
+          });
+          pointsEarned = Math.round((correctOps / correctOperations.length) * pointsMax);
+        } else {
+          pointsEarned = JSON.stringify(userOperations) === JSON.stringify(correctOperations) ? pointsMax : 0;
+        }
+        isCorrect = pointsEarned >= pointsMax;
+        xp = pointsEarned;
+        details = { userOperations, correctOperations, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'ScratchBlocks': {
+        // Vérifier l'assemblage des blocs Scratch
+        const userBlocks = Array.isArray(answer) ? answer : (answer?.blocks || []);
+        const correctBlocks = exercise.solutions?.[0] || [];
+        const pointsMax = exercise.points || 10;
+        
+        // Comparaison plus flexible pour les blocs Scratch
+        let blocksMatch = false;
+        if (exercise.allowPartial) {
+          // Points partiels basés sur le nombre de blocs corrects
+          let correctCount = 0;
+          const minLength = Math.min(userBlocks.length, correctBlocks.length);
+          for (let i = 0; i < minLength; i++) {
+            if (userBlocks[i] === correctBlocks[i]) {
+              correctCount++;
+            }
+          }
+          pointsEarned = Math.round((correctCount / correctBlocks.length) * pointsMax);
+          isCorrect = pointsEarned >= pointsMax;
+        } else {
+          // Comparaison exacte
+          blocksMatch = JSON.stringify(userBlocks) === JSON.stringify(correctBlocks);
+          pointsEarned = blocksMatch ? pointsMax : 0;
+          isCorrect = blocksMatch;
+        }
+        
+        xp = pointsEarned;
+        details = { userBlocks, correctBlocks, blocksMatch, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'VisualProgramming': {
+        // Vérifier la programmation visuelle
+        const userElements = answer?.elements || [];
+        const correctElements = exercise.solutions?.[0] || [];
+        const pointsMax = exercise.points || 10;
+        
+        const elementsMatch = JSON.stringify(userElements) === JSON.stringify(correctElements);
+        pointsEarned = elementsMatch ? pointsMax : 0;
+        isCorrect = elementsMatch;
+        xp = pointsEarned;
+        details = { userElements, correctElements, elementsMatch, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'ConceptMapping': {
+        // Vérifier l'association concepts-définitions
+        const userMappings = answer?.mappings || [];
+        const correctMappings = exercise.solutions || [];
+        const pointsMax = exercise.points || 10;
+        
+        if (exercise.allowPartial) {
+          const correctMatches = userMappings.filter(mapping => 
+            correctMappings.some(correct => 
+              correct.conceptId === mapping.conceptId && correct.definitionId === mapping.definitionId));
+          pointsEarned = Math.round((correctMatches.length / correctMappings.length) * pointsMax);
+        } else {
+          const allCorrect = correctMappings.every(correct => 
+            userMappings.some(mapping => 
+              correct.conceptId === mapping.conceptId && correct.definitionId === mapping.definitionId));
+          pointsEarned = allCorrect ? pointsMax : 0;
+        }
+        isCorrect = pointsEarned >= pointsMax;
+        xp = pointsEarned;
+        details = { userMappings, correctMappings, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'CodeOutput': {
+        // Vérifier la prédiction de sortie de code
+        const userOutput = String(answer || '').trim();
+        const correctOutput = String(exercise.solutions?.[0] || '').trim();
+        const pointsMax = exercise.points || 10;
+        
+        const matched = userOutput === correctOutput;
+        pointsEarned = matched ? pointsMax : 0;
+        isCorrect = matched;
+        xp = pointsEarned;
+        details = { userOutput, correctOutput, matched, pointsEarned, pointsMax };
+        break;
+      }
+
+      case 'Optimization': {
+        // Vérifier l'optimisation de code
+        const userOptimization = answer?.optimization || '';
+        const correctOptimization = exercise.solutions?.[0] || '';
+        const pointsMax = exercise.points || 10;
+        
+        // Évaluation basée sur les critères d'optimisation
+        let score = 0;
+        const criteria = exercise.optimizationCriteria || [];
+        criteria.forEach(criterion => {
+          if (answer?.improvements?.[criterion]) {
+            score += pointsMax / criteria.length;
+          }
+        });
+        
+        pointsEarned = Math.round(score);
+        isCorrect = pointsEarned >= pointsMax;
+        xp = pointsEarned;
+        details = { userOptimization, correctOptimization, criteria, pointsEarned, pointsMax };
+        break;
+      }
 
       default:
         return res.status(400).json({ error: 'Type d\'exercice non supporté' });
     }
 
-    const xp = isCorrect ? 10 : 2;
-
-    // Enregistrer ou mettre à jour UserProgress
+    // Enregistrer ou mettre à jour UserProgress avec la nouvelle méthode
     try {
-      const updateObj = {
-        $inc: { xp },
-        $set: { lastAttempt: new Date() }
-      };
-      if (isCorrect) {
-        updateObj.$set.completed = true;
-        updateObj.$set.completedAt = new Date();
-      }
-
-      await UserProgress.findOneAndUpdate(
-        { user: userId, exercise: exercise._id },
-        updateObj,
-        { upsert: true, new: true, setDefaultsOnInsert: true }
-      );
+      await UserProgress.updateProgress(userId, exercise._id, {
+        xp,
+        pointsEarned,
+        pointsMax: exercise.points || 10,
+        completed: isCorrect,
+        details
+      });
     } catch (e) {
       console.error('UserProgress update error:', e);
       return res.status(500).json({ error: 'Erreur lors de la sauvegarde du progrès' });
@@ -731,8 +1331,20 @@ class CourseController {
         if (level && level.exercises) {
           const exerciseIds = level.exercises.map(e => e._id);
 
+          // Utiliser la même logique de conversion d'ObjectId
+          const mongoose = require('mongoose');
+          const crypto = require('crypto');
+          
+          let userObjectId;
+          if (mongoose.isValidObjectId(userId)) {
+            userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+          } else {
+            const hash = crypto.createHash('md5').update(userId).digest('hex');
+            userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+          }
+
           const completedExercisesCount = await UserProgress.countDocuments({
-            user: userId,
+            user: userObjectId,
             exercise: { $in: exerciseIds },
             completed: true
           });
@@ -740,7 +1352,7 @@ class CourseController {
           // Marquer le niveau comme complété si tous les exercices sont terminés
           if (exerciseIds.length > 0 && completedExercisesCount === exerciseIds.length) {
             await UserLevelProgress.findOneAndUpdate(
-              { user: userId, level: level._id },
+              { user: userObjectId, level: level._id },
               { 
                 completed: true, 
                 completedAt: new Date(),
@@ -759,9 +1371,139 @@ class CourseController {
 
     res.json({
       correct: isCorrect,
+      pointsEarned,
+      pointsMax: exercise.points || 10,
       xpEarned: xp,
       explanation,
-      ...( !isCorrect && { solutions: exercise.solutions } )
+      details,
+      ...( !isCorrect && { revealSolutions: false } ) // contrôlable selon policy
+    });
+  });
+
+  /* -----------------------
+      Progress & Statistics
+      ----------------------- */
+
+  // Obtenir le progrès détaillé d'un utilisateur pour un exercice
+  static getUserExerciseProgress = catchErrors(async (req, res) => {
+    const { exerciseId, userId } = req.params;
+    
+    if (!isValidObjectId(exerciseId)) return res.status(400).json({ error: 'ID exercice invalide' });
+    if (!userId || typeof userId !== 'string') return res.status(400).json({ error: 'userId requis' });
+
+    // Utiliser la même logique de conversion d'ObjectId que dans updateProgress
+    const mongoose = require('mongoose');
+    const crypto = require('crypto');
+    
+    let userObjectId;
+    if (mongoose.isValidObjectId(userId)) {
+      userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+    } else {
+      const hash = crypto.createHash('md5').update(userId).digest('hex');
+      userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+    }
+    
+    const progress = await UserProgress.findOne({ 
+      user: userObjectId, 
+      exercise: exerciseId 
+    }).populate('exercise', 'type points');
+
+    if (!progress) {
+      return res.json({
+        completed: false,
+        xp: 0,
+        pointsEarned: 0,
+        pointsMax: 10,
+        attempts: 0,
+        bestScore: 0,
+        lastAttempt: null
+      });
+    }
+
+    res.json({
+      completed: progress.completed,
+      xp: progress.xp,
+      pointsEarned: progress.pointsEarned,
+      pointsMax: progress.pointsMax,
+      attempts: progress.attempts,
+      bestScore: progress.bestScore,
+      lastAttempt: progress.lastAttempt,
+      completedAt: progress.completedAt,
+      details: progress.details,
+      exerciseType: progress.exercise?.type
+    });
+  });
+
+  // Obtenir les statistiques globales d'un utilisateur
+  static getUserStats = catchErrors(async (req, res) => {
+    const { userId } = req.params;
+    
+    if (!userId || typeof userId !== 'string') return res.status(400).json({ error: 'userId requis' });
+
+    const stats = await UserProgress.getUserStats(userId);
+    res.json(stats);
+  });
+
+  // Obtenir le progrès d'un utilisateur pour un niveau complet
+  static getUserLevelProgress = catchErrors(async (req, res) => {
+    const { levelId, userId } = req.params;
+    
+    if (!isValidObjectId(levelId)) return res.status(400).json({ error: 'ID niveau invalide' });
+    if (!userId || typeof userId !== 'string') return res.status(400).json({ error: 'userId requis' });
+
+    const level = await Level.findById(levelId).populate('exercises', '_id type points');
+    if (!level) return res.status(404).json({ error: 'Niveau non trouvé' });
+
+    const exerciseIds = level.exercises.map(e => e._id);
+    
+    // Utiliser la même logique de conversion d'ObjectId
+    const mongoose = require('mongoose');
+    const crypto = require('crypto');
+    
+    let userObjectId;
+    if (mongoose.isValidObjectId(userId)) {
+      userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+    } else {
+      const hash = crypto.createHash('md5').update(userId).digest('hex');
+      userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+    }
+    
+    const progresses = await UserProgress.find({
+      user: userObjectId,
+      exercise: { $in: exerciseIds }
+    }).populate('exercise', 'type points');
+
+    // Organiser les progrès par exercice
+    const progressMap = {};
+    progresses.forEach(p => {
+      progressMap[p.exercise._id.toString()] = {
+        completed: p.completed,
+        xp: p.xp,
+        pointsEarned: p.pointsEarned,
+        pointsMax: p.pointsMax,
+        attempts: p.attempts,
+        bestScore: p.bestScore,
+        lastAttempt: p.lastAttempt
+      };
+    });
+
+    // Calculer les statistiques du niveau
+    const totalExercises = level.exercises.length;
+    const completedExercises = progresses.filter(p => p.completed).length;
+    const totalXp = progresses.reduce((sum, p) => sum + p.xp, 0);
+    const totalPointsEarned = progresses.reduce((sum, p) => sum + p.pointsEarned, 0);
+    const totalPointsMax = level.exercises.reduce((sum, e) => sum + (e.points || 10), 0);
+
+    res.json({
+      levelId,
+      totalExercises,
+      completedExercises,
+      completionRate: totalExercises > 0 ? (completedExercises / totalExercises) : 0,
+      totalXp,
+      totalPointsEarned,
+      totalPointsMax,
+      scorePercentage: totalPointsMax > 0 ? (totalPointsEarned / totalPointsMax) * 100 : 0,
+      exerciseProgresses: progressMap
     });
   });
 

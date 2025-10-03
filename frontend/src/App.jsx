@@ -25,10 +25,12 @@ import VerifyEmailReminder from './pages/VerifyEmailReminder';
 import VerifiedSuccess from './pages/VerifiedSuccess';
 import DashboardClient from './pages/dashboardClient/DashboardPage';
 
-// Pages de cours (3 pages séparées)
+// Pages de cours (4 pages séparées)
 import DebutantMap from './pages/course/DebutantMap';
 import LevelPage from './pages/course/LevelPage';
 import ExercisePage from './pages/course/ExercisePage';
+import SingleExercisePage from './pages/course/SingleExercisePage';
+import TestExerciseInterface from './components/TestExerciseInterface';
 
 // Subscription / Payment client pages
 import Plans from './pages/Plans';
@@ -126,6 +128,7 @@ function PageTitleUpdater() {
     else if (p.startsWith('/admin')) document.title = 'Admin – Tableau de bord';
     // Course pages
     else if (p === '/cours') document.title = 'Parcours';
+    else if (p.startsWith('/courses/levels/') && p.includes('/exercises/')) document.title = 'Exercice — Pratique';
     else if (p.startsWith('/cours/level/') && p.includes('/exercises')) document.title = 'Exercices — Niveau';
     else if (p.startsWith('/cours/level/')) document.title = 'Leçon — Niveau';
     else if (p.startsWith('/dashboard')) document.title = 'Tableau de bord';
@@ -166,6 +169,12 @@ export default function App() {
               <ExercisePage />
             </AuthGuard>
           } />
+          <Route path="/courses/levels/:levelId/exercises/:exerciseId" element={
+            <AuthGuard>
+              <SingleExercisePage />
+            </AuthGuard>
+          } />
+          <Route path="/test-exercise" element={<TestExerciseInterface />} />
           <Route path="/verified-success" element={<VerifiedSuccess />} />
 
           {/* Subscription / Payment client pages */}
