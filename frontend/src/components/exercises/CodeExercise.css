@@ -1,0 +1,352 @@
+/* =========================
+   CODE EXERCISE STYLES
+   ========================= */
+
+.code-exercise {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
+.exercise-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-bottom: 1px solid #e0e0e0;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.language-info,
+.test-cases-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #495057;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.language-icon,
+.test-cases-icon {
+  font-size: 1.1rem;
+}
+
+.language-text,
+.test-cases-text {
+  white-space: nowrap;
+}
+
+/* =========================
+   TABS CONTAINER
+   ========================= */
+
+.tabs-container {
+  background: #ffffff;
+}
+
+.tabs-header {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e0e0e0;
+  overflow-x: auto;
+}
+
+.tab {
+  background: none;
+  border: none;
+  padding: 15px 25px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #6c757d;
+  transition: all 0.3s ease;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tab:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+
+.tab.active {
+  background: #ffffff;
+  color: #667eea;
+  border-bottom-color: #667eea;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.tab-icon {
+  font-size: 1.1rem;
+}
+
+.tab-text {
+  white-space: nowrap;
+}
+
+.tabs-content {
+  min-height: 400px;
+}
+
+/* =========================
+   OUTPUT PANEL
+   ========================= */
+
+.output-panel {
+  padding: 25px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 20px;
+}
+
+.output-content {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 20px;
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #333;
+  margin-bottom: 15px;
+}
+
+.run-btn {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  border: none;
+  padding: 12px 25px;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.run-btn:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.run-icon {
+  font-size: 1.1rem;
+}
+
+/* =========================
+   TESTS PANEL
+   ========================= */
+
+.tests-panel {
+  padding: 25px;
+  background: #f8f9fa;
+}
+
+.tests-panel h4 {
+  margin: 0 0 20px 0;
+  color: #495057;
+  font-size: 1.2rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tests-icon {
+  font-size: 1.3rem;
+}
+
+.test-case {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.test-case:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.test-input,
+.test-expected {
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.test-input strong,
+.test-expected strong {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.test-input {
+  color: #495057;
+}
+
+.test-expected {
+  color: #28a745;
+}
+
+.test-points {
+  display: inline-block;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 10px;
+}
+
+.hidden-tests-info {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px dashed #dee2e6;
+}
+
+/* =========================
+   ANIMATIONS
+   ========================= */
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tab {
+  animation: slideIn 0.3s ease-out;
+}
+
+.tab:nth-child(1) { animation-delay: 0.1s; }
+.tab:nth-child(2) { animation-delay: 0.2s; }
+.tab:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.tabs-content {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+   ========================= */
+
+@media (max-width: 768px) {
+  .exercise-info {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  
+  .language-info,
+  .test-cases-info {
+    justify-content: center;
+  }
+  
+  .tabs-header {
+    flex-wrap: wrap;
+  }
+  
+  .tab {
+    padding: 12px 20px;
+    font-size: 0.9rem;
+  }
+  
+  .output-panel,
+  .tests-panel {
+    padding: 20px;
+  }
+  
+  .output-content {
+    font-size: 0.8rem;
+    padding: 15px;
+  }
+  
+  .run-btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .exercise-info {
+    padding: 15px;
+  }
+  
+  .language-info,
+  .test-cases-info {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+  
+  .tab {
+    padding: 10px 15px;
+    font-size: 0.8rem;
+  }
+  
+  .output-panel,
+  .tests-panel {
+    padding: 15px;
+  }
+  
+  .test-case {
+    padding: 15px;
+  }
+  
+  .run-btn {
+    padding: 8px 15px;
+    font-size: 0.8rem;
+  }
+}
+
+

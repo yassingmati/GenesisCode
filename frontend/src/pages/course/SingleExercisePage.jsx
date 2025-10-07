@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
-import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
+import UnifiedExerciseInterface from '../../components/UnifiedExerciseInterface';
 import './CourseStyles.css';
 import './ExerciseEnhancements.css';
 
@@ -201,18 +201,52 @@ export default function SingleExercisePage() {
               </span>
             )}
           </div>
+          
+          <button 
+            className="btn-secondary"
+            onClick={() => navigate(`/courses/levels/${levelId}/exercises`)}
+            style={{
+              marginLeft: '12px',
+              padding: '8px 16px',
+              background: 'linear-gradient(135deg, #6b7280, #4b5563)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              transition: 'all 0.3s ease',
+              boxShadow: '0 2px 8px rgba(107, 114, 128, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.transform = 'translateY(-2px)';
+              e.target.style.boxShadow = '0 4px 12px rgba(107, 114, 128, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.transform = 'translateY(0)';
+              e.target.style.boxShadow = '0 2px 8px rgba(107, 114, 128, 0.3)';
+            }}
+          >
+            📋 Tous les exercices
+          </button>
         </div>
       </header>
 
       {/* Interface de réponse unifiée */}
       <main className="exercise-main">
-        <ExerciseAnswerInterface
+        <UnifiedExerciseInterface
           exercise={exercise}
-          onAnswer={submitExercise}
-          onTest={handleTest}
-          attempts={attempts}
-          maxAttempts={exercise.attemptsAllowed || 3}
-          isSubmitting={isSubmitting}
+          onSubmissionResult={(result) => {
+            setSubmissionResult(result);
+            setAttempts(prev => prev + 1);
+            markExerciseCompleted(exercise._id, result);
+          }}
+          onError={(error) => {
+            setError(error.message);
+          }}
         />
         
         {/* Affichage des erreurs */}

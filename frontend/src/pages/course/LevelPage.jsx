@@ -2,7 +2,13 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
+import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
+import ExerciseHeader from '../../components/ui/ExerciseHeader';
+import SubmissionPanel from '../../components/ui/SubmissionPanel';
+import LoadingSpinner from '../../components/ui/LoadingSpinner';
+import ErrorMessage from '../../components/ui/ErrorMessage';
 import './CourseStyles.css';
+import '../../components/ExerciseStyles.css';
 
 const API_BASE = 'http://localhost:5000/api/courses';
 const API_ORIGIN = 'http://localhost:5000';
@@ -39,6 +45,16 @@ export default function LevelPagePdfAutoProxy() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  // Exercise states
+  const [exercises, setExercises] = useState([]);
+  const [activeExercise, setActiveExercise] = useState(null);
+  const [userAnswer, setUserAnswer] = useState(null);
+  const [submissionResult, setSubmissionResult] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [exerciseError, setExerciseError] = useState(null);
+  const [showExercises, setShowExercises] = useState(false);
+  const [completedExercises, setCompletedExercises] = useState({});
 
   // Load level metadata
   useEffect(() => {
@@ -305,7 +321,115 @@ export default function LevelPagePdfAutoProxy() {
   const idx = orderedLevelIds.findIndex(id => String(id) === String(levelId));
   const prevId = idx > 0 ? orderedLevelIds[idx - 1] : null;
   const nextId = idx >= 0 && idx < orderedLevelIds.length - 1 ? orderedLevelIds[idx + 1] : null;
-  const openExercises = () => navigate(`/cours/level/${levelId}/exercises`);
+  const openExercises = () => navigate(`/courses/levels/${levelId}/exercises`);
+  
+  // Load exercises for the current level
+  const loadExercises = useCallback(async () => {
+    try {
+      const response = await fetch(`${API_BASE}/levels/${levelId}`);
+      if (!response.ok) throw new Error('Impossible de charger les exercices');
+      const data = await response.json();
+      setExercises(data.exercises || []);
+    } catch (err) {
+      console.error('Erreur de chargement des exercices:', err);
+      setExerciseError(err.message);
+    }
+  }, [levelId]);
+
+  // Get user ID helper
+  const getUserId = () => {
+    const stored = localStorage.getItem('userId');
+    if (stored) return stored;
+    const newId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    localStorage.setItem('userId', newId);
+    return newId;
+  };
+
+  // Submit exercise
+  const submitExercise = useCallback(async (exerciseId, answer, extraData = {}) => {
+    try {
+      setIsSubmitting(true);
+      setExerciseError(null);
+
+      const payload = {
+        answer,
+        userId: getUserId(),
+        ...extraData
+      };
+
+      const response = await fetch(`${API_BASE}/exercises/${exerciseId}/submit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erreur de soumission');
+      }
+
+      const result = await response.json();
+      setSubmissionResult(result);
+      
+      // Mark as completed locally
+      const updated = { ...completedExercises };
+      updated[exerciseId] = {
+        completed: result.correct,
+        pointsEarned: result.pointsEarned,
+        pointsMax: result.pointsMax,
+        xpEarned: result.xpEarned,
+        completedAt: new Date().toISOString()
+      };
+      setCompletedExercises(updated);
+
+      return result;
+    } catch (e) {
+      console.error('Erreur de soumission:', e);
+      setExerciseError(e.message);
+      throw e;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [completedExercises]);
+
+  // Handle exercise submission
+  const handleSubmitExercise = useCallback(async () => {
+    if (!activeExercise || (!userAnswer && activeExercise.type !== 'Code')) return;
+    
+    try {
+      let submissionData = userAnswer;
+      let extraData = {};
+
+      // Special handling for Code exercises
+      if (activeExercise.type === 'Code' && activeExercise._meta?.manualPass) {
+        extraData.passed = true;
+      }
+
+      await submitExercise(activeExercise._id, submissionData, extraData);
+    } catch (e) {
+      // Error is already handled in submitExercise
+    }
+  }, [activeExercise, userAnswer, submitExercise]);
+
+  // Handle test code
+  const handleTestCode = useCallback(async (code) => {
+    // Simulation of code testing
+    return {
+      success: true,
+      message: 'Code exécuté avec succès',
+      details: {
+        lines: code.split('\n').length,
+        language: activeExercise?.language || 'javascript'
+      }
+    };
+  }, [activeExercise]);
+
+  // Load exercises when level changes
+  useEffect(() => {
+    if (levelId) {
+      loadExercises();
+    }
+  }, [levelId, loadExercises]);
 
   if (loading) return (
     <div style={{ 
@@ -446,7 +570,7 @@ export default function LevelPagePdfAutoProxy() {
       {/* Main Content - Full screen PDF with wider sidebar for bigger video */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: '1fr 480px',
+        gridTemplateColumns: showExercises ? '1fr 1fr' : '1fr 480px',
         height: 'calc(100vh - 64px)'
       }}>
         {/* PDF Section - MODIFIÉ pour supprimer l'espace entre les pages */}
@@ -673,7 +797,7 @@ export default function LevelPagePdfAutoProxy() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button 
-                onClick={() => prevId ? navigate(`/cours/level/${prevId}`) : navigate('/cours')}
+                onClick={() => prevId ? navigate(`/courses/levels/${prevId}`) : navigate('/courses')}
                 style={{
                   background: prevId ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#e6e9ef',
                   color: prevId ? 'white' : '#94a3b8',
@@ -691,7 +815,7 @@ export default function LevelPagePdfAutoProxy() {
               <button 
                 onClick={openExercises}
                 style={{
-                  background: 'linear-gradient(135deg, #10b981, #06b6d4)',
+                  background: showExercises ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #06b6d4)',
                   color: 'white',
                   border: 'none',
                   padding: '10px 12px',
@@ -701,12 +825,12 @@ export default function LevelPagePdfAutoProxy() {
                   fontSize: '0.95rem'
                 }}
               >
-                 📝 {t('exercises')} →
+                 📝 {showExercises ? 'Masquer' : t('exercises')} {showExercises ? '←' : '→'}
                </button>
 
               {nextId && (
                 <button 
-                  onClick={() => navigate(`/cours/level/${nextId}`)}
+                  onClick={() => navigate(`/courses/levels/${nextId}`)}
                   style={{
                     background: 'linear-gradient(135deg, #fb7c2a, #ef4444)',
                     color: 'white',
@@ -768,6 +892,245 @@ export default function LevelPagePdfAutoProxy() {
           </div>
 
         </aside>
+
+        {/* Exercise Section - Only shown when showExercises is true */}
+        {showExercises && (
+          <section style={{
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
+            borderLeft: '1px solid rgba(15,23,42,0.06)',
+            padding: 20,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            overflow: 'auto'
+          }}>
+            {/* Exercise Header */}
+            <div style={{
+              background: 'white',
+              borderRadius: 12,
+              padding: 16,
+              border: '1px solid rgba(15,23,42,0.04)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+            }}>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 12
+              }}>
+                <h3 style={{
+                  margin: 0,
+                  fontSize: '1.1rem',
+                  fontWeight: 700,
+                  color: '#0f172a'
+                }}>
+                  📝 Exercices du Niveau
+                </h3>
+                <button
+                  onClick={() => navigate(`/courses/levels/${levelId}/exercises`)}
+                  style={{
+                    background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+                  }}
+                >
+                  📋 Voir tous les exercices
+                </button>
+                
+                <button
+                  onClick={() => navigate(`/level-exercise-tester/${levelId}`)}
+                  style={{
+                    background: 'linear-gradient(135deg, #10b981, #059669)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.3s ease',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.target.style.transform = 'translateY(-2px)';
+                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.transform = 'translateY(0)';
+                    e.target.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+                  }}
+                >
+                  🔧 Tester les Exercices
+                </button>
+              </div>
+              <div style={{
+                display: 'flex',
+                gap: 8,
+                flexWrap: 'wrap'
+              }}>
+                {exercises.map((exercise, index) => {
+                  const isCompleted = completedExercises[exercise._id]?.completed || false;
+                  const progress = completedExercises[exercise._id];
+                  
+                  return (
+                    <button
+                      key={exercise._id}
+                      onClick={() => {
+                        // Navigation vers la page d'exercice individuel
+                        navigate(`/courses/levels/${levelId}/exercises/${exercise._id}`);
+                      }}
+                      style={{
+                        background: isCompleted 
+                          ? 'linear-gradient(135deg, #10b981, #06b6d4)' 
+                          : 'linear-gradient(135deg, #667eea, #764ba2)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        cursor: 'pointer',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        transition: 'all 0.3s ease',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.target.style.transform = 'translateY(-2px)';
+                        e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.target.style.transform = 'translateY(0)';
+                        e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                      }}
+                    >
+                      {isCompleted ? '✅' : '📝'} {exercise.name || `Exercice ${index + 1}`}
+                      {progress && (
+                        <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                          ({progress.pointsEarned}/{progress.pointsMax})
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Active Exercise */}
+            {activeExercise && (
+              <div style={{
+                background: 'white',
+                borderRadius: 12,
+                padding: 20,
+                border: '1px solid rgba(15,23,42,0.04)',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16
+              }}>
+                {/* Exercise Header */}
+                <ExerciseHeader
+                  title={activeExercise.name}
+                  difficulty={activeExercise.difficulty}
+                  points={activeExercise.points}
+                  type={activeExercise.type}
+                  timeLimit={activeExercise.timeLimit}
+                />
+
+                {/* Exercise Content */}
+                <div style={{ flex: 1 }}>
+                  <ExerciseAnswerInterface
+                    exercise={activeExercise}
+                    answer={userAnswer}
+                    onAnswer={setUserAnswer}
+                    onSubmit={handleSubmitExercise}
+                    onTest={handleTestCode}
+                    attempts={0}
+                    maxAttempts={activeExercise.attemptsAllowed || 3}
+                    isSubmitting={isSubmitting}
+                    submissionResult={submissionResult}
+                    error={exerciseError}
+                  />
+                </div>
+
+                {/* Submission Panel */}
+                <SubmissionPanel
+                  onSubmit={handleSubmitExercise}
+                  result={submissionResult}
+                  isSubmitting={isSubmitting}
+                  attemptsAllowed={activeExercise.attemptsAllowed || 3}
+                  currentAttempts={0}
+                  userAnswer={userAnswer}
+                />
+
+                {/* Close Exercise Button */}
+                <button
+                  onClick={() => {
+                    setActiveExercise(null);
+                    setUserAnswer(null);
+                    setSubmissionResult(null);
+                    setExerciseError(null);
+                  }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(15,23,42,0.1)',
+                    color: '#6b7280',
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  ✕ Fermer l'exercice
+                </button>
+              </div>
+            )}
+
+            {/* No Exercise Selected */}
+            {!activeExercise && (
+              <div style={{
+                background: 'white',
+                borderRadius: 12,
+                padding: 40,
+                border: '1px solid rgba(15,23,42,0.04)',
+                textAlign: 'center',
+                color: '#6b7280'
+              }}>
+                <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
+                <h4 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+                  Sélectionnez un exercice
+                </h4>
+                <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                  Cliquez sur un exercice ci-dessus pour commencer
+                </p>
+              </div>
+            )}
+          </section>
+        )}
       </div>
     </div>
   );

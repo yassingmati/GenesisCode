@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import CodeEditor from './CodeEditor';
+import CodeEditor from './ui/CodeEditor';
 import './ExerciseAnswerInterface.css';
 
 /**
@@ -65,24 +65,49 @@ export default function ExerciseAnswerInterface({
   const handleTest = async () => {
     if (!onTest) return;
     
-    setIsTesting(true);
     try {
+      // Validation avancée pour les exercices de code
+      if (['Code', 'Trace', 'Debug', 'CodeCompletion', 'PseudoCode', 'Complexity', 'CodeOutput', 'Optimization'].includes(exercise.type)) {
+        const validation = validateCodeAnswer(userAnswer);
+        if (!validation.valid) {
+          setTestResult({
+            success: false,
+            message: `Erreur de validation: ${validation.message}`,
+            details: validation.details
+          });
+          return;
+        }
+      }
+      
+      setIsTesting(true);
       const result = await onTest(userAnswer);
       setTestResult(result);
     } catch (error) {
+      console.error('Erreur lors du test:', error);
       setTestResult({
         success: false,
-        message: 'Erreur lors du test: ' + error.message
+        message: 'Erreur lors du test: ' + error.message,
+        details: 'Vérifiez votre connexion et réessayez'
       });
     } finally {
       setIsTesting(false);
     }
   };
 
-  // Fonction de soumission unifiée
+  // Fonction de soumission unifiée - Version améliorée
   const handleSubmit = () => {
-    if (onAnswer) {
-      onAnswer(userAnswer);
+    try {
+      if (!isAnswerValid()) {
+        alert('Veuillez compléter votre réponse avant de soumettre');
+        return;
+      }
+      
+      if (onAnswer) {
+        onAnswer(userAnswer);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la soumission:', error);
+      alert('Erreur lors de la soumission. Veuillez réessayer.');
     }
   };
 
@@ -90,12 +115,16 @@ export default function ExerciseAnswerInterface({
   const isAnswerValid = () => {
     if (!userAnswer) return false;
     
-    switch (exercise.type) {
+    try {
+      switch (exercise.type) {
       case 'QCM':
         return Array.isArray(userAnswer) && userAnswer.length > 0;
+      
       case 'TextInput':
       case 'FillInTheBlank':
       case 'SpotTheError':
+        return typeof userAnswer === 'string' && userAnswer.trim().length > 0;
+      
       case 'Code':
       case 'Trace':
       case 'Debug':
@@ -104,19 +133,86 @@ export default function ExerciseAnswerInterface({
       case 'Complexity':
       case 'CodeOutput':
       case 'Optimization':
-        return typeof userAnswer === 'string' && userAnswer.trim().length > 0;
+        if (typeof userAnswer !== 'string' || userAnswer.trim().length === 0) return false;
+        
+        // Validation stricte pour le code
+        const code = userAnswer.toLowerCase().trim();
+        
+        // Vérifications de base pour tout code
+        const hasFunction = code.includes('function') || code.includes('=>') || code.includes('const') || code.includes('let');
+        const hasReturn = code.includes('return') || code.includes('console.log') || code.includes('print');
+        
+        if (!hasFunction || !hasReturn) return false;
+        
+        // Validations spécifiques selon le type d'exercice
+        if (exercise.type === 'Code') {
+          // Vérifier que c'est du code JavaScript valide
+          return code.includes('function') || code.includes('=>') || code.includes('const') || code.includes('let');
+        }
+        
+        if (exercise.type === 'Debug') {
+          // Pour le debug, vérifier qu'il y a une identification d'erreur
+          return code.includes('error') || code.includes('erreur') || code.includes('bug') || code.includes('problem');
+        }
+        
+        return true;
+      
       case 'OrderBlocks':
       case 'Algorithm':
       case 'AlgorithmSteps':
         return Array.isArray(userAnswer) && userAnswer.length > 0;
+      
       case 'DragDrop':
       case 'Matching':
         return typeof userAnswer === 'object' && Object.keys(userAnswer).length > 0;
+      
       case 'ScratchBlocks':
         return Array.isArray(userAnswer) && userAnswer.length > 0;
+      
       default:
         return true;
+      }
+    } catch (error) {
+      console.error('Erreur lors de la validation:', error);
+      return false;
     }
+  };
+
+  // Validation avancée pour les exercices de code
+  const validateCodeAnswer = (code) => {
+    if (!code || typeof code !== 'string') return { valid: false, message: 'Code vide' };
+    
+    const codeLower = code.toLowerCase().trim();
+    
+    // Vérifications de base
+    if (!codeLower.includes('function') && !codeLower.includes('=>') && !codeLower.includes('const') && !codeLower.includes('let')) {
+      return { valid: false, message: 'Il manque une déclaration de fonction' };
+    }
+    
+    if (!codeLower.includes('return') && !codeLower.includes('console.log') && !codeLower.includes('print')) {
+      return { valid: false, message: 'Il manque un retour de valeur ou un affichage' };
+    }
+    
+    // Vérifications spécifiques selon l'exercice
+    if (exercise.name && exercise.name.toLowerCase().includes('factoriel')) {
+      if (!codeLower.includes('factoriel') || !codeLower.includes('n * factoriel')) {
+        return { valid: false, message: 'La fonction doit s\'appeler "factoriel" et être récursive' };
+      }
+    }
+    
+    if (exercise.name && exercise.name.toLowerCase().includes('fizz')) {
+      if (!codeLower.includes('fizz') || !codeLower.includes('buzz')) {
+        return { valid: false, message: 'Il manque la logique FizzBuzz' };
+      }
+    }
+    
+    if (exercise.name && exercise.name.toLowerCase().includes('somme')) {
+      if (!codeLower.includes('filter') && !codeLower.includes('for') && !codeLower.includes('reduce')) {
+        return { valid: false, message: 'Il manque une méthode pour traiter les éléments du tableau' };
+      }
+    }
+    
+    return { valid: true, message: 'Code valide' };
   };
 
   // Rendu de l'interface selon le type d'exercice

@@ -1,0 +1,303 @@
+/* =========================
+   ORDER BLOCKS EXERCISE STYLES
+   ========================= */
+
+.order-blocks-exercise {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+}
+
+.instruction {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 25px;
+  text-align: center;
+  padding: 15px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  border: 1px solid #dee2e6;
+}
+
+.blocks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.block-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  background: #ffffff;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 15px 20px;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.block-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+  z-index: 0;
+}
+
+.block-item:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+.block-item:hover::before {
+  width: 4px;
+}
+
+.block-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+  position: relative;
+}
+
+.btn-move {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 1.2rem;
+  font-weight: bold;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+.btn-move:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-move:disabled {
+  background: #cccccc;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.btn-move.up {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+}
+
+.btn-move.up:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.4);
+}
+
+.btn-move.down {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-move.down:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+.block-position {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+.block-code {
+  flex: 1;
+  background: #f8f9fa;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 15px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: #495057;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  margin: 0;
+  z-index: 1;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.block-code:hover {
+  background: #e9ecef;
+  border-color: #667eea;
+}
+
+/* =========================
+   DRAG AND DROP STATES
+   ========================= */
+
+.block-item.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+}
+
+.block-item.drag-over {
+  border-color: #28a745;
+  background: linear-gradient(135deg, rgba(40, 167, 69, 0.1) 0%, rgba(32, 201, 151, 0.1) 100%);
+  box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+}
+
+.block-item.drag-over::before {
+  width: 4px;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}
+
+/* =========================
+   ANIMATIONS
+   ========================= */
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.block-item {
+  animation: slideInUp 0.4s ease-out;
+}
+
+.block-item:nth-child(1) { animation-delay: 0.1s; }
+.block-item:nth-child(2) { animation-delay: 0.2s; }
+.block-item:nth-child(3) { animation-delay: 0.3s; }
+.block-item:nth-child(4) { animation-delay: 0.4s; }
+.block-item:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.btn-move:not(:disabled):hover {
+  animation: pulse 0.6s ease-in-out;
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+   ========================= */
+
+@media (max-width: 768px) {
+  .order-blocks-exercise {
+    padding: 20px;
+  }
+  
+  .instruction {
+    font-size: 1rem;
+    padding: 12px;
+  }
+  
+  .block-item {
+    padding: 12px 15px;
+    gap: 12px;
+  }
+  
+  .block-controls {
+    gap: 6px;
+  }
+  
+  .btn-move {
+    width: 30px;
+    height: 30px;
+    font-size: 1rem;
+  }
+  
+  .block-position {
+    width: 25px;
+    height: 25px;
+    font-size: 0.8rem;
+  }
+  
+  .block-code {
+    font-size: 0.8rem;
+    padding: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-blocks-exercise {
+    padding: 15px;
+  }
+  
+  .instruction {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+  
+  .block-item {
+    padding: 10px 12px;
+    gap: 10px;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .block-controls {
+    flex-direction: row;
+    justify-content: center;
+    gap: 10px;
+  }
+  
+  .btn-move {
+    width: 28px;
+    height: 28px;
+    font-size: 0.9rem;
+  }
+  
+  .block-position {
+    width: 22px;
+    height: 22px;
+    font-size: 0.7rem;
+  }
+  
+  .block-code {
+    font-size: 0.75rem;
+    padding: 10px;
+  }
+}
+
+

@@ -1,0 +1,178 @@
+/* =========================
+   EXERCISE HEADER STYLES
+   ========================= */
+
+.exercise-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 30px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.header-left {
+  flex: 1;
+}
+
+.exercise-title {
+  margin: 0 0 15px 0;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.exercise-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.meta-icon {
+  font-size: 1.1rem;
+}
+
+.meta-label {
+  white-space: nowrap;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exercise-constraints {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.constraint-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.constraint-icon {
+  font-size: 1rem;
+}
+
+.constraint-label {
+  white-space: nowrap;
+}
+
+/* =========================
+   EXERCISE HINT
+   ========================= */
+
+.exercise-hint {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.hint-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.hint-icon {
+  font-size: 1.2rem;
+}
+
+.hint-title {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.hint-content {
+  font-size: 1rem;
+  line-height: 1.5;
+  opacity: 0.95;
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+   ========================= */
+
+@media (max-width: 768px) {
+  .exercise-header {
+    padding: 20px;
+  }
+  
+  .header-main {
+    flex-direction: column;
+    gap: 15px;
+  }
+  
+  .exercise-title {
+    font-size: 1.5rem;
+  }
+  
+  .exercise-meta {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .meta-item {
+    justify-content: center;
+  }
+  
+  .exercise-constraints {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  
+  .constraint-item {
+    font-size: 0.8rem;
+    padding: 4px 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .exercise-header {
+    padding: 15px;
+  }
+  
+  .exercise-title {
+    font-size: 1.3rem;
+  }
+  
+  .meta-item,
+  .constraint-item {
+    font-size: 0.8rem;
+    padding: 6px 10px;
+  }
+}
+
+

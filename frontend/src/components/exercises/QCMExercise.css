@@ -1,0 +1,240 @@
+/* =========================
+   QCM EXERCISE STYLES
+   ========================= */
+
+.qcm-exercise {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+}
+
+.qcm-exercise .options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.qcm-option {
+  display: flex;
+  align-items: flex-start;
+  padding: 15px 20px;
+  background: #ffffff;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.qcm-option::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+  z-index: 0;
+}
+
+.qcm-option:hover {
+  border-color: #667eea;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
+  transform: translateY(-2px);
+}
+
+.qcm-option:hover::before {
+  width: 4px;
+}
+
+.qcm-option input[type="radio"],
+.qcm-option input[type="checkbox"] {
+  margin-right: 15px;
+  margin-top: 2px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  outline: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+  transition: all 0.3s ease;
+  flex-shrink: 0;
+}
+
+.qcm-option input[type="checkbox"] {
+  border-radius: 4px;
+}
+
+.qcm-option input[type="radio"]:checked,
+.qcm-option input[type="checkbox"]:checked {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.qcm-option input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  background: white;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.qcm-option input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+  transform: translate(-50%, -50%);
+}
+
+.qcm-option input[type="radio"]:hover,
+.qcm-option input[type="checkbox"]:hover {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.option-text {
+  flex: 1;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: #333;
+  position: relative;
+  z-index: 1;
+  font-weight: 500;
+}
+
+.qcm-option.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+}
+
+.qcm-option.selected::before {
+  width: 4px;
+}
+
+/* =========================
+   MULTIPLE SELECTION STYLES
+   ========================= */
+
+.qcm-exercise.multiple-selection .qcm-option {
+  border-left: 4px solid transparent;
+}
+
+.qcm-exercise.multiple-selection .qcm-option.selected {
+  border-left-color: #667eea;
+}
+
+.qcm-exercise.multiple-selection .qcm-option input[type="checkbox"] {
+  border-radius: 4px;
+}
+
+/* =========================
+   DISABLED STATE
+   ========================= */
+
+.qcm-option.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: #f8f9fa;
+}
+
+.qcm-option.disabled:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: #e0e0e0;
+}
+
+.qcm-option.disabled input[type="radio"],
+.qcm-option.disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
+/* =========================
+   ANIMATIONS
+   ========================= */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.qcm-option {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+.qcm-option:nth-child(1) { animation-delay: 0.1s; }
+.qcm-option:nth-child(2) { animation-delay: 0.2s; }
+.qcm-option:nth-child(3) { animation-delay: 0.3s; }
+.qcm-option:nth-child(4) { animation-delay: 0.4s; }
+.qcm-option:nth-child(5) { animation-delay: 0.5s; }
+
+/* =========================
+   RESPONSIVE DESIGN
+   ========================= */
+
+@media (max-width: 768px) {
+  .qcm-exercise {
+    padding: 20px;
+  }
+  
+  .qcm-option {
+    padding: 12px 15px;
+  }
+  
+  .option-text {
+    font-size: 0.9rem;
+  }
+  
+  .qcm-option input[type="radio"],
+  .qcm-option input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    margin-right: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .qcm-exercise {
+    padding: 15px;
+  }
+  
+  .qcm-option {
+    padding: 10px 12px;
+  }
+  
+  .option-text {
+    font-size: 0.85rem;
+  }
+  
+  .qcm-option input[type="radio"],
+  .qcm-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+  }
+}
+
+

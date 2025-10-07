@@ -225,9 +225,9 @@ export default function ExercisePage() {
       {/* Header du niveau */}
       <header className="exercise-header">
         <div className="header-left">
-          <button className="btn-back" onClick={() => navigate('/courses')}>
+          <button className="btn-back" onClick={() => navigate(`/courses/levels/${levelId}`)}>
             <span className="icon">←</span>
-            <span className="text">Retour</span>
+            <span className="text">Retour au niveau</span>
           </button>
           
           <div className="level-info">

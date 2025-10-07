@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import styled from 'styled-components';
 import api from '../utils/api';
-import SubscribeButton from '../admin/components/SubscribeButton';
+import SubscribeButton from '../components/SubscribeButton';
 import { toast } from 'react-toastify';
 
 const Container = styled.div` padding: 2rem; `;

@@ -168,7 +168,7 @@ export default function DebutantMap() {
   // Actions
   const openLevel = (id) => {
     if (!id) return;
-    navigate(`/cours/level/${id}`);
+    navigate(`/courses/levels/${id}`);
   };
 
   const resetFilters = () => {

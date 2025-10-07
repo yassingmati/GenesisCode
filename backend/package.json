@@ -3,8 +3,10 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node start-server.js",
+    "start:simple": "node src/index.js",
     "dev": "nodemon src/index.js",
+    "dev:clean": "powershell -ExecutionPolicy Bypass -File start-server.ps1",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

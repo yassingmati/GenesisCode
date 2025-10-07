@@ -196,3 +196,5 @@ const stats = await fetch('/api/courses/users/user123/stats');
 const userStats = await stats.json();
 console.log(`Progression globale: ${userStats.averageScore * 100}%`);
 ```
+
+

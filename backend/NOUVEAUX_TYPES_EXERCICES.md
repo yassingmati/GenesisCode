@@ -195,3 +195,5 @@ Cette documentation présente les nouveaux types d'exercices ajoutés à la plat
 - ✅ Exemples d'exercices créés et validés
 
 Cette extension majeure enrichit considérablement les possibilités pédagogiques de la plateforme CodeGenesis pour l'enseignement des algorithmes, de la programmation et du Scratch.
+
+

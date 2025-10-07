@@ -1,0 +1,349 @@
+/* =========================
+   SPOT THE ERROR EXERCISE STYLES
+   ========================= */
+
+.spot-the-error-exercise {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e0e0e0;
+}
+
+.instruction {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 25px;
+  text-align: center;
+  padding: 15px;
+  background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+  border-radius: 8px;
+  border: 1px solid #ffc107;
+  border-left: 4px solid #ffc107;
+}
+
+.code-display-with-lines {
+  display: flex;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  overflow: hidden;
+  margin-bottom: 25px;
+}
+
+.line-numbers-panel {
+  background: #e9ecef;
+  border-right: 1px solid #dee2e6;
+  padding: 15px 10px;
+  min-width: 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.line-number {
+  background: #ffffff;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  padding: 8px 12px;
+  text-align: center;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.line-number::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 100%;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  transition: width 0.3s ease;
+  z-index: 0;
+}
+
+.line-number:hover {
+  border-color: #dc3545;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+  transform: translateY(-1px);
+}
+
+.line-number:hover::before {
+  width: 3px;
+}
+
+.line-number.error-line {
+  background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+  border-color: #dc3545;
+  color: #721c24;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.2);
+}
+
+.line-number.error-line::before {
+  width: 3px;
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+}
+
+.line-number.error-line:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.code-content-panel {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 0 8px 8px 0;
+  overflow: hidden;
+}
+
+.code-content-panel .monaco-editor {
+  border-radius: 0 8px 8px 0;
+}
+
+.identified-errors-summary {
+  background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+  border-radius: 8px;
+  padding: 20px;
+  border: 1px solid #dee2e6;
+}
+
+.identified-errors-summary h4 {
+  margin: 0 0 15px 0;
+  color: #495057;
+  font-size: 1.1rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.errors-icon {
+  font-size: 1.2rem;
+  color: #dc3545;
+}
+
+.identified-errors-summary p {
+  color: #6c757d;
+  font-style: italic;
+  margin: 0;
+  text-align: center;
+  padding: 15px;
+  background: #ffffff;
+  border-radius: 6px;
+  border: 1px dashed #dee2e6;
+}
+
+.identified-errors-summary ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.identified-errors-summary li {
+  background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+  color: white;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.identified-errors-summary li:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(220, 53, 69, 0.4);
+}
+
+.identified-errors-summary li::before {
+  content: '❌ ';
+  margin-right: 5px;
+}
+
+/* =========================
+   ERROR HIGHLIGHTING
+   ========================= */
+
+.line-number.error-line {
+  position: relative;
+}
+
+.line-number.error-line::after {
+  content: '⚠️';
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  font-size: 0.8rem;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* =========================
+   ANIMATIONS
+   ========================= */
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.line-number {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+.line-number:nth-child(1) { animation-delay: 0.1s; }
+.line-number:nth-child(2) { animation-delay: 0.2s; }
+.line-number:nth-child(3) { animation-delay: 0.3s; }
+.line-number:nth-child(4) { animation-delay: 0.4s; }
+.line-number:nth-child(5) { animation-delay: 0.5s; }
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+.line-number.error-line {
+  animation: shake 0.5s ease-in-out;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.line-number.error-line:hover {
+  animation: pulse 0.6s ease-in-out;
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+   ========================= */
+
+@media (max-width: 768px) {
+  .spot-the-error-exercise {
+    padding: 20px;
+  }
+  
+  .instruction {
+    font-size: 1rem;
+    padding: 12px;
+  }
+  
+  .code-display-with-lines {
+    flex-direction: column;
+  }
+  
+  .line-numbers-panel {
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 10px;
+    gap: 5px;
+    min-width: auto;
+  }
+  
+  .line-number {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    min-width: 40px;
+    flex-shrink: 0;
+  }
+  
+  .code-content-panel {
+    border-radius: 8px;
+  }
+  
+  .code-content-panel .monaco-editor {
+    border-radius: 8px;
+  }
+  
+  .identified-errors-summary {
+    padding: 15px;
+  }
+  
+  .identified-errors-summary ul {
+    justify-content: center;
+  }
+  
+  .identified-errors-summary li {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .spot-the-error-exercise {
+    padding: 15px;
+  }
+  
+  .instruction {
+    font-size: 0.9rem;
+    padding: 10px;
+  }
+  
+  .line-numbers-panel {
+    padding: 8px;
+    gap: 3px;
+  }
+  
+  .line-number {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    min-width: 35px;
+  }
+  
+  .identified-errors-summary {
+    padding: 12px;
+  }
+  
+  .identified-errors-summary h4 {
+    font-size: 1rem;
+  }
+  
+  .identified-errors-summary li {
+    padding: 5px 10px;
+    font-size: 0.75rem;
+  }
+}
+
+

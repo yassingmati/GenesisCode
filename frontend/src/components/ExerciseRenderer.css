@@ -1,0 +1,116 @@
+/* =========================
+   EXERCISE RENDERER STYLES
+   ========================= */
+
+.exercise-renderer {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.exercise-content {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+}
+
+/* =========================
+   EXERCICE NON SUPPORTÉ
+   ========================= */
+
+.unsupported-exercise {
+  padding: 40px;
+  text-align: center;
+  background: #f8f9fa;
+  border-radius: 12px;
+  border: 2px dashed #dee2e6;
+}
+
+.unsupported-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.unsupported-icon {
+  font-size: 2rem;
+}
+
+.unsupported-header h3 {
+  margin: 0;
+  color: #6c757d;
+  font-size: 1.5rem;
+}
+
+.unsupported-content {
+  margin-bottom: 30px;
+}
+
+.unsupported-content p {
+  color: #6c757d;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 10px 0;
+}
+
+.unsupported-details {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+  text-align: left;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.unsupported-details h4 {
+  color: #495057;
+  margin-bottom: 15px;
+  font-size: 1.1rem;
+}
+
+.unsupported-details ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.unsupported-details li {
+  padding: 8px 0;
+  border-bottom: 1px solid #f8f9fa;
+  color: #6c757d;
+}
+
+.unsupported-details li:last-child {
+  border-bottom: none;
+}
+
+/* =========================
+   RESPONSIVE DESIGN
+   ========================= */
+
+@media (max-width: 768px) {
+  .exercise-renderer {
+    padding: 10px;
+  }
+  
+  .unsupported-exercise {
+    padding: 20px;
+  }
+  
+  .unsupported-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .unsupported-header h3 {
+    font-size: 1.2rem;
+  }
+}
+
+
