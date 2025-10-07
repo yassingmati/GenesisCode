@@ -16,15 +16,33 @@
     universe_domain: "googleapis.com"
     };
 
-    try {
-    if (!admin.apps.length) {
+try {
+if (!admin.apps.length) {
+    // Vérifier si toutes les variables Firebase sont définies
+    const requiredVars = [
+        'FIREBASE_PROJECT_ID',
+        'FIREBASE_PRIVATE_KEY_ID', 
+        'FIREBASE_PRIVATE_KEY',
+        'FIREBASE_CLIENT_EMAIL',
+        'FIREBASE_CLIENT_ID',
+        'FIREBASE_CLIENT_X509_CERT_URL'
+    ];
+    
+    const missingVars = requiredVars.filter(varName => !process.env[varName]);
+    
+    if (missingVars.length > 0) {
+        console.warn('Variables Firebase manquantes:', missingVars.join(', '));
+        console.warn('Firebase Admin sera désactivé - certaines fonctionnalités ne fonctionneront pas');
+    } else {
         admin.initializeApp({
-        credential: admin.credential.cert(firebaseConfig)
+            credential: admin.credential.cert(firebaseConfig)
         });
         console.log('Firebase Admin initialisé avec succès via .env');
     }
-    } catch (error) {
-    console.error('Erreur d\'initialisation Firebase Admin', error);
-    }
+}
+} catch (error) {
+console.error('Erreur d\'initialisation Firebase Admin', error);
+console.warn('Firebase Admin sera désactivé - certaines fonctionnalités ne fonctionneront pas');
+}
 
     module.exports = admin;

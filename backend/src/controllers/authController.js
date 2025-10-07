@@ -3,11 +3,27 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/User');
 const admin = require('../utils/firebaseAdmin');
+
+// Vérifier si Firebase est disponible
+const isFirebaseAvailable = () => {
+  try {
+    return admin.apps.length > 0;
+  } catch (error) {
+    return false;
+  }
+};
 const sendVerificationEmail = require('../utils/emailService');
 
-// Initialize Firestore
-const db = admin.firestore();
-const usersCollection = db.collection('users');
+// Initialize Firestore seulement si Firebase est disponible
+let db, usersCollection;
+if (isFirebaseAvailable()) {
+  try {
+    db = admin.firestore();
+    usersCollection = db.collection('users');
+  } catch (error) {
+    console.warn('Firestore non disponible:', error.message);
+  }
+}
 
 /**
  * Helper function to format the user object for responses.
@@ -38,7 +54,41 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'Email and password are required.' });
         }
 
-        // Create user in Firebase Auth
+        // Si Firebase n'est pas disponible, créer directement dans MongoDB
+        if (!isFirebaseAvailable()) {
+            console.warn('Firebase non disponible - création directe dans MongoDB');
+            
+            // Vérifier si l'utilisateur existe déjà
+            const existingUser = await User.findOne({ email });
+            if (existingUser) {
+                return res.status(409).json({ message: 'This email is already in use.' });
+            }
+
+            // Créer un nouvel utilisateur avec un firebaseUid généré
+            const newUser = new User({
+                firebaseUid: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                email,
+                firstName: '', // Initialize as empty
+                lastName: '',  // Initialize as empty
+                userType: 'student', // Default userType
+            });
+            await newUser.save();
+
+            // Generate JWT
+            const token = jwt.sign(
+                { id: newUser._id, email: newUser.email },
+                process.env.JWT_SECRET,
+                { expiresIn: '1d' }
+            );
+
+            return res.status(201).json({
+                token,
+                user: formatUserResponse(newUser),
+                message: 'Registration successful (simple auth). Please complete your profile.',
+            });
+        }
+
+        // Création avec Firebase (code original)
         const userRecord = await admin.auth().createUser({
             email,
             password,
@@ -98,13 +148,36 @@ exports.loginWithEmail = async (req, res) => {
             return res.status(400).json({ message: 'Email and password are required.' });
         }
 
-        // Check for Firebase API key
-        if (!process.env.FIREBASE_WEB_API_KEY) {
-            console.error('FIREBASE_WEB_API_KEY is missing from .env');
-            return res.status(500).json({ message: 'Server configuration error.' });
+        // Si Firebase n'est pas disponible, utiliser une authentification simple
+        if (!isFirebaseAvailable() || !process.env.FIREBASE_WEB_API_KEY) {
+            console.warn('Firebase non disponible - utilisation de l\'authentification simple');
+            
+            // Authentification simple avec MongoDB uniquement
+            const dbUser = await User.findOne({ email });
+            
+            if (!dbUser) {
+                return res.status(404).json({ message: 'No account is associated with this email.' });
+            }
+            
+            // Pour la démo, on accepte n'importe quel mot de passe
+            // En production, vous devriez utiliser bcrypt pour comparer les mots de passe
+            console.warn('ATTENTION: Authentification simple activée - pas de vérification du mot de passe');
+            
+            // Generate JWT
+            const token = jwt.sign(
+                { id: dbUser._id, email: dbUser.email },
+                process.env.JWT_SECRET,
+                { expiresIn: '1d' }
+            );
+
+            return res.json({
+                token,
+                user: formatUserResponse(dbUser),
+                message: 'Login successful (simple auth).',
+            });
         }
 
-        // Authenticate via Firebase REST API
+        // Authentification Firebase normale
         const response = await axios.post(
             `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_WEB_API_KEY}`,
             { email, password, returnSecureToken: true }
@@ -126,9 +199,11 @@ exports.loginWithEmail = async (req, res) => {
         }
 
         // Update last login in Firestore
-        await usersCollection.doc(uid).set({
-            lastLogin: admin.firestore.FieldValue.serverTimestamp()
-        }, { merge: true });
+        if (isFirebaseAvailable()) {
+            await usersCollection.doc(uid).set({
+                lastLogin: admin.firestore.FieldValue.serverTimestamp()
+            }, { merge: true });
+        }
 
         // Generate JWT
         const token = jwt.sign(

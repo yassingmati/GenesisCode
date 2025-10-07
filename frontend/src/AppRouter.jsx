@@ -22,7 +22,7 @@ import RegisterPage from './pages/auth/Register';
 import CompleteProfile from './pages/CompleteProfile';
 import VerifyEmailReminder from './pages/VerifyEmailReminder';
 import VerifiedSuccess from './pages/VerifiedSuccess';
-import DashboardClient from './pages/dashboardClient/DashboardPage';
+import DashboardClient from './pages/dashboard/DashboardPage';
 
 // Pages de cours - NOUVEAU ROUTAGE
 import DebutantMap from './pages/course/DebutantMap';
@@ -37,13 +37,13 @@ import MySubscriptions from './pages/subscriptions/MySubscriptions';
 import PaymentReturn from './pages/PaymentReturn';
 
 // Pages Admin & Layout
-import AdminLogin from './admin/pages/AdminLogin';
-import AdminLayout from './admin/AdminLayout';
-import AdminDashboard from './admin/pages/AdminDashboard';
-import UserManagement from './admin/pages/UserManagement';
-import CourseManagement from './admin/pages/CourseManagement';
-import PaymentManagement from './admin/pages/PaymentManagement';
-import SubscriptionManagement from './admin/pages/SubscriptionManagement';
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminLayout from './components/layout/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UserManagement from './pages/admin/UserManagement';
+import CourseManagement from './pages/admin/CourseManagement';
+import PaymentManagement from './pages/admin/PaymentManagement';
+import SubscriptionManagement from './pages/admin/SubscriptionManagement';
 
 // Styles globaux
 const GlobalStyle = createGlobalStyle`
@@ -230,5 +230,4 @@ export default function AppRouter() {
     </AuthProvider>
   );
 }
-
 

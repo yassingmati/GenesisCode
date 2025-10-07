@@ -48,15 +48,48 @@ if (process.env.STRIPE_SECRET_KEY) {
 
 // Models & Routes (adapter si chemins différents)
 let authRoutes, userRoutes, adminRoutes, courseRoutes, subscriptionRoutes;
+
+// Charger les routes individuellement pour éviter qu'une erreur empêche le chargement des autres
 try {
   authRoutes = require('./routes/authRoutes');
-  userRoutes = require('./routes/userRoutes');
-  adminRoutes = require('./routes/adminRoutes');
-  courseRoutes = require('./routes/courseRoutes');
-  subscriptionRoutes = require('./routes/subscriptionRoutes');
+  console.log('✅ authRoutes chargé');
 } catch (err) {
-  // If not present, keep as undefined — routes mounting will be tolerant.
-  console.warn('Quelques routes n\'ont pas été trouvées (vérifie ./routes) :', err.message);
+  console.error('❌ Erreur chargement authRoutes:', err.message);
+  // Essayer les routes simplifiées
+  try {
+    authRoutes = require('./routes/authRoutesSimple');
+    console.log('✅ authRoutesSimple chargé comme fallback');
+  } catch (err2) {
+    console.error('❌ Erreur chargement authRoutesSimple:', err2.message);
+  }
+}
+
+try {
+  userRoutes = require('./routes/userRoutes');
+  console.log('✅ userRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement userRoutes:', err.message);
+}
+
+try {
+  adminRoutes = require('./routes/adminRoutes');
+  console.log('✅ adminRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement adminRoutes:', err.message);
+}
+
+try {
+  courseRoutes = require('./routes/courseRoutes');
+  console.log('✅ courseRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement courseRoutes:', err.message);
+}
+
+try {
+  subscriptionRoutes = require('./routes/subscriptionRoutes');
+  console.log('✅ subscriptionRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement subscriptionRoutes:', err.message);
 }
 
 // ---------- Security & headers ----------
@@ -316,7 +349,20 @@ app.use('/uploads/pdfs', express.static(path.join(__dirname, 'uploads', 'pdfs'),
 }));
 
 // ---------- Mount main API routes (if present) ----------
-if (authRoutes) app.use('/api/auth', authRoutes);
+console.log('Loading routes...');
+console.log('authRoutes:', !!authRoutes);
+console.log('userRoutes:', !!userRoutes);
+console.log('adminRoutes:', !!adminRoutes);
+console.log('subscriptionRoutes:', !!subscriptionRoutes);
+console.log('courseRoutes:', !!courseRoutes);
+
+if (authRoutes) {
+  console.log('Mounting auth routes at /api/auth');
+  app.use('/api/auth', authRoutes);
+} else {
+  console.error('authRoutes is undefined - routes not loaded');
+}
+
 if (userRoutes) app.use('/api/users', userRoutes);
 if (adminRoutes) app.use('/api/admin', adminRoutes);
 if (subscriptionRoutes) app.use('/api/subscriptions', subscriptionRoutes);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import CodeEditor from '../CodeEditor';
+import CodeEditor from '../ui/CodeEditor';
 
 /**
  * Composant SpotTheErrorExercise - Exercice de détection d'erreurs
