@@ -1,11 +1,17 @@
 # Ignorer les dossiers node_modules
 **/node_modules/
 
+# Fichiers de configuration sensibles
+**/firebase-credentials.json
+**/firebase-service-account.json
+**/firebase-admin-key.json
+**/.env
+**/.env.local
+**/.env.production
+
 # Autres fichiers temporaires optionnels
 *.log
-.env
 dist/
 build/
-**/node_modules/
 **/uploads/
 *.mp4
