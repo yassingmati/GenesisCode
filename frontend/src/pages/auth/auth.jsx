@@ -15,7 +15,8 @@ const Auth = ({ type }) => {
     email: '',
     password: '',
     confirmPassword: '',
-    rememberMe: false
+    rememberMe: false,
+    userType: 'student' // Nouveau champ pour le type d'utilisateur
   });
   
   const [showPassword, setShowPassword] = useState(false);
@@ -71,7 +72,8 @@ const Auth = ({ type }) => {
       
       const response = await axios.post(endpoint, {
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        userType: formData.userType // Inclure le type d'utilisateur
       });
       
       // Stockage du token et des données utilisateur
@@ -99,7 +101,12 @@ const Auth = ({ type }) => {
           else if (!isProfileComplete) {
             navigate('/complete-profile');
           } else {
-            navigate('/dashboard');
+            // Redirection basée sur le type d'utilisateur
+            if (user.userType === 'parent') {
+              navigate('/parent/dashboard');
+            } else {
+              navigate('/dashboard');
+            }
           }
         }
       }, 1500);
@@ -154,7 +161,12 @@ const Auth = ({ type }) => {
         else if (!isProfileComplete) {
           navigate('/complete-profile');
         } else {
-          navigate('/dashboard');
+          // Redirection basée sur le type d'utilisateur
+          if (user.userType === 'parent') {
+            navigate('/parent/dashboard');
+          } else {
+            navigate('/dashboard');
+          }
         }
       }, 1500);
       
@@ -258,6 +270,39 @@ const Auth = ({ type }) => {
               )}
             </div>
           )}
+
+          {/* Sélection du type d'utilisateur */}
+          <div className="form-group user-type-selection">
+            <label className="user-type-label">Je suis :</label>
+            <div className="user-type-options">
+              <label className={`user-type-option ${formData.userType === 'student' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="userType"
+                  value="student"
+                  checked={formData.userType === 'student'}
+                  onChange={handleChange}
+                />
+                <span className="option-content">
+                  <span className="option-icon">👦</span>
+                  <span className="option-text">Étudiant</span>
+                </span>
+              </label>
+              <label className={`user-type-option ${formData.userType === 'parent' ? 'selected' : ''}`}>
+                <input
+                  type="radio"
+                  name="userType"
+                  value="parent"
+                  checked={formData.userType === 'parent'}
+                  onChange={handleChange}
+                />
+                <span className="option-content">
+                  <span className="option-icon">👨‍👩‍👧‍👦</span>
+                  <span className="option-text">Parent</span>
+                </span>
+              </label>
+            </div>
+          </div>
           
           {type === 'login' && (
             <div className="remember-forgot">
@@ -400,6 +445,77 @@ const authCSS = `
 
 .form-group.error .input-icon {
   color: #e74c3c;
+}
+
+/* Styles pour la sélection du type d'utilisateur */
+.user-type-selection {
+  margin-bottom: 1.5rem;
+}
+
+.user-type-label {
+  display: block;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.user-type-options {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.user-type-option {
+  flex: 1;
+  cursor: pointer;
+  border: 2px solid #e1e5e9;
+  border-radius: 12px;
+  padding: 1rem;
+  transition: all 0.3s ease;
+  background: white;
+  position: relative;
+}
+
+.user-type-option:hover {
+  border-color: #4a90e2;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.15);
+}
+
+.user-type-option.selected {
+  border-color: #4a90e2;
+  background: linear-gradient(135deg, #4a90e2 0%, #7b61ff 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+.user-type-option input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.option-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.option-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.option-text {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.user-type-option.selected .option-text {
+  color: white;
 }
 
 .input-icon {

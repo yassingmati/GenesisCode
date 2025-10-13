@@ -7,6 +7,7 @@ import ExerciseHeader from '../../components/ui/ExerciseHeader';
 import SubmissionPanel from '../../components/ui/SubmissionPanel';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorMessage from '../../components/ui/ErrorMessage';
+import CourseAccessGuard from '../../components/CourseAccessGuard';
 import './CourseStyles.css';
 import '../../components/ExerciseStyles.css';
 
@@ -24,6 +25,7 @@ export default function LevelPagePdfAutoProxy() {
   const [level, setLevel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [pathInfo, setPathInfo] = useState(null);
 
   const [lang, setLang] = useState('fr');
 
@@ -84,6 +86,45 @@ export default function LevelPagePdfAutoProxy() {
 
         if (!mounted) return;
         setLevel(l);
+        
+        // Récupérer les informations du parcours
+        console.log('Level data:', l);
+        console.log('Path data:', l.path);
+        
+        if (l.path && l.path._id) {
+          // Si le parcours est déjà inclus dans les données du niveau
+          setPathInfo({
+            _id: l.path._id,
+            name: l.path.translations?.[lang]?.name || l.path.translations?.fr?.name || 'Parcours'
+          });
+        } else if (l.path && typeof l.path === 'string') {
+          // Si l.path est un ID de parcours (string)
+          try {
+            const pathRes = await fetch(`${API_BASE}/paths/${l.path}`);
+            if (pathRes.ok) {
+              const pathData = await pathRes.json();
+              setPathInfo({
+                _id: pathData._id,
+                name: pathData.translations?.[lang]?.name || pathData.translations?.fr?.name || 'Parcours'
+              });
+            } else {
+              throw new Error('Path not found');
+            }
+          } catch (pathErr) {
+            console.warn('Impossible de récupérer les informations du parcours:', pathErr);
+            setPathInfo({
+              _id: l.path || 'unknown',
+              name: 'Parcours'
+            });
+          }
+        } else {
+          // Pas de parcours associé - utiliser un parcours par défaut
+          console.warn('Aucun parcours associé à ce niveau, utilisation du parcours par défaut');
+          setPathInfo({
+            _id: 'default-path',
+            name: 'Parcours par défaut'
+          });
+        }
       } catch (err) {
         console.error(err);
         if (mounted) setError(err.message || 'Erreur de chargement');
@@ -103,7 +144,7 @@ export default function LevelPagePdfAutoProxy() {
           const paths = await pRes.json();
           paths.sort((a,b)=>(a.order||0)-(b.order||0));
           for (const p of paths) {
-            const lvRes = await fetch(`${API_BASE}/paths/${p._1d}/levels`).catch(()=>({json:()=>[]}));
+            const lvRes = await fetch(`${API_BASE}/paths/${p._id}/levels`).catch(()=>({json:()=>[]}));
             const lvls = await lvRes.json();
             lvls.sort((a,b)=>(a.order||0)-(b.order||0));
             for (const ll of lvls) seq.push(ll._id);
@@ -470,11 +511,16 @@ export default function LevelPagePdfAutoProxy() {
   );
 
   return (
-    <div style={{ 
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #f5f7ff 0%, #eef2ff 100%)',
-      fontFamily: 'Inter, system-ui'
-    }}>
+    <CourseAccessGuard 
+      pathId={level?.path?._id || pathInfo?._id} 
+      pathName={pathInfo?.name || level?.path?.translations?.fr?.name || 'Parcours'}
+      levelId={levelId}
+    >
+      <div style={{ 
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #f5f7ff 0%, #eef2ff 100%)',
+        fontFamily: 'Inter, system-ui'
+      }}>
       {/* Header minimaliste */}
       <div style={{
         background: 'rgb(108, 79, 242)',
@@ -1132,6 +1178,7 @@ export default function LevelPagePdfAutoProxy() {
           </section>
         )}
       </div>
-    </div>
+      </div>
+    </CourseAccessGuard>
   );
 }

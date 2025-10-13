@@ -1,4 +1,4 @@
-// snippet extrait ou remplacer subscribe dans src/controllers/subscriptionController.js
+// src/controllers/subscriptionController.js
 const { initPayment } = require('../services/konnectService');
 const Plan = require('../models/Plan');
 const User = require('../models/User');
@@ -69,12 +69,114 @@ exports.subscribe = async (req, res) => {
     await user.save();
 
     return res.json({
-      message: 'Paiement créé. Rediriger l’utilisateur vers paymentUrl',
+      message: 'Paiement créé. Rediriger l'utilisateur vers paymentUrl',
       paymentUrl: initResult.paymentUrl,
       konnect: { id: initResult.konnectPaymentId, raw: initResult.raw }
     });
   } catch (err) {
     console.error('subscribe error:', err);
     return res.status(500).json({ message: 'Erreur souscription', error: err.message });
+  }
+};
+
+// Liste des plans publics
+exports.listPublicPlans = async (req, res) => {
+  try {
+    const plans = await Plan.find({ active: true }).lean().exec();
+    res.json({ success: true, plans });
+  } catch (err) {
+    console.error('listPublicPlans error:', err);
+    res.status(500).json({ success: false, message: 'Erreur récupération plans' });
+  }
+};
+
+// Récupérer l'abonnement de l'utilisateur
+exports.getMySubscription = async (req, res) => {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: 'Non authentifié' });
+
+    const user = await User.findById(userId).select('subscription').lean();
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+    res.json({ success: true, subscription: user.subscription || null });
+  } catch (err) {
+    console.error('getMySubscription error:', err);
+    res.status(500).json({ success: false, message: 'Erreur récupération abonnement' });
+  }
+};
+
+// Changer de plan
+exports.changePlan = async (req, res) => {
+  try {
+    const userId = req.user && req.user.id;
+    const { planId } = req.body;
+    if (!userId) return res.status(401).json({ message: 'Non authentifié' });
+    if (!planId) return res.status(400).json({ message: 'planId requis' });
+
+    const plan = await Plan.findById(planId).lean().exec();
+    if (!plan) return res.status(404).json({ message: 'Plan inconnu' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+    // Mettre à jour le plan
+    if (!user.subscription) user.subscription = {};
+    user.subscription.planId = plan._id;
+    user.subscription.status = 'active';
+    user.subscription.currentPeriodEnd = computePeriodEnd(plan.interval || 'month');
+    await user.save();
+
+    res.json({ success: true, message: 'Plan modifié', subscription: user.subscription });
+  } catch (err) {
+    console.error('changePlan error:', err);
+    res.status(500).json({ success: false, message: 'Erreur changement plan' });
+  }
+};
+
+// Annuler l'abonnement
+exports.cancel = async (req, res) => {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: 'Non authentifié' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+    if (!user.subscription || user.subscription.status !== 'active') {
+      return res.status(400).json({ message: 'Aucun abonnement actif' });
+    }
+
+    user.subscription.cancelAtPeriodEnd = true;
+    await user.save();
+
+    res.json({ success: true, message: 'Annulation programmée' });
+  } catch (err) {
+    console.error('cancel error:', err);
+    res.status(500).json({ success: false, message: 'Erreur annulation' });
+  }
+};
+
+// Reprendre l'abonnement
+exports.resume = async (req, res) => {
+  try {
+    const userId = req.user && req.user.id;
+    if (!userId) return res.status(401).json({ message: 'Non authentifié' });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+    if (!user.subscription) {
+      return res.status(400).json({ message: 'Aucun abonnement trouvé' });
+    }
+
+    user.subscription.cancelAtPeriodEnd = false;
+    user.subscription.status = 'active';
+    await user.save();
+
+    res.json({ success: true, message: 'Abonnement repris' });
+  } catch (err) {
+    console.error('resume error:', err);
+    res.status(500).json({ success: false, message: 'Erreur reprise' });
   }
 };

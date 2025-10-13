@@ -70,4 +70,37 @@ exports.roleMiddleware = (...rolesAllowed) => {
       return res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
   };
+
+// Middleware optionnel pour l'authentification (pour les tests)
+exports.optionalAuth = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers?.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    } else if (req.cookies?.token) {
+      token = req.cookies.token;
+    }
+
+    if (token) {
+      const secret = process.env.JWT_SECRET;
+      if (secret) {
+        try {
+          const decoded = jwt.verify(token, secret);
+          const user = await User.findById(decoded.id).select('-password');
+          if (user) {
+            req.user = user;
+          }
+        } catch (err) {
+          // Token invalide, continuer sans authentification
+          console.log('Token invalide, continuant sans authentification');
+        }
+      }
+    }
+    
+    next();
+  } catch (error) {
+    console.error('Error in optionalAuth middleware:', error);
+    next();
+  }
+};
 };

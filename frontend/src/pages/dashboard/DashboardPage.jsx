@@ -7,6 +7,8 @@ import Footer from "./Footer";
 import PomodoroPage from "./PomodoroPage";
 import TacheDeJourPage from "./TacheDeJourPage";
 import ProfilePage from "./ProfilePage";
+import NotificationCenter from "../../components/NotificationCenter";
+import SubscriptionButton from "../../components/SubscriptionButton";
 
 /**
  * DashboardPage.jsx
@@ -20,6 +22,19 @@ export default function DashboardPage() {
   const { t } = useTranslation();
   const [activePage, setActivePage] = useState("dashboard");
   const [isLoading, setIsLoading] = useState(false);
+  const [user, setUser] = useState(null);
+
+  // Charger les données utilisateur
+  useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      try {
+        setUser(JSON.parse(userData));
+      } catch (error) {
+        console.error('Erreur parsing user data:', error);
+      }
+    }
+  }, []);
 
   // Inject global CSS once (keyframes + media queries)
   useEffect(() => {
@@ -48,6 +63,23 @@ export default function DashboardPage() {
         .userPanel { width: 256px !important; }
         .userInfo { display: block !important; }
         .mobileMenuButton { display: none !important; }
+      }
+
+      /* Styles responsives pour la section d'abonnement */
+      @media (max-width: 768px) {
+        .subscription-header { flex-direction: column !important; align-items: center !important; text-align: center !important; }
+        .subscription-icon { width: 60px !important; height: 60px !important; }
+        .subscription-title { font-size: 24px !important; }
+        .subscription-features { justify-content: center !important; }
+        .subscription-actions { flex-direction: column !important; width: 100% !important; }
+        .subscription-actions button { width: 100% !important; }
+      }
+
+      @media (max-width: 480px) {
+        .subscription-card { padding: 24px !important; }
+        .subscription-title { font-size: 20px !important; }
+        .subscription-features { flex-direction: column !important; }
+        .feature-item { width: 100% !important; justify-content: center !important; }
       }
 
       /* Styles pour le sélecteur de langue dans le dashboard */
@@ -155,6 +187,53 @@ export default function DashboardPage() {
          return (
            <div>
              <WelcomeCard onSelectOption={handleWelcomeSelect} t={t} navigate={navigate} />
+             
+             {/* Section d'abonnement améliorée */}
+             <div style={styles.subscriptionSection}>
+               <div style={styles.subscriptionCard} className="subscription-card">
+                 <div style={styles.subscriptionHeader} className="subscription-header">
+                   <div style={styles.subscriptionIcon} className="subscription-icon">
+                     <span style={styles.iconEmoji}>🚀</span>
+                   </div>
+                   <div style={styles.subscriptionInfo}>
+                     <h3 style={styles.subscriptionTitle} className="subscription-title">Débloquez votre potentiel</h3>
+                     <p style={styles.subscriptionDescription}>
+                       Accédez à tous les parcours et débloquez votre potentiel de programmation
+                     </p>
+                     <div style={styles.subscriptionFeatures} className="subscription-features">
+                       <div style={styles.featureItem} className="feature-item">
+                         <span style={styles.featureIcon}>✨</span>
+                         <span style={styles.featureText}>Accès illimité</span>
+                       </div>
+                       <div style={styles.featureItem} className="feature-item">
+                         <span style={styles.featureIcon}>🎯</span>
+                         <span style={styles.featureText}>Parcours personnalisés</span>
+                       </div>
+                       <div style={styles.featureItem} className="feature-item">
+                         <span style={styles.featureIcon}>📊</span>
+                         <span style={styles.featureText}>Suivi des progrès</span>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+                 <div style={styles.subscriptionActions} className="subscription-actions">
+                   <SubscriptionButton 
+                     variant="premium" 
+                     className="large"
+                   />
+                   <SubscriptionButton 
+                     variant="outline" 
+                     className="small"
+                   />
+                 </div>
+               </div>
+             </div>
+             
+             {/* Centre de notifications */}
+             {user && user.userType === 'student' && (
+               <NotificationCenter user={user} />
+             )}
+             
             <div style={styles.dashboardGrid} className="dashboardGrid">
               <div style={styles.statsCard}>
                 <h2 style={styles.cardTitle}>Statistiques du jour</h2>
@@ -364,6 +443,106 @@ const styles = {
   cardTitle: { fontSize: "1.25rem", fontWeight: "700", color: "#374151", marginBottom: "16px" },
 
   dashboardGrid: { display: "grid", gridTemplateColumns: "1fr", gap: "32px", marginTop: "32px" },
+  
+  // Styles pour la section d'abonnement améliorée
+  subscriptionSection: {
+    padding: "24px",
+    maxWidth: "1200px",
+    margin: "0 auto"
+  },
+  
+  subscriptionCard: {
+    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+    borderRadius: "24px",
+    padding: "40px",
+    color: "white",
+    boxShadow: "0 20px 40px rgba(102, 126, 234, 0.25)",
+    position: "relative",
+    overflow: "hidden",
+    border: "1px solid rgba(255, 255, 255, 0.1)"
+  },
+  
+  subscriptionHeader: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "24px",
+    marginBottom: "32px",
+    position: "relative",
+    zIndex: 2
+  },
+  
+  subscriptionIcon: {
+    flexShrink: 0,
+    width: "80px",
+    height: "80px",
+    background: "rgba(255, 255, 255, 0.15)",
+    borderRadius: "20px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.2)"
+  },
+  
+  iconEmoji: {
+    fontSize: "32px",
+    filter: "drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1))"
+  },
+  
+  subscriptionInfo: {
+    flex: 1
+  },
+  
+  subscriptionTitle: {
+    margin: "0 0 12px 0",
+    fontSize: "28px",
+    fontWeight: "700",
+    color: "white",
+    lineHeight: "1.2"
+  },
+  
+  subscriptionDescription: {
+    margin: "0 0 20px 0",
+    fontSize: "16px",
+    color: "rgba(255, 255, 255, 0.9)",
+    lineHeight: "1.6"
+  },
+  
+  subscriptionFeatures: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "16px"
+  },
+  
+  featureItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    background: "rgba(255, 255, 255, 0.1)",
+    padding: "8px 16px",
+    borderRadius: "12px",
+    backdropFilter: "blur(10px)",
+    border: "1px solid rgba(255, 255, 255, 0.15)"
+  },
+  
+  featureIcon: {
+    fontSize: "16px"
+  },
+  
+  featureText: {
+    fontSize: "14px",
+    fontWeight: "500",
+    color: "rgba(255, 255, 255, 0.95)"
+  },
+  
+  subscriptionActions: {
+    display: "flex",
+    gap: "16px",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    position: "relative",
+    zIndex: 2
+  },
   progressContainer: { display: "flex", flexDirection: "column", gap: "16px" },
   progressHeader: { display: "flex", justifyContent: "space-between", marginBottom: "4px" },
   progressLabel: { color: "#6b7280" },

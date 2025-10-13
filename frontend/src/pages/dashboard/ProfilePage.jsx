@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import './ProfilePage.css'; // Nous allons créer ce fichier CSS
+import ParentInvitationSection from '../../components/ParentInvitationSection';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -259,6 +260,12 @@ export default function ProfilePage() {
               <span>💎</span> Abonnement
             </button>
             <button 
+              className={activeTab === 'parent' ? 'nav-item active' : 'nav-item'} 
+              onClick={() => setActiveTab('parent')}
+            >
+              <span>👨‍👩‍👧‍👦</span> Invitations parent
+            </button>
+            <button 
               className={activeTab === 'settings' ? 'nav-item active' : 'nav-item'} 
               onClick={() => setActiveTab('settings')}
             >
@@ -408,6 +415,17 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
+            </div>
+          )}
+
+          {activeTab === 'parent' && (
+            <div className="tab-content">
+              <div className="section-header">
+                <h2>Invitations parent</h2>
+                <p>Gérez les invitations de vos parents pour suivre votre progression</p>
+              </div>
+              
+              <ParentInvitationSection user={user} />
             </div>
           )}
 

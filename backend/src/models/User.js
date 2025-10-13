@@ -23,7 +23,27 @@ const userSchema = new mongoose.Schema({
   totalXP: { type: Number, default: 0, min: 0 },
   badges: { type: [String], default: [] },
   rank: { type: Number, default: 0 },
-  roles: { type: [String], default: [] }
+  roles: { type: [String], default: [] },
+  
+  // Nouveaux champs pour l'espace parent
+  parentAccount: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
+  },
+  
+  // Contrôles parentaux appliqués (pour les enfants)
+  appliedParentalControls: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+  
+  // Préférences de notification
+  notificationPreferences: {
+    email: { type: Boolean, default: true },
+    push: { type: Boolean, default: true },
+    sms: { type: Boolean, default: false }
+  }
 }, { timestamps: true });
 
 // Indexes utiles

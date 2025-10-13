@@ -14,6 +14,16 @@ const {
   languageMiddleware
 } = require('../controllers/CourseController');
 
+// Import des middlewares de contrôle parental
+const { 
+  checkParentalControls, 
+  trackActivity, 
+  checkContentRestrictions,
+  startSession,
+  endSession,
+  updateSessionStats
+} = require('../middlewares/parentalControls');
+
 /**
  * CORS configuration (apply before routes)
  */
@@ -29,6 +39,14 @@ router.use(cors(corsOptions));
  * language middleware (global)
  */
 router.use(languageMiddleware);
+
+/**
+ * Middlewares de contrôle parental (appliqués à toutes les routes)
+ */
+router.use(startSession);
+router.use(trackActivity);
+router.use(checkParentalControls);
+router.use(checkContentRestrictions);
 
 /**
  * ID validator middleware

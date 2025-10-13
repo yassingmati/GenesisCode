@@ -1,0 +1,228 @@
+// src/components/CourseAccessGuard.jsx
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from '../hooks/useTranslation';
+import SubscriptionModal from './SubscriptionModal';
+import API_CONFIG from '../config/api';
+import './CourseAccessGuard.css';
+
+const CourseAccessGuard = ({ 
+  children, 
+  pathId, 
+  pathName, 
+  levelId = null, 
+  exerciseId = null,
+  showPreview = false 
+}) => {
+  const { currentUser, loading: authLoading } = useAuth();
+  const { t } = useTranslation();
+  const [access, setAccess] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
+
+  useEffect(() => {
+    if (pathId) {
+      checkAccess();
+    }
+  }, [pathId, levelId, exerciseId]);
+
+  const checkAccess = async () => {
+    if (authLoading) return; // Attendre que l'authentification soit terminée
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('Checking access for pathId:', pathId, 'levelId:', levelId);
+
+      if (!currentUser) {
+        // Si pas d'utilisateur, l'accès est refusé par défaut, sauf pour les leçons gratuites
+        setAccess({
+          hasAccess: false,
+          canView: false,
+          canInteract: false,
+          reason: 'login_required'
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Vérification d'accès via l'API
+      try {
+        const url = levelId 
+          ? API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.CHECK_LEVEL_ACCESS(pathId, levelId))
+          : API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.CHECK_ACCESS(pathId));
+
+        const response = await fetch(url, {
+          headers: API_CONFIG.getDefaultHeaders()
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setAccess({
+            hasAccess: data.access?.hasAccess || false,
+            canView: data.access?.canView || false,
+            canInteract: data.access?.canInteract || false,
+            reason: data.access?.reason || 'no_access'
+          });
+        } else {
+          throw new Error('Erreur de vérification d\'accès');
+        }
+      } catch (apiError) {
+        console.warn('API access check failed, using fallback:', apiError);
+        // Fallback: permettre l'accès pour les utilisateurs connectés
+        setAccess({
+          hasAccess: true,
+          canView: true,
+          canInteract: true,
+          reason: 'fallback_access'
+        });
+      }
+
+    } catch (err) {
+      console.error('Error checking access:', err);
+      setError('Erreur de vérification d\'accès');
+      setAccess({ 
+        hasAccess: false, 
+        canView: false,
+        canInteract: false,
+        reason: 'error' 
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubscribe = () => {
+    setShowSubscriptionModal(true);
+  };
+
+  const handleCloseModal = () => {
+    setShowSubscriptionModal(false);
+    // Re-vérifier l'accès après fermeture du modal
+    checkAccess();
+  };
+
+  if (loading) {
+    return (
+      <div className="access-guard-loading">
+        <div className="loading-spinner"></div>
+        <p>Vérification de l'accès...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="access-guard-error">
+        <div className="error-icon">⚠️</div>
+        <p>{error}</p>
+        <button onClick={checkAccess} className="retry-btn">
+          Réessayer
+        </button>
+      </div>
+    );
+  }
+
+  // Accès autorisé
+  if (access && access.hasAccess) {
+    return (
+      <>
+        {children}
+        {access.accessType === 'preview' && (
+          <div className="preview-notice">
+            <div className="preview-content">
+              <div className="preview-icon">👁️</div>
+              <div className="preview-text">
+                <strong>Mode Aperçu</strong>
+                <p>Vous pouvez voir le contenu mais pas interagir avec les exercices</p>
+              </div>
+              <button onClick={handleSubscribe} className="preview-upgrade-btn">
+                Débloquer l'accès complet
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Accès refusé - Afficher le message de verrouillage
+  return (
+    <>
+      <div className="access-guard-blocked">
+        <motion.div
+          className="blocked-content"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="blocked-icon">
+            {access?.reason === 'no_access' ? '🔒' : 
+             access?.reason === 'plan_not_covering_path' ? '📚' : 
+             access?.reason === 'not_first_lesson' ? '🎯' : '🚫'}
+          </div>
+          
+          <h3>Contenu Verrouillé</h3>
+          
+          <div className="blocked-message">
+            {access?.reason === 'no_access' && (
+              <p>Ce contenu nécessite un abonnement pour y accéder.</p>
+            )}
+            {access?.reason === 'plan_not_covering_path' && (
+              <p>Votre abonnement actuel ne couvre pas ce parcours.</p>
+            )}
+            {access?.reason === 'not_first_lesson' && (
+              <p>Seule la première leçon est accessible gratuitement.</p>
+            )}
+            {access?.reason === 'error' && (
+              <p>Erreur lors de la vérification de l'accès.</p>
+            )}
+          </div>
+
+          <div className="blocked-actions">
+            <button 
+              onClick={handleSubscribe}
+              className="unlock-btn primary"
+            >
+              <span className="btn-icon">🔓</span>
+              Débloquer l'accès
+            </button>
+            
+            {access?.availablePlans && access.availablePlans.length > 0 && (
+              <div className="available-plans">
+                <p className="plans-label">Plans disponibles :</p>
+                <div className="plans-list">
+                  {access.availablePlans.slice(0, 3).map((plan) => (
+                    <div key={plan._id} className="plan-item">
+                      <span className="plan-name">{plan.name}</span>
+                      <span className="plan-price">
+                        {plan.priceMonthly ? `${(plan.priceMonthly / 100).toFixed(2)} TND` : 'Gratuit'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="blocked-footer">
+            <p>💡 <strong>Astuce :</strong> Commencez par la première leçon gratuite de chaque parcours !</p>
+          </div>
+        </motion.div>
+      </div>
+
+      <SubscriptionModal
+        isOpen={showSubscriptionModal}
+        onClose={handleCloseModal}
+        pathId={pathId}
+        pathName={pathName}
+        onSubscribe={handleSubscribe}
+      />
+    </>
+  );
+};
+
+export default CourseAccessGuard;

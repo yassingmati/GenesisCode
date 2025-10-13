@@ -23,6 +23,7 @@ import CompleteProfile from './pages/CompleteProfile';
 import VerifyEmailReminder from './pages/VerifyEmailReminder';
 import VerifiedSuccess from './pages/VerifiedSuccess';
 import DashboardClient from './pages/dashboard/DashboardPage';
+import ModernDashboard from './pages/dashboard/ModernDashboard';
 
 // Pages de cours - NOUVEAU ROUTAGE
 import DebutantMap from './pages/course/DebutantMap';
@@ -31,10 +32,22 @@ import ExercisePage from './pages/course/ExercisePage';
 import SingleExercisePage from './pages/course/SingleExercisePage';
 import TestExerciseInterface from './components/TestExerciseInterface';
 
+// Import des pages parent
+import ParentDashboard from './pages/parent/ParentDashboard';
+import InviteChild from './pages/parent/InviteChild';
+import ParentalControls from './pages/parent/ParentalControls';
+import ChildDetails from './pages/parent/ChildDetails';
+import ParentAuthGuard from './components/ParentAuthGuard';
+
 // Subscription / Payment client pages
 import Plans from './pages/Plans';
 import MySubscriptions from './pages/subscriptions/MySubscriptions';
 import PaymentReturn from './pages/PaymentReturn';
+import PaymentSuccess from './pages/PaymentSuccess';
+import PaymentCancel from './pages/PaymentCancel';
+import TestSubscriptionSystem from './components/TestSubscriptionSystem';
+import TestPayment from './pages/TestPayment';
+import TestKonnectIntegration from './components/TestKonnectIntegration';
 
 // Pages Admin & Layout
 import AdminLogin from './pages/admin/AdminLogin';
@@ -43,7 +56,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import PaymentManagement from './pages/admin/PaymentManagement';
-import SubscriptionManagement from './pages/admin/SubscriptionManagement';
+import SubscriptionManagement from './pages/admin/SubscriptionManagementSimple';
 
 // Styles globaux
 const GlobalStyle = createGlobalStyle`
@@ -191,6 +204,41 @@ export default function AppRouter() {
             <Route path="/plans" element={<Plans />} />
             <Route path="/subscriptions" element={<MySubscriptions />} />
             <Route path="/payments/konnect-return" element={<PaymentReturn />} />
+            <Route path="/payment/success" element={<PaymentSuccess />} />
+            <Route path="/payment/cancel" element={<PaymentCancel />} />
+            <Route path="/test-subscription" element={<TestSubscriptionSystem />} />
+            <Route path="/test-payment" element={<TestPayment />} />
+            <Route path="/test-konnect" element={<TestKonnectIntegration />} />
+
+            {/* PARENT PAGES */}
+            <Route path="/parent/dashboard" element={
+              <AuthGuard>
+                <ParentAuthGuard>
+                  <ParentDashboard />
+                </ParentAuthGuard>
+              </AuthGuard>
+            } />
+            <Route path="/parent/invite-child" element={
+              <AuthGuard>
+                <ParentAuthGuard>
+                  <InviteChild />
+                </ParentAuthGuard>
+              </AuthGuard>
+            } />
+            <Route path="/parent/child/:childId" element={
+              <AuthGuard>
+                <ParentAuthGuard>
+                  <ChildDetails />
+                </ParentAuthGuard>
+              </AuthGuard>
+            } />
+            <Route path="/parent/child/:childId/controls" element={
+              <AuthGuard>
+                <ParentAuthGuard>
+                  <ParentalControls />
+                </ParentAuthGuard>
+              </AuthGuard>
+            } />
 
             {/* CLIENT PRIVATE */}
             <Route
@@ -198,6 +246,14 @@ export default function AppRouter() {
               element={
                 <PrivateRoute role="client">
                   <DashboardClient />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/modern-dashboard"
+              element={
+                <PrivateRoute role="client">
+                  <ModernDashboard />
                 </PrivateRoute>
               }
             />

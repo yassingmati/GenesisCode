@@ -47,7 +47,7 @@ const formatUserResponse = (user) => ({
  */
 exports.register = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, userType } = req.body;
 
         // Validate input
         if (!email || !password) {
@@ -70,7 +70,7 @@ exports.register = async (req, res) => {
                 email,
                 firstName: '', // Initialize as empty
                 lastName: '',  // Initialize as empty
-                userType: 'student', // Default userType
+                userType: userType || 'student', // Utiliser le type spécifié ou 'student' par défaut
             });
             await newUser.save();
 
@@ -142,7 +142,7 @@ exports.register = async (req, res) => {
  */
 exports.loginWithEmail = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, userType } = req.body;
 
         if (!email || !password) {
             return res.status(400).json({ message: 'Email and password are required.' });
@@ -157,6 +157,13 @@ exports.loginWithEmail = async (req, res) => {
             
             if (!dbUser) {
                 return res.status(404).json({ message: 'No account is associated with this email.' });
+            }
+
+            // Vérifier le type d'utilisateur si spécifié
+            if (userType && dbUser.userType !== userType) {
+                return res.status(403).json({ 
+                    message: `Accès refusé. Ce compte est de type "${dbUser.userType}" mais vous essayez de vous connecter en tant que "${userType}".` 
+                });
             }
             
             // Pour la démo, on accepte n'importe quel mot de passe

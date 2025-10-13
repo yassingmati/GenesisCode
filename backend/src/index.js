@@ -1,5 +1,6 @@
 // server.js
 require('dotenv').config();
+// Charger la configuration Konnect
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -47,7 +48,7 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 
 // Models & Routes (adapter si chemins différents)
-let authRoutes, userRoutes, adminRoutes, courseRoutes, subscriptionRoutes;
+let authRoutes, userRoutes, adminRoutes, courseRoutes, subscriptionRoutes, parentRoutes, invitationRoutes, notificationRoutes, calendarRoutes, reportsRoutes, courseAccessRoutes, subscriptionPaymentRoutes, publicRoutes, paymentRoutes;
 
 // Charger les routes individuellement pour éviter qu'une erreur empêche le chargement des autres
 try {
@@ -86,16 +87,92 @@ try {
 }
 
 try {
+  courseAccessRoutes = require('./routes/courseAccess');
+  console.log('✅ courseAccessRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement courseAccessRoutes:', err.message);
+}
+
+try {
+  subscriptionPaymentRoutes = require('./routes/subscriptionPayment');
+  console.log('✅ subscriptionPaymentRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement subscriptionPaymentRoutes:', err.message);
+}
+
+try {
   subscriptionRoutes = require('./routes/subscriptionRoutes');
   console.log('✅ subscriptionRoutes chargé');
 } catch (err) {
   console.error('❌ Erreur chargement subscriptionRoutes:', err.message);
 }
 
+try {
+  publicRoutes = require('./routes/publicRoutes');
+  console.log('✅ publicRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement publicRoutes:', err.message);
+}
+
+try {
+  paymentRoutes = require('./routes/paymentRoutes');
+  console.log('✅ paymentRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement paymentRoutes:', err.message);
+}
+
+try {
+  parentRoutes = require('./routes/parentRoutes');
+  console.log('✅ parentRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement parentRoutes:', err.message);
+}
+
+try {
+  calendarRoutes = require('./routes/calendarRoutes');
+  console.log('✅ calendarRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement calendarRoutes:', err.message);
+}
+
+try {
+  reportsRoutes = require('./routes/reportsRoutes');
+  console.log('✅ reportsRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement reportsRoutes:', err.message);
+}
+
+try {
+  invitationRoutes = require('./routes/invitationRoutes');
+  console.log('✅ invitationRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement invitationRoutes:', err.message);
+}
+
+try {
+  notificationRoutes = require('./routes/notificationRoutes');
+  console.log('✅ notificationRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement notificationRoutes:', err.message);
+}
+
 // ---------- Security & headers ----------
 app.set('trust proxy', 1);
-app.use(morgan('dev'));
+app.use(morgan('combined'));
 app.use(cookieParser());
+
+// ---------- Compression ----------
+const compression = require('compression');
+app.use(compression({
+  level: 6,
+  threshold: 1024,
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return true;
+  }
+}));
 
 // Retirer X-Frame-Options (nous gérons CSP manually)
 app.use((req, res, next) => {
@@ -121,11 +198,32 @@ app.use(cors({
 }));
 app.options('*', cors());
 
-// Rate limit
+// Rate limit optimisé (assoupli en développement et pour localhost)
+const isProduction = process.env.NODE_ENV === 'production';
 const limiter = rateLimit({
-  windowMs: 1 * 60 * 1000,
-  max: 500,
-  message: 'Trop de requêtes depuis cette IP, réessayez plus tard.'
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: isProduction ? 100 : 10000, // en dev, seuil élevé pour éviter les blocages
+  message: {
+    error: 'Trop de requêtes depuis cette IP, réessayez plus tard.',
+    retryAfter: 900 // 15 minutes en secondes
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting pour les endpoints de santé
+    if (req.path === '/api/health' || req.path === '/health') return true;
+
+    // En dev, désactiver le rate limit
+    if (!isProduction) return true;
+
+    // Whitelist localhost et réseau local
+    const ip = (req.ip || '').replace('::ffff:', '');
+    if (ip === '127.0.0.1' || ip === '::1' || ip.startsWith('192.168.') || ip.startsWith('10.') || ip.startsWith('172.')) {
+      return true;
+    }
+
+    return false;
+  }
 });
 app.use('/api/', limiter);
 
@@ -139,6 +237,27 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads'), {
     res.setHeader('Cache-Control', 'public, max-age=300');
   }
 }));
+
+// ---------- Health check endpoints (avant les routes protégées) ----------
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// API Health check (sans authentification)
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    memory: process.memoryUsage(),
+    version: process.env.npm_package_version || '1.0.0'
+  });
+});
 
 // ---------- Stripe webhook (raw body) ----------
 // Keep webhook route before express.json() parsers
@@ -354,7 +473,12 @@ console.log('authRoutes:', !!authRoutes);
 console.log('userRoutes:', !!userRoutes);
 console.log('adminRoutes:', !!adminRoutes);
 console.log('subscriptionRoutes:', !!subscriptionRoutes);
+console.log('publicRoutes:', !!publicRoutes);
+console.log('paymentRoutes:', !!paymentRoutes);
 console.log('courseRoutes:', !!courseRoutes);
+console.log('parentRoutes:', !!parentRoutes);
+console.log('invitationRoutes:', !!invitationRoutes);
+console.log('notificationRoutes:', !!notificationRoutes);
 
 if (authRoutes) {
   console.log('Mounting auth routes at /api/auth');
@@ -367,15 +491,17 @@ if (userRoutes) app.use('/api/users', userRoutes);
 if (adminRoutes) app.use('/api/admin', adminRoutes);
 if (subscriptionRoutes) app.use('/api/subscriptions', subscriptionRoutes);
 if (courseRoutes) app.use('/api/courses', courseRoutes);
+if (parentRoutes) app.use('/api/parent', parentRoutes);
+if (calendarRoutes) app.use('/api/calendar', calendarRoutes);
+if (reportsRoutes) app.use('/api/reports', reportsRoutes);
+if (invitationRoutes) app.use('/api/invitations', invitationRoutes);
+if (publicRoutes) app.use('/api', publicRoutes);
+if (paymentRoutes) app.use('/api/payment', paymentRoutes);
+if (notificationRoutes) app.use('/api', notificationRoutes);
+if (courseAccessRoutes) app.use('/api/course-access', courseAccessRoutes);
+if (subscriptionPaymentRoutes) app.use('/api/subscription-payment', subscriptionPaymentRoutes);
 
-// Health check
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    timestamp: new Date().toISOString()
-  });
-});
+// Health check endpoints déplacés plus haut dans le fichier
 
 // Error handler
 app.use((err, req, res, next) => {

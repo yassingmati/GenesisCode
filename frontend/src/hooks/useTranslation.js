@@ -289,7 +289,7 @@ const translations = {
   }
 };
 
-export const useTranslation = () => {
+const useTranslation = () => {
   const { language } = useContext(LanguageContext);
   
   const t = (key) => {
@@ -300,4 +300,5 @@ export const useTranslation = () => {
   return { t, language };
 };
 
+export { useTranslation };
 export default useTranslation;
