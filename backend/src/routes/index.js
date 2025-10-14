@@ -16,6 +16,9 @@ router.use('/paths', require('./pathRoutes'));
 router.use('/levels', require('./levelRoutes'));
 router.use('/exercises', require('./exerciseRoutes'));
 
+// Routes de paiement par catégorie
+router.use('/category-payments', require('./categoryPaymentRoutes'));
+
 // Gestionnaire d'erreurs
 router.use(errorHandler);
 

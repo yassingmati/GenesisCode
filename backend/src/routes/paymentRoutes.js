@@ -24,3 +24,5 @@ router.get('/status/:paymentId', catchErrors(PaymentController.checkPaymentStatu
 router.get('/history', catchErrors(PaymentController.getPaymentHistory));
 
 module.exports = router;
+
+
