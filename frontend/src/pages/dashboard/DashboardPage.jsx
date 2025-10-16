@@ -162,8 +162,8 @@ export default function DashboardPage() {
   }, [activePage]);
 
   const handleWelcomeSelect = (option) => {
-    if (option === "language") setActivePage("tasks");
-    else if (option === "path") setActivePage("pomodoro");
+    if (option === "language") navigate('/learning/choose-language');
+    else if (option === "path") navigate('/courses');
     else setActivePage("dashboard");
   };
 

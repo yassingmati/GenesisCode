@@ -5,7 +5,8 @@ class KonnectService {
   /**
    * Initialiser un paiement Konnect
    * @param {Object} paymentData - Données du paiement
-   * @param {string} paymentData.planId - ID du plan
+   * @param {string} [paymentData.planId] - ID du plan (legacy)
+   * @param {string} [paymentData.categoryPlanId] - ID du plan de catégorie (nouveau)
    * @param {string} paymentData.customerEmail - Email du client
    * @param {string} [paymentData.returnUrl] - URL de retour
    * @param {string} [paymentData.cancelUrl] - URL d'annulation
@@ -16,8 +17,8 @@ class KonnectService {
       console.log('🚀 Initialisation du paiement Konnect:', paymentData);
 
       // Validation des données requises
-      if (!paymentData.planId) {
-        throw new Error('ID du plan requis');
+      if (!paymentData.planId && !paymentData.categoryPlanId) {
+        throw new Error('ID du plan requis (planId ou categoryPlanId)');
       }
       if (!paymentData.customerEmail) {
         throw new Error('Email du client requis');
@@ -28,6 +29,7 @@ class KonnectService {
         headers: API_CONFIG.getPublicHeaders(),
         body: JSON.stringify({
           planId: paymentData.planId,
+          categoryPlanId: paymentData.categoryPlanId,
           customerEmail: paymentData.customerEmail,
           returnUrl: paymentData.returnUrl || `${window.location.origin}/payment/success`,
           cancelUrl: paymentData.cancelUrl || `${window.location.origin}/payment/cancel`

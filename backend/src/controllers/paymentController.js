@@ -3,6 +3,7 @@
 console.log('🔗 Mode production - utilisation du service Konnect réel');
 const konnectPaymentService = require('../services/konnectPaymentService');
 const Plan = require('../models/Plan');
+const CategoryPlan = require('../models/CategoryPlan');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const Payment = require('../models/Payment');
@@ -17,6 +18,7 @@ class PaymentController {
     try {
       const { 
         planId, 
+        categoryPlanId,
         customerEmail, 
         returnUrl, 
         cancelUrl,
@@ -29,16 +31,37 @@ class PaymentController {
       const testEmail = customerEmail || 'test@genesis.com';
 
       // Validation des paramètres
-      if (!planId) {
+      if (!planId && !categoryPlanId) {
         return res.status(400).json({
           success: false,
-          message: 'ID du plan requis'
+          message: 'ID du plan requis (planId ou categoryPlanId)'
         });
       }
 
-      // Vérifier que le plan existe
-      const plan = await Plan.findById(planId);
-      if (!plan || !plan.active) {
+      // Tenter d'utiliser le système existant (Plan legacy), sinon basculer sur CategoryPlan
+      let legacyPlan = null;
+      let categoryPlan = null;
+      let isCategoryPlan = false;
+
+      if (planId) {
+        try {
+          legacyPlan = await Plan.findById(planId);
+        } catch (_) { /* ignore */ }
+      }
+
+      if ((!legacyPlan || !legacyPlan.active) && (categoryPlanId || planId)) {
+        // Utiliser categoryPlanId s'il est fourni, sinon tenter avec planId comme ObjectId de CategoryPlan
+        const cpId = categoryPlanId || planId;
+        try {
+          categoryPlan = await CategoryPlan.findById(cpId).populate('category', 'translations type').lean();
+        } catch (_) { /* ignore */ }
+
+        if (categoryPlan && categoryPlan.active) {
+          isCategoryPlan = true;
+        }
+      }
+
+      if (!legacyPlan && !isCategoryPlan) {
         return res.status(404).json({
           success: false,
           message: 'Plan introuvable ou inactif'
@@ -46,13 +69,35 @@ class PaymentController {
       }
 
       // Plan gratuit - accès immédiat
-      if (plan.priceMonthly === 0 || plan.priceMonthly === null) {
-        return res.json({
-          success: true,
-          freeAccess: true,
-          plan: plan,
-          message: 'Accès gratuit accordé'
-        });
+      if (!isCategoryPlan) {
+        if (legacyPlan.priceMonthly === 0 || legacyPlan.priceMonthly === null) {
+          return res.json({
+            success: true,
+            freeAccess: true,
+            plan: legacyPlan,
+            message: 'Accès gratuit accordé'
+          });
+        }
+      } else {
+        if ((categoryPlan.price || 0) === 0) {
+          // Synthétiser un objet plan similaire pour la réponse
+          const synthesizedPlan = {
+            _id: String(categoryPlan._id),
+            name: categoryPlan.translations?.fr?.name || 'Accès catégorie',
+            description: categoryPlan.translations?.fr?.description || '',
+            priceMonthly: null, // gratuit
+            currency: categoryPlan.currency || 'TND',
+            interval: null,
+            features: Array.isArray(categoryPlan.features) ? categoryPlan.features : [],
+            active: !!categoryPlan.active
+          };
+          return res.json({
+            success: true,
+            freeAccess: true,
+            plan: synthesizedPlan,
+            message: 'Accès gratuit accordé'
+          });
+        }
       }
 
       // Vérifier la configuration Konnect
@@ -64,36 +109,75 @@ class PaymentController {
       const merchantOrderId = `sub_${testUserId}_${Date.now()}`;
       
       // Préparer les données de paiement
-      const paymentData = {
-        amountCents: plan.priceMonthly,
-        currency: plan.currency,
-        description: `Abonnement ${plan.name} - GenesisCode`,
-        merchantOrderId,
-        customerEmail: testEmail,
-        returnUrl: returnUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payment/success`,
-        cancelUrl: cancelUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payment/cancel`,
-        metadata: {
-          planId,
-          pathId: pathId || null,
-          userId: testUserId,
-          type: 'subscription',
-          testMode: !userId || userId === 'test-user-id'
-        }
-      };
+      let paymentData;
+      let responsePlanForClient;
+      if (!isCategoryPlan) {
+        paymentData = {
+          amountCents: legacyPlan.priceMonthly,
+          currency: legacyPlan.currency,
+          description: `Abonnement ${legacyPlan.name} - GenesisCode`,
+          merchantOrderId,
+          customerEmail: testEmail,
+          returnUrl: returnUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payment/success`,
+          cancelUrl: cancelUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payment/cancel`,
+          metadata: {
+            planId,
+            pathId: pathId || null,
+            userId: testUserId,
+            type: 'subscription',
+            testMode: !userId || userId === 'test-user-id'
+          }
+        };
+        responsePlanForClient = legacyPlan;
+      } else {
+        const interval = categoryPlan.paymentType === 'monthly' ? 'month' : (categoryPlan.paymentType === 'yearly' ? 'year' : null);
+        const amountCents = Math.round((categoryPlan.price || 0) * 100);
+        paymentData = {
+          amountCents,
+          currency: categoryPlan.currency || 'TND',
+          description: `Accès ${categoryPlan.translations?.fr?.name || 'Catégorie'} - GenesisCode`,
+          merchantOrderId,
+          customerEmail: testEmail,
+          returnUrl: returnUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payment/success`,
+          cancelUrl: cancelUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payment/cancel`,
+          metadata: {
+            categoryPlanId: String(categoryPlan._id),
+            categoryId: String(categoryPlan.category?._id || categoryPlan.category),
+            pathId: pathId || null,
+            userId: testUserId,
+            type: 'category_plan',
+            interval,
+            testMode: !userId || userId === 'test-user-id'
+          }
+        };
+        // Synthétiser un plan côté réponse pour compatibilité frontend
+        responsePlanForClient = {
+          _id: String(categoryPlan._id),
+          name: categoryPlan.translations?.fr?.name || 'Accès catégorie',
+          description: categoryPlan.translations?.fr?.description || '',
+          priceMonthly: interval === 'month' ? amountCents : amountCents, // conserver format cents
+          currency: categoryPlan.currency || 'TND',
+          interval: interval,
+          features: Array.isArray(categoryPlan.features) ? categoryPlan.features : [],
+          active: !!categoryPlan.active,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
 
       // Initialiser le paiement Konnect
       const paymentResult = await konnectPaymentService.initPayment(paymentData);
 
       // Enregistrer le paiement en base (seulement si l'utilisateur est authentifié)
       let payment = null;
-      if (userId && userId !== 'test-user-id') {
+      if (!isCategoryPlan && userId && userId !== 'test-user-id') {
         payment = new Payment({
           user: userId,
-          plan: plan._id,
+          plan: legacyPlan._id,
           konnectPaymentId: paymentResult.konnectPaymentId,
           merchantOrderId,
-          amount: plan.priceMonthly,
-          currency: plan.currency,
+          amount: legacyPlan.priceMonthly,
+          currency: legacyPlan.currency,
           status: 'pending',
           description: paymentData.description,
           customerEmail: testEmail,
@@ -108,10 +192,10 @@ class PaymentController {
 
       // Créer un abonnement en attente si l'utilisateur est authentifié
       let subscription = null;
-      if (userId && userId !== 'test-user-id') {
+      if (!isCategoryPlan && userId && userId !== 'test-user-id') {
         subscription = new Subscription({
           user: userId,
-          plan: plan._id,
+          plan: legacyPlan._id,
           status: 'pending',
           konnectPaymentId: paymentResult.konnectPaymentId,
           currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 jours
@@ -119,11 +203,20 @@ class PaymentController {
         await subscription.save();
       }
 
+      const logAmount = !isCategoryPlan 
+        ? legacyPlan.priceMonthly 
+        : (responsePlanForClient && typeof responsePlanForClient.priceMonthly === 'number'
+            ? responsePlanForClient.priceMonthly
+            : Math.round((categoryPlan?.price || 0) * 100));
+      const logCurrency = !isCategoryPlan 
+        ? legacyPlan.currency 
+        : (responsePlanForClient?.currency || categoryPlan?.currency || 'TND');
+
       console.log('✅ Paiement initialisé:', {
         paymentId: paymentResult.konnectPaymentId,
         merchantOrderId,
-        amount: plan.priceMonthly,
-        currency: plan.currency
+        amount: logAmount,
+        currency: logCurrency
       });
 
       return res.json({
@@ -131,7 +224,7 @@ class PaymentController {
         paymentUrl: paymentResult.paymentUrl,
         konnectPaymentId: paymentResult.konnectPaymentId,
         merchantOrderId,
-        plan: plan,
+        plan: responsePlanForClient,
         subscription: subscription ? subscription._id : null,
         message: 'Paiement initialisé avec succès',
         testMode: !userId || userId === 'test-user-id'

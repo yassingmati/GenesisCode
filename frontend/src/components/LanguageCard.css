@@ -1,0 +1,256 @@
+/* Language Card Component Styles */
+
+.language-card {
+  background: white;
+  border-radius: 16px;
+  padding: 24px;
+  cursor: pointer;
+  border: 2px solid var(--card-border, #e2e8f0);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  animation: fadeInUp 0.6s ease-out var(--animation-delay, 0s);
+  opacity: 0;
+  animation-fill-mode: forwards;
+}
+
+.language-card:hover,
+.language-card.hovered {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+  border-color: var(--card-border, #e2e8f0);
+}
+
+.language-card:focus {
+  outline: 2px solid #4facfe;
+  outline-offset: 2px;
+}
+
+.language-card:active {
+  transform: translateY(-4px) scale(1.01);
+}
+
+/* Decorative background */
+.card-decoration {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, var(--card-border, #e2e8f0)20, var(--card-border, #e2e8f0)10);
+  border-radius: 0 16px 0 100%;
+  transition: all 0.3s ease;
+}
+
+.language-card:hover .card-decoration {
+  transform: scale(1.1);
+  opacity: 0.8;
+}
+
+/* Card content */
+.card-content {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+/* Language icon removed */
+
+.language-name {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--card-text, #1f2937);
+  transition: color 0.3s ease;
+}
+
+.language-description {
+  color: #6b7280;
+  font-size: 14px;
+  text-align: center;
+  margin-bottom: 20px;
+  line-height: 1.5;
+  transition: color 0.3s ease;
+}
+
+.language-card:hover .language-description {
+  color: #4b5563;
+}
+
+.language-action {
+  background: var(--card-bg, #f8fafc);
+  padding: 12px 20px;
+  border-radius: 8px;
+  text-align: center;
+  color: var(--card-text, #475569);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  border: 1px solid var(--card-border, #e2e8f0);
+}
+
+.language-card:hover .language-action {
+  background: var(--card-border, #e2e8f0);
+  color: white;
+  transform: translateY(-2px);
+}
+
+/* Hover overlay effect */
+.card-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, var(--card-border, #e2e8f0)10, transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 16px;
+}
+
+.language-card:hover .card-overlay {
+  opacity: 1;
+}
+
+/* Animation keyframes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Loading state */
+.language-card.loading {
+  animation: pulse 2s infinite;
+  opacity: 0.7;
+}
+
+  /* Language icon removed */
+
+/* Disabled state */
+.language-card.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.language-card.disabled:hover {
+  transform: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .language-card {
+    padding: 20px;
+  }
+  
+  /* Language icon removed */
+  
+  .language-name {
+    font-size: 20px;
+  }
+  
+  .language-description {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 480px) {
+  .language-card {
+    padding: 16px;
+  }
+  
+  /* Language icon removed */
+  
+  .language-name {
+    font-size: 18px;
+  }
+  
+  .language-description {
+    font-size: 12px;
+  }
+  
+  .language-action {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .language-card {
+    border: 2px solid #000;
+  }
+  
+  .language-card:hover {
+    border-color: #000;
+  }
+  
+  .language-action {
+    border: 2px solid #000;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .language-card {
+    animation: none;
+    transition: none;
+  }
+  
+  .language-card:hover {
+    transform: none;
+  }
+  
+  /* Language icon removed */
+  
+  .language-card:hover .card-decoration {
+    transform: none;
+  }
+  
+  .language-card:hover .language-action {
+    transform: none;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .language-card {
+    background: #1f2937;
+    border-color: #374151;
+  }
+  
+  .language-name {
+    color: #f9fafb;
+  }
+  
+  .language-description {
+    color: #d1d5db;
+  }
+  
+  .language-action {
+    background: #374151;
+    color: #f9fafb;
+    border-color: #4b5563;
+  }
+  
+  .language-card:hover .language-action {
+    background: #4b5563;
+  }
+}

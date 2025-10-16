@@ -10,6 +10,9 @@ import { createGlobalStyle } from 'styled-components';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+// Import du script d'authentification automatique pour les pages admin
+import './utils/autoAdminAuth';
+
 // Contexte d'authentification
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
@@ -49,6 +52,14 @@ import TestSubscriptionSystem from './components/TestSubscriptionSystem';
 import TestPayment from './pages/TestPayment';
 import TestKonnectIntegration from './components/TestKonnectIntegration';
 
+// Nouveau système de paiement par catégorie
+import CategoryPlans from './pages/CategoryPlans';
+
+// Specific language flow pages
+import SpecificLanguageCategories from './pages/learning/SpecificLanguageCategories';
+import SpecificCategoryPaths from './pages/learning/SpecificCategoryPaths';
+import SpecificPathLevels from './pages/learning/SpecificPathLevels';
+
 // Pages Admin & Layout
 import AdminLogin from './pages/admin/AdminLogin';
 import AdminLayout from './components/layout/AdminLayout';
@@ -57,6 +68,7 @@ import UserManagement from './pages/admin/UserManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import PaymentManagement from './pages/admin/PaymentManagement';
 import SubscriptionManagement from './pages/admin/SubscriptionManagementSimple';
+import CategoryPlanManagement from './pages/admin/CategoryPlanManagement';
 
 // Styles globaux
 const GlobalStyle = createGlobalStyle`
@@ -135,6 +147,7 @@ function PageTitleUpdater() {
     else if (p === '/verified-success') document.title = 'Email vérifié';
     else if (p === '/plans') document.title = 'Offres & Abonnements';
     else if (p === '/subscriptions') document.title = 'Mes abonnements';
+    else if (p === '/category-plans') document.title = 'Plans par Catégorie';
     else if (p.startsWith('/payments/konnect-return')) document.title = 'Retour paiement';
     else if (p.startsWith('/admin/login')) document.title = 'Admin – Connexion';
     else if (p.startsWith('/admin')) document.title = 'Admin – Tableau de bord';
@@ -145,6 +158,8 @@ function PageTitleUpdater() {
     else if (p.startsWith('/courses/levels/') && p.includes('/exercises')) document.title = 'Exercices — Niveau';
     else if (p.startsWith('/courses/levels/')) document.title = 'Leçon — Niveau';
     else if (p.startsWith('/dashboard')) document.title = 'Tableau de bord';
+    else if (p === '/learning/choose-language') document.title = 'Choisir ta propre langue';
+    else if (p.startsWith('/learning/specific/')) document.title = 'Langue spécifique';
     else document.title = 'Plateforme';
   }, [location]);
 
@@ -209,6 +224,26 @@ export default function AppRouter() {
             <Route path="/test-subscription" element={<TestSubscriptionSystem />} />
             <Route path="/test-payment" element={<TestPayment />} />
             <Route path="/test-konnect" element={<TestKonnectIntegration />} />
+            
+            {/* Nouveau système de paiement par catégorie */}
+            <Route path="/category-plans" element={<CategoryPlans />} />
+
+            {/* Specific language learning flow */}
+            <Route path="/learning/choose-language" element={
+              <AuthGuard>
+                <SpecificLanguageCategories />
+              </AuthGuard>
+            } />
+            <Route path="/learning/specific/:categoryId" element={
+              <AuthGuard>
+                <SpecificCategoryPaths />
+              </AuthGuard>
+            } />
+            <Route path="/learning/specific/:categoryId/paths/:pathId" element={
+              <AuthGuard>
+                <SpecificPathLevels />
+              </AuthGuard>
+            } />
 
             {/* PARENT PAGES */}
             <Route path="/parent/dashboard" element={
@@ -276,6 +311,7 @@ export default function AppRouter() {
               <Route path="courses" element={<CourseManagement />} />
               <Route path="payments" element={<PaymentManagement />} />
               <Route path="Subscription" element={<SubscriptionManagement />} />
+              <Route path="category-plans" element={<CategoryPlanManagement />} />
             </Route>
 
             {/* 404 - redirige vers l'accueil */}
