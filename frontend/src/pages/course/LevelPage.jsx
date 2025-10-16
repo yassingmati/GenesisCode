@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
@@ -20,6 +20,7 @@ const LANGS = [{ code: 'fr', label: 'Français' }, { code: 'en', label: 'English
 export default function LevelPagePdfAutoProxy() {
   const { levelId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
 
   const [level, setLevel] = useState(null);
@@ -38,6 +39,8 @@ export default function LevelPagePdfAutoProxy() {
   // Video state
   const [videoEffectiveUrl, setVideoEffectiveUrl] = useState(null);
   const [videoStatusMsg, setVideoStatusMsg] = useState(null);
+  const [showVideoOverlay, setShowVideoOverlay] = useState(false);
+  const [isCompactLayout, setIsCompactLayout] = useState(() => window.innerWidth <= 1024);
 
   const [orderedLevelIds, setOrderedLevelIds] = useState([]);
 
@@ -335,6 +338,13 @@ export default function LevelPagePdfAutoProxy() {
     };
   }, [videoEffectiveUrl]);
 
+  // Responsive layout detection
+  useEffect(() => {
+    const onResize = () => setIsCompactLayout(window.innerWidth <= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
@@ -616,7 +626,7 @@ export default function LevelPagePdfAutoProxy() {
       {/* Main Content - Full screen PDF with wider sidebar for bigger video */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: showExercises ? '1fr 1fr' : '1fr 480px',
+        gridTemplateColumns: showExercises ? '1fr 1fr' : (isCompactLayout ? '1fr' : '1fr 480px'),
         height: 'calc(100vh - 64px)'
       }}>
         {/* PDF Section - MODIFIÉ pour supprimer l'espace entre les pages */}
@@ -681,9 +691,36 @@ export default function LevelPagePdfAutoProxy() {
               />
             )}
           </div>
-        </section>
 
-        {/* Video Sidebar - Now larger and redesigned */}
+          {/* Floating video button for compact layouts */}
+          {isCompactLayout && (
+            <button
+              onClick={() => setShowVideoOverlay(true)}
+              aria-label="Ouvrir la vidéo"
+              style={{
+                position: 'absolute',
+                right: 16,
+                top: 16,
+                width: 56,
+                height: 56,
+                borderRadius: 56,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                color: 'white',
+                boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+                zIndex: 20
+              }}
+            >
+              🎬
+            </button>
+          )}
+        </section>
+        {/* Video Sidebar (hidden in compact layout; use overlay instead) */}
+        {!isCompactLayout && (
         <aside style={{ 
           background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
           borderLeft: '1px solid rgba(15,23,42,0.06)',
@@ -843,7 +880,16 @@ export default function LevelPagePdfAutoProxy() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button 
-                onClick={() => prevId ? navigate(`/courses/levels/${prevId}`) : navigate('/courses')}
+                onClick={() => {
+                  const fromSpecific = location.state?.fromSpecific;
+                  const backCategoryId = location.state?.categoryId;
+                  const backPathId = location.state?.pathId;
+                  if (fromSpecific && backCategoryId && backPathId) {
+                    navigate(`/learning/specific/${backCategoryId}/paths/${backPathId}`);
+                  } else {
+                    prevId ? navigate(`/courses/levels/${prevId}`) : navigate('/courses');
+                  }
+                }}
                 style={{
                   background: prevId ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#e6e9ef',
                   color: prevId ? 'white' : '#94a3b8',
@@ -938,6 +984,7 @@ export default function LevelPagePdfAutoProxy() {
           </div>
 
         </aside>
+        )}
 
         {/* Exercise Section - Only shown when showExercises is true */}
         {showExercises && (
@@ -1178,6 +1225,67 @@ export default function LevelPagePdfAutoProxy() {
           </section>
         )}
       </div>
+      {/* Compact video overlay modal */}
+      {isCompactLayout && showVideoOverlay && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}
+          onClick={() => setShowVideoOverlay(false)}
+        >
+          <div style={{
+            width: '92vw',
+            maxWidth: 800,
+            aspectRatio: '16 / 9',
+            background: '#000',
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35)'
+          }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {videoEffectiveUrl ? (
+              <video
+                ref={videoRef}
+                key={videoEffectiveUrl}
+                src={videoEffectiveUrl}
+                controls
+                style={{ width: '100%', height: '100%', display: 'block', background: '#000' }}
+                onError={handleVideoError}
+              />
+            ) : (
+              <div style={{ color: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                {t('noVideo')}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setShowVideoOverlay(false)}
+            aria-label="Fermer la vidéo"
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              width: 40,
+              height: 40,
+              borderRadius: 40,
+              border: 'none',
+              cursor: 'pointer',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#111827',
+              fontSize: 18,
+              fontWeight: 700
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       </div>
     </CourseAccessGuard>
   );

@@ -1,196 +1,173 @@
 // src/utils/seedCategoryPlans.js
-const mongoose = require('mongoose');
-const Plan = require('../models/Plan');
 const Category = require('../models/Category');
+const CategoryPlan = require('../models/CategoryPlan');
 
-async function seedCategoryPlans() {
-  try {
-    console.log('🌱 Initialisation des plans d\'abonnement par catégorie...');
-
-    // Récupérer toutes les catégories existantes
-    const categories = await Category.find().lean();
-    console.log(`📊 ${categories.length} catégories trouvées dans la base de données`);
-
-    if (categories.length === 0) {
-      console.log('❌ Aucune catégorie trouvée. Création de catégories par défaut...');
+class CategoryPlanSeeder {
+  
+  /**
+   * Crée des plans de catégories avec des prix spécifiques
+   */
+  static async seedCategoryPlans() {
+    try {
+      console.log('🌱 Création des plans de catégories...');
+      // S'assurer que toutes les catégories ont un type par défaut
+      const backfill = await Category.updateMany(
+        { $or: [ { type: { $exists: false } }, { type: null } ] },
+        { $set: { type: 'classic' } }
+      );
+      const matched = backfill.matchedCount ?? backfill.n ?? 0;
+      const modified = backfill.modifiedCount ?? backfill.nModified ?? 0;
+      if (modified > 0) {
+        console.log(`🛠️ Backfill Category.type -> classic (matched=${matched}, modified=${modified})`);
+      }
       
-      // Créer des catégories par défaut si aucune n'existe
-      const defaultCategories = [
-        {
-          translations: {
-            fr: { name: 'Débutant' },
-            en: { name: 'Beginner' },
-            ar: { name: 'مبتدئ' }
-          },
-          order: 1
-        },
-        {
-          translations: {
-            fr: { name: 'Intermédiaire' },
-            en: { name: 'Intermediate' },
-            ar: { name: 'متوسط' }
-          },
-          order: 2
-        },
-        {
-          translations: {
-            fr: { name: 'Avancé' },
-            en: { name: 'Advanced' },
-            ar: { name: 'متقدم' }
-          },
-          order: 3
+      const categories = await Category.find();
+      const plans = [];
+      
+      for (const category of categories) {
+        // Vérifier si un plan existe déjà
+        const existingPlan = await CategoryPlan.findOne({ category: category._id });
+        if (existingPlan) {
+          console.log(`⚠️ Plan déjà existant pour ${category.translations.fr.name}`);
+          continue;
         }
-      ];
-
-      for (const catData of defaultCategories) {
-        await Category.create(catData);
+        
+        // Définir le prix selon la catégorie (exemple)
+        let price = 0;
+        let features = [];
+        
+        // Logique de prix basée sur le nom de la catégorie
+        const categoryName = category.translations.fr.name.toLowerCase();
+        
+        if (categoryName.includes('débutant') || categoryName.includes('introduction')) {
+          price = 0; // Gratuit pour les débutants
+          features = [
+            'Accès gratuit à tous les contenus',
+            'Support communautaire',
+            'Certificat de participation'
+          ];
+        } else if (categoryName.includes('intermédiaire')) {
+          price = 5000; // 50 TND
+          features = [
+            'Accès à tous les parcours de la catégorie',
+            'Exercices interactifs',
+            'Support technique',
+            'Certificat de completion'
+          ];
+        } else if (categoryName.includes('avancé') || categoryName.includes('expert')) {
+          price = 10000; // 100 TND
+          features = [
+            'Accès premium à tous les contenus',
+            'Projets pratiques',
+            'Mentoring personnalisé',
+            'Certificat professionnel',
+            'Accès à la communauté VIP'
+          ];
+        } else {
+          price = 3000; // 30 TND par défaut
+          features = [
+            'Accès à tous les parcours de la catégorie',
+            'Contenu multilingue',
+            'Support technique',
+            'Certificat de completion'
+          ];
+        }
+        
+        const categoryPlan = new CategoryPlan({
+          category: category._id,
+          price: price,
+          currency: 'TND',
+          paymentType: 'one_time',
+          accessDuration: 365, // 1 an
+          active: true,
+          translations: {
+            fr: {
+              name: `Accès ${category.translations.fr.name}`,
+              description: `Accès complet à la catégorie ${category.translations.fr.name} avec tous ses parcours et niveaux`
+            },
+            en: {
+              name: `Access ${category.translations.en.name}`,
+              description: `Complete access to ${category.translations.en.name} category with all its paths and levels`
+            },
+            ar: {
+              name: `الوصول إلى ${category.translations.ar.name}`,
+              description: `وصول كامل لفئة ${category.translations.ar.name} مع جميع مساراتها ومستوياتها`
+            }
+          },
+          features: features,
+          order: category.order || 0
+        });
+        
+        await categoryPlan.save();
+        plans.push(categoryPlan);
+        console.log(`✅ Plan créé pour ${category.translations.fr.name}: ${price} TND`);
       }
       
-      // Récupérer les catégories créées
-      const newCategories = await Category.find().lean();
-      categories.push(...newCategories);
+      console.log(`🌱 ${plans.length} plans de catégories créés`);
+      return plans;
+      
+    } catch (error) {
+      console.error('❌ Erreur création plans catégories:', error);
+      throw error;
     }
-
-    // Supprimer tous les anciens plans
-    console.log('🗑️ Suppression des anciens plans...');
-    await Plan.deleteMany({});
-    console.log('✅ Anciens plans supprimés');
-
-    const plans = [
-      // Plan gratuit
-      {
-        _id: 'free',
-        name: 'Gratuit',
-        description: 'Accès à la première leçon de chaque parcours',
-        priceMonthly: null,
-        currency: 'TND',
-        interval: null,
-        features: [
-          'Première leçon de chaque parcours',
-          'Accès limité aux exercices',
-          'Support communautaire'
-        ],
-        type: 'global',
-        unlockFirstLesson: true,
-        previewMode: true,
-        active: true,
-        sortOrder: 0
-      }
-    ];
-
-    // Créer un plan pour chaque catégorie
-    for (const category of categories) {
-      const categoryName = category.translations?.fr?.name || category.translations?.en?.name || 'Catégorie';
+  }
+  
+  /**
+   * Met à jour les prix des plans existants
+   */
+  static async updateCategoryPrices(priceUpdates) {
+    try {
+      console.log('💰 Mise à jour des prix des catégories...');
       
-      // Plan par catégorie
-      plans.push({
-        _id: `category_${category._id}`,
-        name: `Premium ${categoryName}`,
-        description: `Accès complet aux parcours ${categoryName}`,
-        priceMonthly: getCategoryPrice(categoryName),
-        currency: 'TND',
-        interval: 'month',
-        features: [
-          `Tous les parcours ${categoryName}`,
-          'Exercices illimités',
-          'Support communautaire',
-          'Téléchargement des PDFs',
-          'Certificats de completion'
-        ],
-        type: 'category',
-        targetId: category._id,
-        targetType: 'category',
-        allowedCategories: [category._id],
-        unlockFirstLesson: true,
-        previewMode: false,
-        active: true,
-        sortOrder: getCategorySortOrder(categoryName)
+      let updatedCount = 0;
+      
+      for (const [categoryId, price] of Object.entries(priceUpdates)) {
+        const categoryPlan = await CategoryPlan.findOne({ category: categoryId });
+        if (categoryPlan) {
+          categoryPlan.price = price;
+          await categoryPlan.save();
+          updatedCount++;
+          console.log(`💰 Prix mis à jour: ${price} TND`);
+        }
+      }
+      
+      console.log(`✅ ${updatedCount} prix mis à jour`);
+      return updatedCount;
+      
+    } catch (error) {
+      console.error('❌ Erreur mise à jour prix:', error);
+      throw error;
+    }
+  }
+  
+  /**
+   * Affiche un résumé des plans créés
+   */
+  static async getPlansSummary() {
+    try {
+      const plans = await CategoryPlan.find().populate('category');
+      
+      console.log('\n📊 RÉSUMÉ DES PLANS DE CATÉGORIES:');
+      console.log('=====================================');
+      
+      plans.forEach(plan => {
+        const category = plan.category;
+        console.log(`📁 ${category.translations.fr.name}`);
+        console.log(`   💰 Prix: ${plan.price} ${plan.currency}`);
+        console.log(`   🎯 Type: ${plan.paymentType}`);
+        console.log(`   ⏱️ Durée: ${plan.accessDuration} jours`);
+        console.log(`   ✅ Actif: ${plan.active ? 'Oui' : 'Non'}`);
+        console.log(`   🎁 Fonctionnalités: ${plan.features.length}`);
+        console.log('');
       });
+      
+      return plans;
+      
+    } catch (error) {
+      console.error('❌ Erreur résumé plans:', error);
+      throw error;
     }
-
-    // Plan global premium
-    plans.push({
-      _id: 'global_premium',
-      name: 'Premium Global',
-      description: 'Accès complet à tous les parcours et catégories',
-      priceMonthly: 4999, // 49.99 TND
-      currency: 'TND',
-      interval: 'month',
-      features: [
-        'Accès à tous les parcours',
-        'Toutes les catégories',
-        'Toutes les langues (FR, EN, AR)',
-        'Exercices illimités',
-        'Support prioritaire',
-        'Téléchargement des PDFs',
-        'Certificats de completion',
-        'Accès aux nouvelles fonctionnalités'
-      ],
-      type: 'global',
-      unlockFirstLesson: true,
-      previewMode: false,
-      active: true,
-      isPopular: true,
-      sortOrder: 1
-    });
-
-    // Créer les plans
-    console.log('📋 Création des nouveaux plans...');
-    for (const planData of plans) {
-      await Plan.create(planData);
-      console.log(`✅ Plan créé: ${planData.name}`);
-    }
-
-    console.log('🎉 Plans d\'abonnement par catégorie initialisés avec succès!');
-    console.log(`📊 Total: ${plans.length} plans créés`);
-
-    // Afficher le résumé
-    console.log('\n📋 Résumé des plans créés:');
-    const createdPlans = await Plan.find({ active: true }).sort({ sortOrder: 1 }).lean();
-    createdPlans.forEach(plan => {
-      const price = plan.priceMonthly ? `${(plan.priceMonthly / 100).toFixed(2)} TND` : 'Gratuit';
-      console.log(`  - ${plan.name} (${plan.type}) - ${price}`);
-    });
-
-  } catch (error) {
-    console.error('❌ Erreur lors de l\'initialisation des plans:', error);
-    throw error;
   }
 }
 
-function getCategoryPrice(categoryName) {
-  const name = categoryName.toLowerCase();
-  if (name.includes('débutant') || name.includes('beginner')) return 1999; // 19.99 TND
-  if (name.includes('intermédiaire') || name.includes('intermediate')) return 2999; // 29.99 TND
-  if (name.includes('avancé') || name.includes('advanced')) return 3999; // 39.99 TND
-  return 2499; // 24.99 TND par défaut
-}
-
-function getCategorySortOrder(categoryName) {
-  const name = categoryName.toLowerCase();
-  if (name.includes('débutant') || name.includes('beginner')) return 2;
-  if (name.includes('intermédiaire') || name.includes('intermediate')) return 3;
-  if (name.includes('avancé') || name.includes('advanced')) return 4;
-  return 5;
-}
-
-// Exécuter si appelé directement
-if (require.main === module) {
-  require('dotenv').config();
-  
-  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/codegenesis')
-    .then(() => {
-      console.log('🔗 Connecté à MongoDB');
-      return seedCategoryPlans();
-    })
-    .then(() => {
-      console.log('✅ Initialisation terminée');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('❌ Erreur:', error);
-      process.exit(1);
-    });
-}
-
-module.exports = seedCategoryPlans;
+module.exports = CategoryPlanSeeder;

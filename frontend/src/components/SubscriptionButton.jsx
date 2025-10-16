@@ -14,36 +14,36 @@ const SubscriptionButton = ({
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Charger les plans disponibles
+  // Charger les plans de catégorie (nouveau système)
   useEffect(() => {
-    if (categoryId) {
-      loadPlans();
-    }
-  }, [categoryId]);
-
-  const loadPlans = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/course-access/plans`);
-      const data = await response.json();
-      
-      if (data.success) {
-        // Filtrer les plans par catégorie si spécifié
-        let filteredPlans = data.plans || [];
-        if (categoryId) {
-          filteredPlans = filteredPlans.filter(plan => 
-            plan.type === 'global' || 
-            (plan.type === 'category' && plan.targetId === categoryId)
-          );
+    const loadCategoryPlans = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/admin/category-plans');
+        const data = await res.json();
+        if (data?.success && Array.isArray(data?.plans)) {
+          const adapted = data.plans
+            .filter(p => p.active)
+            .map(p => ({
+              _id: p._id,
+              name: p.translations?.fr?.name || 'Plan',
+              description: p.translations?.fr?.description || '',
+              price: p.price,
+              currency: p.currency || 'TND',
+              paymentType: p.paymentType,
+              category: p.category,
+              features: Array.isArray(p.features) ? p.features : []
+            }));
+          setPlans(adapted);
         }
-        setPlans(filteredPlans);
+      } catch (e) {
+        console.error('Error loading category plans:', e);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error loading plans:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    loadCategoryPlans();
+  }, [categoryId]);
 
   const handleSubscribe = () => {
     setShowModal(true);

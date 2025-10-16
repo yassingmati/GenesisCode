@@ -70,22 +70,40 @@ const SubscriptionModal = ({
       ];
       
       try {
-        // Essayer de charger depuis l'API
-        const url = pathId 
-          ? API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.PLANS_BY_PATH(pathId))
-          : API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.PLANS);
-          
-        const response = await fetch(url);
+        // Essayer de charger les nouveaux plans par catégorie (comme l'admin)
+        const url = API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.CATEGORY_PLANS);
+        const response = await fetch(url, { headers: API_CONFIG.getPublicHeaders() });
         const data = await response.json();
-        
-        if (data.success && data.plans && Array.isArray(data.plans) && data.plans.length > 0) {
-          setPlans(data.plans);
-          console.log('Plans chargés depuis l\'API:', data.plans);
+
+        // Adapter les plans côté client pour l'affichage (name/description/pricing)
+        if (data?.success && Array.isArray(data?.plans) && data.plans.length > 0) {
+          const adapted = data.plans
+            .filter(p => p.active)
+            .map(p => ({
+              _id: p._id,
+              name: p.translations?.fr?.name || p.translations?.en?.name || 'Plan',
+              description: p.translations?.fr?.description || p.translations?.en?.description || '',
+              priceMonthly: p.paymentType === 'monthly' ? Math.round((p.price || 0) * 100) : null,
+              currency: p.currency || 'TND',
+              interval: p.paymentType === 'monthly' ? 'month' : (p.paymentType === 'yearly' ? 'year' : null),
+              features: Array.isArray(p.features) ? p.features : [],
+              type: 'category',
+              isPopular: false,
+              category: p.category,
+              raw: p
+            }));
+
+          if (adapted.length > 0) {
+            setPlans(adapted);
+            console.log('Plans catégorie chargés:', adapted);
+          } else {
+            throw new Error('Aucun plan actif retourné');
+          }
         } else {
-          throw new Error('Pas de plans dans la réponse API');
+          throw new Error('Réponse invalide des plans de catégories');
         }
       } catch (apiError) {
-        console.warn('Erreur API, utilisation des plans par défaut:', apiError.message);
+        console.warn('Erreur API catégorie, fallback plans par défaut:', apiError.message);
         setPlans(defaultPlans);
         console.log('Plans par défaut chargés:', defaultPlans);
       }

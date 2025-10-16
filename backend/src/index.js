@@ -501,6 +501,15 @@ if (notificationRoutes) app.use('/api', notificationRoutes);
 if (courseAccessRoutes) app.use('/api/course-access', courseAccessRoutes);
 if (subscriptionPaymentRoutes) app.use('/api/subscription-payment', subscriptionPaymentRoutes);
 
+// Routes de paiement par catégorie
+try {
+  const categoryPaymentRoutes = require('./routes/categoryPaymentRoutes');
+  app.use('/api/category-payments', categoryPaymentRoutes);
+  console.log('✅ categoryPaymentRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement categoryPaymentRoutes:', err);
+}
+
 // Health check endpoints déplacés plus haut dans le fichier
 
 // Error handler

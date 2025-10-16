@@ -16,6 +16,8 @@ const API_CONFIG = {
     // Plans d'abonnement
     PLANS: '/api/plans',
     PLANS_BY_PATH: (pathId) => `/api/plans/path/${pathId}`,
+    // Nouveaux plans par catégorie (même source que l'admin, public actuellement)
+    CATEGORY_PLANS: '/api/admin/category-plans',
     
     // Paiements Konnect
     PAYMENT_INIT: '/api/payment/init',

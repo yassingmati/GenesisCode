@@ -466,12 +466,19 @@ class CourseController {
       ----------------------- */
   static createCategory = catchErrors(async (req, res) => {
     validateTranslations(req.body.translations);
+    // Forcer une valeur par défaut si non fournie
+    if (!req.body.type) req.body.type = 'classic';
+    if (!['classic','specific'].includes(req.body.type)) {
+      return res.status(400).json({ error: 'Type de catégorie invalide (classic|specific)' });
+    }
     const category = await Category.create(req.body);
     res.status(201).json(category);
   });
 
   static getAllCategories = catchErrors(async (req, res) => {
-    const categories = await Category.find().sort({ order: 1, createdAt: -1 });
+    const { type } = req.query || {};
+    const query = type ? { type } : { type: 'classic' };
+    const categories = await Category.find(query).sort({ order: 1, createdAt: -1 });
     res.json(categories);
   });
 
@@ -484,6 +491,9 @@ class CourseController {
 
   static updateCategory = catchErrors(async (req, res) => {
     if (req.body.translations) validateTranslations(req.body.translations);
+    if (req.body.type && !['classic','specific'].includes(req.body.type)) {
+      return res.status(400).json({ error: 'Type de catégorie invalide (classic|specific)' });
+    }
     const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
     if (!category) return res.status(404).json({ error: 'Catégorie non trouvée' });
     res.json(category);
@@ -1360,6 +1370,14 @@ class CourseController {
               },
               { upsert: true, new: true, setDefaultsOnInsert: true }
             );
+            
+            // Débloquer automatiquement le niveau suivant
+            try {
+              const LevelUnlockService = require('../services/levelUnlockService');
+              await LevelUnlockService.onLevelCompleted(userId, level._id);
+            } catch (unlockError) {
+              console.error('Erreur déblocage niveau suivant:', unlockError);
+            }
           }
         }
       } catch (e) {

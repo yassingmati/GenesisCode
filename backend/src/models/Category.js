@@ -10,6 +10,8 @@ const categorySchema = new mongoose.Schema({
     en: categoryTranslationSchema,
     ar: categoryTranslationSchema
   },
+  // Type de catégorie: 'classic' (par défaut) ou 'specific' (langue spécifique)
+  type: { type: String, enum: ['classic', 'specific'], default: 'classic', index: true },
   order: { type: Number, default: 0 }
 }, {
   timestamps: true,

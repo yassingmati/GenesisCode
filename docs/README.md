@@ -176,3 +176,11 @@ Merci à tous les contributeurs et utilisateurs de GenesisCode pour leur soutien
 ---
 
 **GenesisCode** - *Apprendre, Progresser, Réussir* 🚀✨
+
+---
+
+## Notes sur les Catégories (classic/specific)
+
+- Le modèle `Category` possède un champ `type` avec valeurs `classic | specific` (défaut `classic`).
+- L’endpoint liste les catégories avec filtre: `GET /api/courses/categories?type=classic|specific` (si omis: `classic`).
+- Le flux "Choisir ta propre langue" affiche uniquement les catégories `specific` puis leurs parcours et niveaux.

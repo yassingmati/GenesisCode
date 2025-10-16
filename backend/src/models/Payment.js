@@ -246,3 +246,9 @@ paymentSchema.pre('save', function(next) {
 });
 
 module.exports = mongoose.model('Payment', paymentSchema);
+
+
+
+
+
+
