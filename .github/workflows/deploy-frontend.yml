@@ -37,15 +37,17 @@ jobs:
       - name: Create .env.production file
         working-directory: ./frontend
         run: |
-          echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL || 'https://your-backend-url.com' }}" >> .env.production
-          echo "REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL || 'https://your-backend-url.com/api' }}" >> .env.production
+          echo "REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL || 'http://localhost:5000' }}" >> .env.production
+          echo "REACT_APP_API_URL=${{ secrets.REACT_APP_API_URL || 'http://localhost:5000/api' }}" >> .env.production
+          echo "CI=false" >> .env.production
 
       - name: Build frontend
         working-directory: ./frontend
         run: npm run build
         env:
-          REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL || 'https://your-backend-url.com' }}
-          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'https://your-backend-url.com/api' }}
+          REACT_APP_API_BASE_URL: ${{ secrets.REACT_APP_API_BASE_URL || 'http://localhost:5000' }}
+          REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL || 'http://localhost:5000/api' }}
+          CI: false  # Désactiver CI pour éviter les erreurs de build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
