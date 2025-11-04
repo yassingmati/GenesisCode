@@ -143,8 +143,9 @@ git push heroku main
    - **Network Access**: Ajoutez `0.0.0.0/0` (tous les IPs) ou l'IP de votre serveur
 4. Obtenez la connection string:
    ```
-   mongodb+srv://username:password@cluster.mongodb.net/codegenesis?retryWrites=true&w=majority
+   mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority
    ```
+   **Remplacez** `<username>`, `<password>`, `<cluster>`, et `<database>` par vos valeurs réelles.
 
 ## 📝 Checklist de Déploiement
 

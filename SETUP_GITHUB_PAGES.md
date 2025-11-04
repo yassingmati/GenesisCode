@@ -85,7 +85,7 @@ Nous les mettrons à jour après avoir déployé le backend.
    - **Install Command**: `npm install`
 7. Cliquez sur **Environment Variables**
 8. Ajoutez ces variables:
-   - **Key**: `MONGODB_URI` | **Value**: Votre URI MongoDB (ex: `mongodb+srv://user:pass@cluster.mongodb.net/codegenesis`)
+   - **Key**: `MONGODB_URI` | **Value**: Votre URI MongoDB (ex: `mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>`)
    - **Key**: `JWT_SECRET` | **Value**: Un secret aléatoire (ex: `votre-super-secret-jwt-123456`)
    - **Key**: `CLIENT_ORIGIN` | **Value**: `https://VOTRE_USERNAME.github.io` (ex: `https://john.github.io`)
    - **Key**: `PORT` | **Value**: (laissez vide)
