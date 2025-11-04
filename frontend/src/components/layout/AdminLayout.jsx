@@ -285,6 +285,7 @@ const pageTitles = {
   '/admin/courses': 'Gestion des Cours',
   '/admin/payments': 'Gestion des Paiements',
   '/admin/Subscription': 'Gestion du Subscription',
+  '/admin/category-plans': 'Plans de Catégories',
   '/admin/settings': 'Paramètres Administrateur',
 };
 
@@ -335,6 +336,11 @@ export default function AdminLayout() {
           <LinkItem to="/admin/Subscription">
             <LinkIcon>📝</LinkIcon>
             {!sidebarCollapsed && <LinkText>Subscription Management</LinkText>}
+          </LinkItem>
+          
+          <LinkItem to="/admin/category-plans">
+            <LinkIcon>🏷️</LinkIcon>
+            {!sidebarCollapsed && <LinkText>Plans de Catégories</LinkText>}
           </LinkItem>
           
           <LinkItem to="/admin/settings">

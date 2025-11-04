@@ -54,8 +54,23 @@ class LevelUnlockService {
         return nextLevel;
       }
       
-      // Débloquer le niveau suivant
-      await categoryAccess.unlockLevel(path._id, nextLevel._id);
+      // Débloquer le niveau suivant (opération atomique)
+      await CategoryAccess.updateOne(
+        {
+          _id: categoryAccess._id,
+          status: 'active',
+          'unlockedLevels.level': { $ne: nextLevel._id }
+        },
+        {
+          $addToSet: {
+            unlockedLevels: {
+              path: path._id,
+              level: nextLevel._id,
+              unlockedAt: new Date()
+            }
+          }
+        }
+      );
       
       console.log('🎉 Niveau suivant débloqué:', {
         userId,
@@ -112,13 +127,39 @@ class LevelUnlockService {
         throw new Error('Accès à la catégorie non trouvé');
       }
       
-      // Vérifier si le niveau est déjà débloqué
-      if (categoryAccess.hasUnlockedLevel(pathId, levelId)) {
-        return categoryAccess;
-      }
+      // Débloquer le niveau (opération atomique)
+      await CategoryAccess.updateOne(
+        {
+          _id: categoryAccess._id,
+          status: 'active',
+          'unlockedLevels.level': { $ne: levelId }
+        },
+        {
+          $addToSet: {
+            unlockedLevels: {
+              path: pathId,
+              level: levelId,
+              unlockedAt: new Date()
+            }
+          }
+        }
+      );
       
-      // Débloquer le niveau
-      await categoryAccess.unlockLevel(pathId, levelId);
+      // Vider le cache pour cet utilisateur et ce path/level
+      try {
+        const accessCache = require('../utils/accessCache');
+        // Invalider tous les caches pour cet utilisateur et ce path/level
+        const cacheKeys = [
+          `${userId}:${pathId}:${levelId}:`,
+          `${userId}:${pathId}:${levelId}`,
+          `${userId}:${pathId}:`,
+          `${userId}:${pathId}`
+        ];
+        cacheKeys.forEach(key => accessCache.del(key));
+        console.log('🗑️ Cache invalidé pour le level débloqué');
+      } catch (cacheError) {
+        console.warn('⚠️ Erreur invalidation cache:', cacheError.message);
+      }
       
       console.log('🔓 Niveau débloqué:', {
         userId,
@@ -245,5 +286,10 @@ class LevelUnlockService {
 }
 
 module.exports = LevelUnlockService;
+
+
+
+
+
 
 

@@ -1,0 +1,19 @@
+{
+  "name": "codegenesis-test-scripts",
+  "version": "1.0.0",
+  "description": "Scripts de test pour le système de déblocage séquentiel",
+  "scripts": {
+    "test": "node test.js",
+    "test:complete": "node testCompleteSystem.js",
+    "test:api": "node testAPIRoutes.js",
+    "test:all": "node runAllTests.js",
+    "migrate": "node migrateSequentialUnlock.js"
+  },
+  "keywords": [
+    "test",
+    "codegenesis",
+    "sequential-unlock"
+  ],
+  "author": "CodeGenesis Team",
+  "license": "MIT"
+}

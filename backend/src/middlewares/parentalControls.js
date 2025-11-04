@@ -5,6 +5,11 @@ const UserActivity = require('../models/UserActivity');
 // Middleware pour vérifier les contrôles parentaux
 exports.checkParentalControls = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const userType = req.user.userType;
     
@@ -79,12 +84,13 @@ exports.checkParentalControls = async (req, res, next) => {
 // Middleware pour enregistrer l'activité
 exports.trackActivity = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const sessionId = req.sessionID || req.headers['x-session-id'] || 'default-session';
-    
-    if (!userId) {
-      return next();
-    }
     
     // Enregistrer l'activité
     await UserActivity.findOneAndUpdate(
@@ -115,6 +121,11 @@ exports.trackActivity = async (req, res, next) => {
 // Middleware pour vérifier les restrictions de contenu avancées
 exports.checkContentRestrictions = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const userType = req.user.userType;
     
@@ -209,12 +220,13 @@ exports.checkContentRestrictions = async (req, res, next) => {
 // Middleware pour enregistrer le début de session
 exports.startSession = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const sessionId = req.sessionID || req.headers['x-session-id'] || 'default-session';
-    
-    if (!userId) {
-      return next();
-    }
     
     // Vérifier s'il y a déjà une session active
     const existingSession = await UserActivity.findOne({
@@ -250,12 +262,13 @@ exports.startSession = async (req, res, next) => {
 // Middleware pour enregistrer la fin de session
 exports.endSession = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const sessionId = req.sessionID || req.headers['x-session-id'] || 'default-session';
-    
-    if (!userId) {
-      return next();
-    }
     
     // Trouver la session active
     const session = await UserActivity.findOne({
@@ -293,12 +306,13 @@ exports.endSession = async (req, res, next) => {
 // Middleware pour mettre à jour les statistiques de session
 exports.updateSessionStats = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const sessionId = req.sessionID || req.headers['x-session-id'] || 'default-session';
-    
-    if (!userId) {
-      return next();
-    }
     
     // Mettre à jour les statistiques si c'est une action d'exercice
     if (req.path.includes('/exercises') && req.method === 'POST') {
@@ -346,6 +360,11 @@ exports.updateSessionStats = async (req, res, next) => {
 // Middleware pour vérifier les pauses obligatoires
 exports.checkMandatoryBreaks = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const userType = req.user.userType;
     
@@ -417,13 +436,14 @@ exports.checkMandatoryBreaks = async (req, res, next) => {
 // Middleware pour enregistrer les pauses
 exports.recordBreak = async (req, res, next) => {
   try {
+    // Vérifier si l'utilisateur est authentifié
+    if (!req.user || !req.user.id) {
+      return next(); // Passer au middleware suivant si pas authentifié
+    }
+    
     const userId = req.user.id;
     const sessionId = req.sessionID || req.headers['x-session-id'] || 'default-session';
     const { breakType = 'mandatory' } = req.body;
-    
-    if (!userId) {
-      return next();
-    }
     
     const session = await UserActivity.findOne({
       user: userId,

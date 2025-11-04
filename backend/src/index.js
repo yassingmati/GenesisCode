@@ -48,7 +48,7 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 
 // Models & Routes (adapter si chemins différents)
-let authRoutes, userRoutes, adminRoutes, courseRoutes, subscriptionRoutes, parentRoutes, invitationRoutes, notificationRoutes, calendarRoutes, reportsRoutes, courseAccessRoutes, subscriptionPaymentRoutes, publicRoutes, paymentRoutes;
+let authRoutes, userRoutes, adminRoutes, courseRoutes, subscriptionRoutes, parentRoutes, invitationRoutes, notificationRoutes, calendarRoutes, reportsRoutes, courseAccessRoutes, subscriptionPaymentRoutes, publicRoutes, paymentRoutes, accessRoutes;
 
 // Charger les routes individuellement pour éviter qu'une erreur empêche le chargement des autres
 try {
@@ -91,6 +91,13 @@ try {
   console.log('✅ courseAccessRoutes chargé');
 } catch (err) {
   console.error('❌ Erreur chargement courseAccessRoutes:', err.message);
+}
+
+try {
+  accessRoutes = require('./routes/accessRoutes');
+  console.log('✅ accessRoutes chargé');
+} catch (err) {
+  console.error('❌ Erreur chargement accessRoutes:', err.message);
 }
 
 try {
@@ -495,13 +502,7 @@ if (parentRoutes) app.use('/api/parent', parentRoutes);
 if (calendarRoutes) app.use('/api/calendar', calendarRoutes);
 if (reportsRoutes) app.use('/api/reports', reportsRoutes);
 if (invitationRoutes) app.use('/api/invitations', invitationRoutes);
-if (publicRoutes) app.use('/api', publicRoutes);
-if (paymentRoutes) app.use('/api/payment', paymentRoutes);
-if (notificationRoutes) app.use('/api', notificationRoutes);
-if (courseAccessRoutes) app.use('/api/course-access', courseAccessRoutes);
-if (subscriptionPaymentRoutes) app.use('/api/subscription-payment', subscriptionPaymentRoutes);
-
-// Routes de paiement par catégorie
+// Routes de paiement par catégorie (doit être AVANT publicRoutes pour éviter les conflits)
 try {
   const categoryPaymentRoutes = require('./routes/categoryPaymentRoutes');
   app.use('/api/category-payments', categoryPaymentRoutes);
@@ -509,6 +510,13 @@ try {
 } catch (err) {
   console.error('❌ Erreur chargement categoryPaymentRoutes:', err);
 }
+
+if (publicRoutes) app.use('/api', publicRoutes);
+if (paymentRoutes) app.use('/api/payment', paymentRoutes);
+if (notificationRoutes) app.use('/api', notificationRoutes);
+if (courseAccessRoutes) app.use('/api/course-access', courseAccessRoutes);
+if (subscriptionPaymentRoutes) app.use('/api/subscription-payment', subscriptionPaymentRoutes);
+if (accessRoutes) app.use('/api/access', accessRoutes);
 
 // Health check endpoints déplacés plus haut dans le fichier
 

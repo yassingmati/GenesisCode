@@ -1,0 +1,9 @@
+{
+  "message": "Paiement créé. Rediriger l'utilisateur vers paymentUrl",
+  "paymentUrl": "https://gateway.konnect.network/payment/123456",
+  "konnect": {
+    "id": "payment_123456",
+    "raw": {}
+  }
+}
+

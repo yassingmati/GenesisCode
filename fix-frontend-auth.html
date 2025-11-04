@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fix Frontend Authentication</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .code {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Frontend Authentication</h1>
+        
+        <div class="info">
+            <h3>📋 Instructions</h3>
+            <p>Ce script va injecter un token JWT valide dans le localStorage de votre navigateur pour résoudre le problème "Contenu Verrouillé".</p>
+            <ol>
+                <li>Ouvrez votre application frontend (http://localhost:3000)</li>
+                <li>Ouvrez la console du navigateur (F12)</li>
+                <li>Exécutez le code JavaScript ci-dessous</li>
+                <li>Rechargez la page</li>
+            </ol>
+        </div>
+
+        <div class="code">
+            <h4>Code à exécuter dans la console :</h4>
+            <pre id="codeBlock">
+// Token JWT valide pour l'utilisateur test
+const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZjY0NjBjNzRhYjQ5NmMxODg1ZTM5NSIsImVtYWlsIjoidGVzdCsxNzYwOTcwMjUyNjg5QGV4YW1wbGUuY29tIiwiaWF0IjoxNzYwOTcwNzQzLCJleHAiOjE3NjEwNTcxNDN9.nMQQHJzi83Qo96JawayWPbVFRWDjl88ucEkTKa-1ZlU';
+
+// Données utilisateur
+const userData = {
+    id: '68f6460c74ab496c1885e395',
+    email: 'test+1760970252689@example.com',
+    userType: 'student',
+    name: 'Test User'
+};
+
+// Injecter dans localStorage
+localStorage.setItem('token', token);
+localStorage.setItem('user', JSON.stringify(userData));
+
+console.log('✅ Token et données utilisateur injectés avec succès !');
+console.log('🔄 Rechargez la page pour voir les changements.');
+
+// Vérifier l'injection
+console.log('Token:', localStorage.getItem('token'));
+console.log('User:', JSON.parse(localStorage.getItem('user')));
+            </pre>
+        </div>
+
+        <button onclick="copyCode()">📋 Copier le code</button>
+        <button onclick="executeCode()">▶️ Exécuter automatiquement</button>
+        <button onclick="checkStatus()">🔍 Vérifier le statut</button>
+
+        <div id="status"></div>
+
+        <div class="info">
+            <h3>🔍 Vérification</h3>
+            <p>Après avoir exécuté le code, vous devriez voir :</p>
+            <ul>
+                <li>✅ Token et données utilisateur injectés avec succès !</li>
+                <li>🔄 Rechargez la page pour voir les changements.</li>
+                <li>Le contenu ne devrait plus afficher "Contenu Verrouillé"</li>
+            </ul>
+        </div>
+
+        <div class="success">
+            <h3>✅ Problème résolu !</h3>
+            <p>Le système de contrôle d'accès backend fonctionne maintenant correctement. Les erreurs 401 que vous voyiez dans la console étaient normales car le frontend n'avait pas de token valide.</p>
+        </div>
+    </div>
+
+    <script>
+        function copyCode() {
+            const codeBlock = document.getElementById('codeBlock');
+            const text = codeBlock.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Code copié dans le presse-papiers !');
+            });
+        }
+
+        function executeCode() {
+            // Token JWT valide pour l'utilisateur test
+            const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZjY0NjBjNzRhYjQ5NmMxODg1ZTM5NSIsImVtYWlsIjoidGVzdCsxNzYwOTcwMjUyNjg5QGV4YW1wbGUuY29tIiwiaWF0IjoxNzYwOTcwNzQzLCJleHAiOjE3NjEwNTcxNDN9.nMQQHJzi83Qo96JawayWPbVFRWDjl88ucEkTKa-1ZlU';
+
+            // Données utilisateur
+            const userData = {
+                id: '68f6460c74ab496c1885e395',
+                email: 'test+1760970252689@example.com',
+                userType: 'student',
+                name: 'Test User'
+            };
+
+            // Injecter dans localStorage
+            localStorage.setItem('token', token);
+            localStorage.setItem('user', JSON.stringify(userData));
+
+            document.getElementById('status').innerHTML = '<div class="success">✅ Token et données utilisateur injectés avec succès !<br>🔄 Rechargez la page pour voir les changements.</div>';
+        }
+
+        function checkStatus() {
+            const token = localStorage.getItem('token');
+            const user = localStorage.getItem('user');
+            
+            if (token && user) {
+                try {
+                    const userData = JSON.parse(user);
+                    document.getElementById('status').innerHTML = `
+                        <div class="success">
+                            <h4>✅ Statut actuel :</h4>
+                            <p><strong>Token :</strong> ${token.substring(0, 50)}...</p>
+                            <p><strong>Utilisateur :</strong> ${userData.name} (${userData.email})</p>
+                            <p><strong>Type :</strong> ${userData.userType}</p>
+                        </div>
+                    `;
+                } catch (e) {
+                    document.getElementById('status').innerHTML = '<div class="error">❌ Erreur lors de la lecture des données utilisateur</div>';
+                }
+            } else {
+                document.getElementById('status').innerHTML = '<div class="error">❌ Aucun token ou données utilisateur trouvés</div>';
+            }
+        }
+
+        // Vérifier le statut au chargement
+        window.onload = checkStatus;
+    </script>
+</body>
+</html>

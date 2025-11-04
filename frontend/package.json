@@ -41,6 +41,8 @@
     "start": "npm run copy-pdf-worker && react-scripts start",
     "build": "npm run copy-pdf-worker && react-scripts build",
     "test": "react-scripts test",
+    "test:coverage": "react-scripts test --coverage",
+    "test:ci": "CI=true react-scripts test --watchAll=false",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {

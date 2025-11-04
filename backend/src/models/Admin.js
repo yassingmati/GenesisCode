@@ -26,9 +26,21 @@ adminSchema.pre('save', async function (next) {
 
 // Méthode pour comparer le mot de passe
 adminSchema.methods.comparePassword = async function (candidate) {
-  // si password a select:false, dans certains cas il faut récupérer explicitement le champ
-  const hash = this.password || (await mongoose.model('Admin').findById(this._id).select('+password')).password;
-  return bcrypt.compare(candidate, hash);
+  try {
+    // Si password a select:false, dans certains cas il faut récupérer explicitement le champ
+    let hash = this.password;
+    if (!hash) {
+      const adminWithPassword = await mongoose.model('Admin').findById(this._id).select('+password');
+      if (!adminWithPassword || !adminWithPassword.password) {
+        throw new Error('Mot de passe non trouvé pour cet admin');
+      }
+      hash = adminWithPassword.password;
+    }
+    return await bcrypt.compare(candidate, hash);
+  } catch (error) {
+    console.error('Error comparing password:', error);
+    return false;
+  }
 };
 
 module.exports = mongoose.model('Admin', adminSchema);

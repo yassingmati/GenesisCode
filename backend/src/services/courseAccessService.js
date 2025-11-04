@@ -12,7 +12,7 @@ class CourseAccessService {
    */
   static async checkUserAccess(userId, pathId, levelId = null, exerciseId = null) {
     try {
-      const user = await User.findById(userId).populate('subscription').lean();
+      const user = await User.findById(userId).select('subscription').lean();
       if (!user) return { hasAccess: false, reason: 'user_not_found' };
 
       // Vérifier l'accès explicite
@@ -85,8 +85,8 @@ class CourseAccessService {
 
       // Plan par catégorie
       if (plan.type === 'category') {
-        const path = await Path.findById(pathId).populate('category').lean();
-        if (path && path.category && plan.targetId && plan.targetId.toString() === path.category._id.toString()) {
+        const path = await Path.findById(pathId).select('category').lean();
+        if (path && path.category && plan.targetId && plan.targetId.toString() === path.category.toString()) {
           return {
             hasAccess: true,
             accessType: 'subscription',
@@ -127,14 +127,11 @@ class CourseAccessService {
    */
   static async checkFreeAccess(userId, pathId, levelId = null) {
     try {
-      const path = await Path.findById(pathId).populate('levels').lean();
-      if (!path || !path.levels || path.levels.length === 0) {
+      // Charger le premier niveau sans populate
+      const firstLevel = await Level.findOne({ path: pathId }).sort({ order: 1 }).lean();
+      if (!firstLevel) {
         return { hasAccess: false, reason: 'no_levels' };
       }
-
-      // Trier les niveaux par ordre
-      const sortedLevels = path.levels.sort((a, b) => (a.order || 0) - (b.order || 0));
-      const firstLevel = sortedLevels[0];
 
       // Si on demande un niveau spécifique, vérifier si c'est le premier
       if (levelId) {

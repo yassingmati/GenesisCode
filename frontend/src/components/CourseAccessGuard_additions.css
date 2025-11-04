@@ -1,0 +1,93 @@
+/* Additional styles for CourseAccessGuard - Append to CourseAccessGuard.css */
+
+/* Preview mode styles */
+.access-guard-preview-mode {
+  position: relative;
+}
+
+.preview-banner {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.preview-banner-info {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+}
+
+.preview-banner .preview-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+}
+
+.preview-banner .preview-text {
+  flex: 1;
+}
+
+.preview-banner .preview-text strong {
+  display: block;
+  font-size: 1.125rem;
+  margin-bottom: 0.25rem;
+}
+
+.preview-banner .preview-text p {
+  font-size: 0.875rem;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.preview-banner .preview-upgrade-btn {
+  flex-shrink: 0;
+  background: white;
+  color: #667eea;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.preview-banner .preview-upgrade-btn:hover {
+  background: #f8f9fa;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Unlock button secondary style */
+.unlock-btn.secondary {
+  background: #6b7280;
+}
+
+.unlock-btn.secondary:hover {
+  background: #4b5563;
+  box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
+}
+
+/* Hint text style */
+.hint-text {
+  font-size: 0.9rem;
+  color: #64748b;
+  margin-top: 0.5rem;
+  font-style: italic;
+}
+
+/* Responsive for preview banner */
+@media (max-width: 768px) {
+  .preview-banner {
+    flex-direction: column;
+    text-align: center;
+    padding: 1.5rem 1rem;
+  }
+
+  .preview-banner .preview-upgrade-btn {
+    width: 100%;
+  }
+}
+

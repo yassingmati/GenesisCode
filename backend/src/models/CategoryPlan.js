@@ -104,3 +104,8 @@ categoryPlanSchema.methods.getLocalizedInfo = function(language = 'fr') {
 module.exports = mongoose.model('CategoryPlan', categoryPlanSchema);
 
 
+
+
+
+
+

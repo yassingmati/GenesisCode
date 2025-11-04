@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "access": {
+    "hasAccess": true,
+    "canView": true,
+    "canInteract": true,
+    "accessType": "subscription",
+    "source": "subscription"
+  }
+}
+

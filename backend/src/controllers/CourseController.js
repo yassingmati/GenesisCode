@@ -462,6 +462,90 @@ const uploadPDFMiddleware = (req, res, next) => {
    ============================ */
 class CourseController {
   /* -----------------------
+      Catalog (Categories -> Paths -> Levels -> Exercises)
+      ----------------------- */
+  static getCatalog = catchErrors(async (req, res) => {
+    const lang = getLang(req);
+
+    // Fetch all categories (both classic and specific)
+    const categories = await Category.find({}).sort({ type: 1, order: 1, createdAt: -1 }).lean();
+
+    const categoryIds = categories.map(c => c._id);
+    const paths = await Path.find({ category: { $in: categoryIds } })
+      .sort({ order: 1 })
+      .lean();
+
+    const pathIds = paths.map(p => p._id);
+    const levels = await Level.find({ path: { $in: pathIds } })
+      .sort({ order: 1 })
+      .lean();
+
+    const levelIds = levels.map(l => l._id);
+    const exercises = await Exercise.find({ level: { $in: levelIds } })
+      .select('_id level translations type points difficulty')
+      .lean();
+
+    // Group exercises by level
+    const exByLevel = exercises.reduce((acc, ex) => {
+      const key = String(ex.level);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push({
+        _id: ex._id,
+        name: (ex.translations?.[lang]?.name) || (ex.translations?.fr?.name) || null,
+        type: ex.type,
+        points: ex.points || 10,
+        difficulty: ex.difficulty || 'medium'
+      });
+      return acc;
+    }, {});
+
+    // Group levels by path
+    const levelsByPath = levels.reduce((acc, lvl) => {
+      const key = String(lvl.path);
+      if (!acc[key]) acc[key] = [];
+      const tr = (lvl.translations && (lvl.translations[lang] || lvl.translations.fr)) || {};
+      acc[key].push({
+        _id: lvl._id,
+        title: tr.title || null,
+        content: tr.content || null,
+        order: lvl.order || 0,
+        videos: lvl.videos || {},
+        pdfs: lvl.pdfs || {},
+        exercises: exByLevel[String(lvl._id)] || []
+      });
+      return acc;
+    }, {});
+
+    // Group paths by category
+    const pathsByCategory = paths.reduce((acc, p) => {
+      const key = String(p.category);
+      if (!acc[key]) acc[key] = [];
+      const tr = (p.translations && (p.translations[lang] || p.translations.fr)) || {};
+      acc[key].push({
+        _id: p._id,
+        name: tr.name || null,
+        description: tr.description || '',
+        order: p.order || 0,
+        levels: (levelsByPath[String(p._id)] || []).sort((a,b) => (a.order||0)-(b.order||0))
+      });
+      return acc;
+    }, {});
+
+    // Build response
+    const result = categories.map(c => {
+      const ctr = (c.translations && (c.translations[lang] || c.translations.fr)) || {};
+      return {
+        _id: c._id,
+        type: c.type,
+        name: ctr.name || null,
+        order: c.order || 0,
+        paths: (pathsByCategory[String(c._id)] || []).sort((a,b) => (a.order||0)-(b.order||0))
+      };
+    });
+
+    res.json(result);
+  });
+  /* -----------------------
       Categories
       ----------------------- */
   static createCategory = catchErrors(async (req, res) => {
@@ -477,7 +561,8 @@ class CourseController {
 
   static getAllCategories = catchErrors(async (req, res) => {
     const { type } = req.query || {};
-    const query = type ? { type } : { type: 'classic' };
+    // Si type n'est pas spécifié, retourner toutes les catégories (classic et specific)
+    const query = type ? { type } : {};
     const categories = await Category.find(query).sort({ order: 1, createdAt: -1 });
     res.json(categories);
   });

@@ -2,20 +2,28 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+function extractToken(req) {
+  // Vérifier d'abord le header Authorization
+  if (req.headers?.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    return req.headers.authorization.split(' ')[1];
+  }
+  // Vérifier le cookie token standard
+  if (req.cookies?.token) {
+    return req.cookies.token;
+  }
+  // Note: adminToken est géré par flexibleAuthMiddleware ou adminAuthMiddleware
+  return null;
+}
+
 exports.protect = async (req, res, next) => {
   try {
-    let token;
-    if (req.headers?.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    } else if (req.cookies?.token) {
-      token = req.cookies.token;
-    }
+    const token = extractToken(req);
 
     if (!token) {
       return res.status(401).json({ success: false, message: 'Veuillez vous connecter pour accéder à cette ressource' });
     }
 
-    const secret = process.env.JWT_SECRET;
+    const secret = process.env.JWT_SECRET || 'devsecret';
     if (!secret) {
       console.error('JWT_SECRET non défini');
       return res.status(500).json({ success: false, message: 'Configuration serveur manquante' });
@@ -25,11 +33,21 @@ exports.protect = async (req, res, next) => {
     try {
       decoded = jwt.verify(token, secret);
     } catch (err) {
-      console.error('JWT verification failed:', err && err.message ? err.message : err);
-      return res.status(401).json({ success: false, message: err.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide' });
+      console.error('JWT verification failed:', err?.message || err);
+      return res.status(401).json({ 
+        success: false, 
+        message: err?.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide' 
+      });
     }
 
-    const currentUser = await User.findById(decoded.id).lean().exec();
+    if (!decoded.id) {
+      return res.status(401).json({ success: false, message: 'Token invalide: ID manquant' });
+    }
+
+    const currentUser = await User.findById(decoded.id)
+      .select('email roles role subscription isVerified isProfileComplete')
+      .lean()
+      .exec();
     if (!currentUser) {
       return res.status(401).json({ success: false, message: "L'utilisateur associé à ce token n'existe plus" });
     }
@@ -42,8 +60,18 @@ exports.protect = async (req, res, next) => {
       roles,
       role: roles.length > 0 ? roles[0] : undefined,
       isProfileComplete: !!currentUser.isProfileComplete,
-      isVerified: !!currentUser.isVerified
+      isVerified: !!currentUser.isVerified,
+      subscription: currentUser.subscription || null
     };
+
+    // Si l'utilisateur a le rôle admin, définir aussi req.admin
+    if (roles.includes('admin')) {
+      req.admin = {
+        id: currentUser._id,
+        email: currentUser.email,
+        roles: ['admin']
+      };
+    }
 
     next();
   } catch (error) {
@@ -70,6 +98,7 @@ exports.roleMiddleware = (...rolesAllowed) => {
       return res.status(500).json({ success: false, message: 'Erreur serveur' });
     }
   };
+};
 
 // Middleware optionnel pour l'authentification (pour les tests)
 exports.optionalAuth = async (req, res, next) => {
@@ -82,7 +111,7 @@ exports.optionalAuth = async (req, res, next) => {
     }
 
     if (token) {
-      const secret = process.env.JWT_SECRET;
+      const secret = process.env.JWT_SECRET || 'devsecret';
       if (secret) {
         try {
           const decoded = jwt.verify(token, secret);
@@ -102,5 +131,4 @@ exports.optionalAuth = async (req, res, next) => {
     console.error('Error in optionalAuth middleware:', error);
     next();
   }
-};
 };

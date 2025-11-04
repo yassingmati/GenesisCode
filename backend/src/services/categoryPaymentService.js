@@ -15,7 +15,53 @@ class CategoryPaymentService {
   static async getAllCategoryPlans() {
     try {
       const plans = await CategoryPlan.findAllActive();
-      return plans.map(plan => plan.getLocalizedInfo());
+      // Convertir les plans en objets JavaScript simples et gérer les erreurs
+      return plans.map(plan => {
+        try {
+          // Si c'est un document Mongoose, convertir en objet
+          const planObj = plan.toObject ? plan.toObject() : plan;
+          
+          // Construire l'objet avec toutes les propriétés nécessaires
+          const translation = planObj.translations?.fr || planObj.translations?.en || { name: 'Plan', description: '' };
+          
+          // Utiliser getLocalizedInfo si disponible, mais ajouter les champs manquants
+          let localizedInfo = {};
+          if (typeof plan.getLocalizedInfo === 'function') {
+            localizedInfo = plan.getLocalizedInfo();
+          }
+          
+          // Construire l'objet complet avec toutes les propriétés
+          return {
+            id: planObj._id || planObj.id || localizedInfo.id,
+            _id: planObj._id || planObj.id || localizedInfo.id,
+            category: planObj.category || localizedInfo.category,
+            price: planObj.price !== undefined ? planObj.price : (localizedInfo.price !== undefined ? localizedInfo.price : 0),
+            currency: planObj.currency || localizedInfo.currency || 'TND',
+            paymentType: planObj.paymentType || localizedInfo.paymentType || 'one_time',
+            accessDuration: planObj.accessDuration !== undefined ? planObj.accessDuration : (localizedInfo.accessDuration !== undefined ? localizedInfo.accessDuration : 365),
+            active: planObj.active !== false && planObj.active !== undefined ? planObj.active : (localizedInfo.active !== undefined ? localizedInfo.active : true),
+            name: localizedInfo.name || translation.name || 'Plan',
+            description: localizedInfo.description || translation.description || '',
+            translations: planObj.translations || {},
+            features: planObj.features || localizedInfo.features || [],
+            order: planObj.order !== undefined ? planObj.order : (localizedInfo.order !== undefined ? localizedInfo.order : 0)
+          };
+        } catch (err) {
+          console.error('Error processing plan:', err);
+          // Retourner un plan minimal en cas d'erreur
+          return {
+            id: plan._id || plan.id,
+            _id: plan._id || plan.id,
+            name: 'Plan',
+            description: '',
+            price: 0,
+            currency: 'TND',
+            active: true,
+            translations: {},
+            features: []
+          };
+        }
+      });
     } catch (error) {
       console.error('Error getting category plans:', error);
       throw error;
@@ -207,13 +253,23 @@ class CategoryPaymentService {
         throw new Error('Accès à la catégorie non trouvé');
       }
       
-      // Vérifier si le niveau est déjà débloqué
-      if (access.hasUnlockedLevel(pathId, levelId)) {
-        return access;
-      }
-      
-      // Débloquer le niveau
-      await access.unlockLevel(pathId, levelId);
+      // Débloquer le niveau (opération atomique)
+      await CategoryAccess.updateOne(
+        {
+          _id: access._id,
+          status: 'active',
+          'unlockedLevels.level': { $ne: levelId }
+        },
+        {
+          $addToSet: {
+            unlockedLevels: {
+              path: pathId,
+              level: levelId,
+              unlockedAt: new Date()
+            }
+          }
+        }
+      );
       
       console.log('✅ Niveau débloqué:', {
         userId,

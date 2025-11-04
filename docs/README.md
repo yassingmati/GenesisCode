@@ -176,3 +176,31 @@ Merci à tous les contributeurs et utilisateurs de GenesisCode pour leur soutien
 ---
 
 **GenesisCode** - *Apprendre, Progresser, Réussir* 🚀✨
+
+---
+
+## Notes sur les Catégories (classic/specific)
+
+- Le modèle `Category` possède un champ `type` avec valeurs `classic | specific` (défaut `classic`).
+- L’endpoint liste les catégories avec filtre: `GET /api/courses/categories?type=classic|specific` (si omis: `classic`).
+- Le flux "Choisir ta propre langue" affiche uniquement les catégories `specific` puis leurs parcours et niveaux.
+
+## 🔒 Access control & level locking
+
+Raisons standard renvoyées par les services/middlewares backend:
+
+- user_not_found: utilisateur introuvable
+- no_access: refus par défaut quand aucune règle n’accorde l’accès
+- plan_not_covering_path: abonnement actif mais ne couvre pas le parcours
+- not_first_lesson: le niveau demandé n’est pas la première leçon gratuite
+- no_category_access: achat/abonnement catégorie manquant/inactif
+- level_not_unlocked: verrouillage séquentiel (niveau précédent non complété)
+- error: erreur interne
+
+Smoke test (backend):
+
+```bash
+node backend/scripts/access-smoke-test.js --user <userId> --path <pathId> [--level <levelId>] [--exercise <exerciseId>]
+```
+
+Affiche la décision d’accès unifiée depuis `backend/src/services/accessControlService.js`.

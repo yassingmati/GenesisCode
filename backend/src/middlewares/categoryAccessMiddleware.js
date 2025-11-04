@@ -1,5 +1,6 @@
 // src/middlewares/categoryAccessMiddleware.js
 const CategoryPaymentService = require('../services/categoryPaymentService');
+const { logAccessDecision } = require('../utils/accessLogger');
 
 /**
  * Middleware pour vérifier l'accès à un niveau d'une catégorie
@@ -7,6 +8,7 @@ const CategoryPaymentService = require('../services/categoryPaymentService');
 exports.requireCategoryLevelAccess = () => {
   return async (req, res, next) => {
     try {
+      const t0 = Date.now();
       if (!req.user || !req.user.id) {
         return res.status(401).json({ 
           success: false, 
@@ -37,6 +39,15 @@ exports.requireCategoryLevelAccess = () => {
       );
       
       if (!access.hasAccess) {
+        logAccessDecision({
+          userId,
+          context: 'category-level',
+          pathId,
+          levelId,
+          decision: 'deny',
+          reason: access.reason,
+          latencyMs: Date.now() - t0
+        });
         // Récupérer le plan de la catégorie pour proposer l'achat
         const categoryPlan = await CategoryPaymentService.getCategoryPlan(categoryId);
         
@@ -45,13 +56,27 @@ exports.requireCategoryLevelAccess = () => {
           message: 'Accès refusé',
           code: 'ACCESS_DENIED',
           reason: access.reason,
-          categoryPlan: categoryPlan,
-          requiresPayment: true
+          data: {
+            categoryPlan,
+            requiresPayment: true,
+            categoryId,
+            pathId,
+            levelId
+          }
         });
       }
 
       // Ajouter les informations d'accès à la requête
       req.categoryAccess = access;
+      logAccessDecision({
+        userId,
+        context: 'category-level',
+        pathId,
+        levelId,
+        decision: 'allow',
+        reason: access.accessType || 'unknown',
+        latencyMs: Date.now() - t0
+      });
       next();
     } catch (error) {
       console.error('Category access middleware error:', error);
@@ -70,6 +95,7 @@ exports.requireCategoryLevelAccess = () => {
 exports.allowCategoryPreviewAccess = () => {
   return async (req, res, next) => {
     try {
+      const t0 = Date.now();
       if (!req.user || !req.user.id) {
         return res.status(401).json({ 
           success: false, 
@@ -158,12 +184,23 @@ exports.requireCategoryAccess = () => {
         // Récupérer le plan de la catégorie pour proposer l'achat
         const categoryPlan = await CategoryPaymentService.getCategoryPlan(categoryId);
         
+        logAccessDecision({
+          userId,
+          context: 'category',
+          decision: 'deny',
+          reason: 'category_access_required',
+          latencyMs: Date.now() - t0
+        });
         return res.status(403).json({ 
           success: false, 
           message: 'Accès à la catégorie refusé',
           code: 'CATEGORY_ACCESS_DENIED',
-          categoryPlan: categoryPlan,
-          requiresPayment: true
+          reason: 'category_access_required',
+          data: {
+            categoryPlan,
+            requiresPayment: true,
+            categoryId
+          }
         });
       }
 
@@ -173,6 +210,13 @@ exports.requireCategoryAccess = () => {
         accessType: access.accessType,
         categoryAccess: access
       };
+      logAccessDecision({
+        userId,
+        context: 'category',
+        decision: 'allow',
+        reason: access.accessType || 'unknown',
+        latencyMs: Date.now() - t0
+      });
       next();
     } catch (error) {
       console.error('Category access middleware error:', error);
@@ -184,5 +228,10 @@ exports.requireCategoryAccess = () => {
     }
   };
 };
+
+
+
+
+
 
 

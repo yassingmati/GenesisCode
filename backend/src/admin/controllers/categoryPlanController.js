@@ -12,22 +12,32 @@ class CategoryPlanController {
     try {
       const plans = await CategoryPlan.find()
         .populate('category', 'translations type')
-        .sort({ order: 1, createdAt: -1 });
+        .sort({ order: 1, createdAt: -1 })
+        .lean();
       
       const plansWithStats = await Promise.all(
         plans.map(async (plan) => {
-          // Compter les utilisateurs avec accès actif
-          const activeAccessCount = await CategoryAccess.countDocuments({
-            category: plan.category._id,
-            status: 'active',
-            $or: [
-              { expiresAt: { $gt: new Date() } },
-              { expiresAt: null }
-            ]
-          });
+          // Compter les utilisateurs avec accès actif seulement si la catégorie existe
+          let activeAccessCount = 0;
+          
+          if (plan.category && plan.category._id) {
+            try {
+              activeAccessCount = await CategoryAccess.countDocuments({
+                category: plan.category._id,
+                status: 'active',
+                $or: [
+                  { expiresAt: { $gt: new Date() } },
+                  { expiresAt: null }
+                ]
+              });
+            } catch (err) {
+              console.error('Error counting category access:', err);
+              activeAccessCount = 0;
+            }
+          }
           
           return {
-            ...plan.toObject(),
+            ...plan,
             activeUsersCount: activeAccessCount
           };
         })
@@ -40,6 +50,7 @@ class CategoryPlanController {
       
     } catch (error) {
       console.error('Error getting category plans:', error);
+      console.error('Error stack:', error.stack);
       return res.status(500).json({
         success: false,
         message: 'Erreur lors de la récupération des plans',
@@ -351,5 +362,10 @@ class CategoryPlanController {
 }
 
 module.exports = CategoryPlanController;
+
+
+
+
+
 
 

@@ -554,12 +554,13 @@ function CategoriesPanel({ onOpenCreate }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [filterType, setFilterType] = useState('');
   const [page, setPage] = useState(1);
   const perPage = 8;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fr: '', en: '', ar: '', order: 0 });
+  const [form, setForm] = useState({ fr: '', en: '', ar: '', order: 0, type: 'classic' });
   const [confirm, setConfirm] = useState({ open: false, id: null });
 
   useEffect(() => {
@@ -570,7 +571,7 @@ function CategoriesPanel({ onOpenCreate }) {
     if (onOpenCreate) {
       onOpenCreate(() => {
         setEditing(null);
-        setForm({ fr: '', en: '', ar: '', order: 0 });
+        setForm({ fr: '', en: '', ar: '', order: 0, type: 'classic' });
         setModalOpen(true);
       });
     }
@@ -579,8 +580,14 @@ function CategoriesPanel({ onOpenCreate }) {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/categories');
-      setCategories(Array.isArray(data) ? data : []);
+      // Fetch both classic and specific categories to ensure admin sees all
+      const [classicRes, specificRes] = await Promise.all([
+        api.get('/categories?type=classic'),
+        api.get('/categories?type=specific')
+      ]);
+      const classic = Array.isArray(classicRes?.data) ? classicRes.data : [];
+      const specific = Array.isArray(specificRes?.data) ? specificRes.data : [];
+      setCategories([...classic, ...specific]);
     } catch (err) {
       console.error(err);
       toast.error('Impossible de charger les catégories');
@@ -591,11 +598,17 @@ function CategoriesPanel({ onOpenCreate }) {
 
   const filteredCategories = useMemo(() => {
     const q = (query || '').trim().toLowerCase();
-    return categories.filter(cat => {
+    let filtered = categories.filter(cat => {
       const name = pickTitle(cat).toLowerCase();
       return !q || name.includes(q) || String(cat._id).includes(q);
     });
-  }, [categories, query]);
+
+    if (filterType) {
+      filtered = filtered.filter(cat => cat.type === filterType);
+    }
+
+    return filtered;
+  }, [categories, query, filterType]);
 
   const pages = Math.max(1, Math.ceil(filteredCategories.length / perPage));
   const pagedCategories = filteredCategories.slice((page - 1) * perPage, page * perPage);
@@ -613,7 +626,8 @@ function CategoriesPanel({ onOpenCreate }) {
           en: { name: form.en },
           ar: { name: form.ar }
         },
-        order: form.order
+        order: form.order,
+        type: form.type
       };
 
       if (editing) {
@@ -637,7 +651,8 @@ function CategoriesPanel({ onOpenCreate }) {
       fr: category.translations?.fr?.name || '',
       en: category.translations?.en?.name || '',
       ar: category.translations?.ar?.name || '',
-      order: category.order || 0
+      order: category.order || 0,
+      type: category.type || 'classic'
     });
     setModalOpen(true);
   };
@@ -657,12 +672,23 @@ function CategoriesPanel({ onOpenCreate }) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <SearchBar 
-          value={query} 
-          onChange={v => { setQuery(v); setPage(1); }} 
-          placeholder="Rechercher catégories..." 
-        />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <SearchBar 
+            value={query} 
+            onChange={v => { setQuery(v); setPage(1); }} 
+            placeholder="Rechercher catégories..." 
+          />
+          <select 
+            value={filterType} 
+            onChange={e => { setFilterType(e.target.value); setPage(1); }} 
+            style={selectStyle()}
+          >
+            <option value="">Tous les types</option>
+            <option value="classic">Classique</option>
+            <option value="specific">Spécifique</option>
+          </select>
+        </div>
         <ActionPrimary onClick={() => setModalOpen(true)}>
           <FiPlus /> Nouvelle catégorie
         </ActionPrimary>
@@ -687,7 +713,16 @@ function CategoriesPanel({ onOpenCreate }) {
                   <CardHeader>
                     <div>
                       <CardTitle>{pickTitle(cat) || 'Sans nom'}</CardTitle>
-                      <CardMeta>Ordre: {cat.order || 0}</CardMeta>
+                      <CardMeta>
+                        Ordre: {cat.order || 0}
+                        <Badge style={{ 
+                          background: cat.type === 'specific' ? '#f0fdf4' : '#f1f5ff',
+                          color: cat.type === 'specific' ? '#047857' : '#2b49ee',
+                          border: cat.type === 'specific' ? '1px solid #10b981' : '1px solid #e6edff'
+                        }}>
+                          {cat.type === 'specific' ? 'Spécifique' : 'Classique'}
+                        </Badge>
+                      </CardMeta>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <Tiny>ID</Tiny>
@@ -783,6 +818,17 @@ function CategoriesPanel({ onOpenCreate }) {
               style={inputStyle()} 
             />
           </label>
+          <label>
+            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Type</div>
+            <select 
+              value={form.type} 
+              onChange={e => setForm(f => ({ ...f, type: e.target.value }))} 
+              style={selectStyle()}
+            >
+              <option value="classic">Classique</option>
+              <option value="specific">Spécifique</option>
+            </select>
+          </label>
         </div>
       </FormModal>
 
@@ -851,8 +897,14 @@ function PathsPanel({ onOpenCreate }) {
 
   const fetchCategories = async () => {
     try {
-      const { data } = await api.get('/categories');
-      setCategories(Array.isArray(data) ? data : []);
+      // Fetch both classic and specific categories for path assignment
+      const [classicRes, specificRes] = await Promise.all([
+        api.get('/categories?type=classic'),
+        api.get('/categories?type=specific')
+      ]);
+      const classic = Array.isArray(classicRes?.data) ? classicRes.data : [];
+      const specific = Array.isArray(specificRes?.data) ? specificRes.data : [];
+      setCategories([...classic, ...specific]);
     } catch (err) {
       console.error(err);
     }

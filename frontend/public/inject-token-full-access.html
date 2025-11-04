@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Injection Token - Accès Complet</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .success-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .info-box {
+            background: #f3f4f6;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-box p {
+            color: #4b5563;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .user-info {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .user-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .user-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .value {
+            color: #111827;
+            font-family: 'Courier New', monospace;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px 32px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-bottom: 15px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 25px rgba(107, 114, 128, 0.4);
+        }
+
+        .status {
+            text-align: center;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-weight: 600;
+        }
+
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .status.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+
+        .token-display {
+            background: #1f2937;
+            color: #10b981;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-top: 15px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .access-list {
+            background: #ecfdf5;
+            border: 2px solid #10b981;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .access-list h3 {
+            color: #065f46;
+            margin-bottom: 15px;
+            font-size: 18px;
+        }
+
+        .access-list ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .access-list li {
+            padding: 8px 0;
+            color: #047857;
+            display: flex;
+            align-items: center;
+        }
+
+        .access-list li:before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            font-size: 18px;
+            margin-right: 10px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="success-badge">🎉 ACCÈS COMPLET ACCORDÉ</div>
+        
+        <h1>🔓 Injection Token - Accès Total</h1>
+        <p class="subtitle">Accès à TOUTES les catégories et TOUS les levels débloqués</p>
+
+        <div class="stats">
+            <div class="stat-box">
+                <div class="stat-number">13</div>
+                <div class="stat-label">Catégories Accessibles</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">117</div>
+                <div class="stat-label">Levels Débloqués</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number">∞</div>
+                <div class="stat-label">Durée d'Accès</div>
+            </div>
+        </div>
+
+        <div class="info-box">
+            <h3>📋 Informations</h3>
+            <p>Cet utilisateur a maintenant un <strong>accès administrateur complet</strong> à l'ensemble de la plateforme.</p>
+            <p>Tous les levels de toutes les catégories ont été débloqués.</p>
+            <p>Le token JWT est valide pour <strong>365 jours</strong>.</p>
+        </div>
+
+        <div class="user-info">
+            <h3 style="margin-bottom: 15px; color: #111827;">👤 Informations Utilisateur</h3>
+            <div class="user-info-row">
+                <span class="label">ID:</span>
+                <span class="value">68f255f939d55ec4ff20c936</span>
+            </div>
+            <div class="user-info-row">
+                <span class="label">Email:</span>
+                <span class="value">yassine1.gmatii@gmail.com</span>
+            </div>
+            <div class="user-info-row">
+                <span class="label">Rôle:</span>
+                <span class="value">user</span>
+            </div>
+        </div>
+
+        <div class="access-list">
+            <h3>✅ Accès Accordés</h3>
+            <ul>
+                <li>Débutant - 9 levels</li>
+                <li>Intermédiaire - 9 levels</li>
+                <li>Avancé - 9 levels</li>
+                <li>Java - 9 levels</li>
+                <li>Python - 9 levels</li>
+                <li>C++ - 9 levels</li>
+                <li>C# - 9 levels</li>
+                <li>JavaScript - 9 levels</li>
+                <li>TypeScript - 9 levels</li>
+                <li>Angular - 9 levels</li>
+                <li>React - 9 levels</li>
+                <li>Node.js - 9 levels</li>
+                <li>SQL - 9 levels</li>
+            </ul>
+        </div>
+
+        <button class="btn" onclick="injectToken()">
+            🚀 Injecter le Token et Accéder à TOUT
+        </button>
+
+        <button class="btn btn-secondary" onclick="showToken()">
+            👁️ Afficher le Token JWT
+        </button>
+
+        <div id="status"></div>
+    </div>
+
+    <script>
+        const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZjI1NWY5MzlkNTVlYzRmZjIwYzkzNiIsImVtYWlsIjoieWFzc2luZTEuZ21hdGlpQGdtYWlsLmNvbSIsInJvbGUiOiJ1c2VyIiwiaWF0IjoxNzYxMTM1NjcxLCJleHAiOjE3OTI2NzE2NzF9.HAb1VO4ZPTdlc_jp6QtUCIaRnjfckRJeuo_2lcJ9ZMg';
+        
+        const user = {
+            id: '68f255f939d55ec4ff20c936',
+            email: 'yassine1.gmatii@gmail.com',
+            role: 'user'
+        };
+
+        function injectToken() {
+            try {
+                // Injecter le token dans localStorage
+                localStorage.setItem('token', token);
+                localStorage.setItem('user', JSON.stringify(user));
+
+                // Afficher le message de succès
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'status success';
+                statusDiv.innerHTML = `
+                    <div style="font-size: 24px; margin-bottom: 10px;">✅</div>
+                    <div>Token injecté avec succès !</div>
+                    <div style="font-size: 14px; margin-top: 10px; opacity: 0.8;">
+                        Vous allez être redirigé vers la page principale...
+                    </div>
+                `;
+
+                // Rediriger vers la page principale après 2 secondes
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+
+            } catch (error) {
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'status';
+                statusDiv.style.background = '#fee2e2';
+                statusDiv.style.color = '#991b1b';
+                statusDiv.style.border = '2px solid #ef4444';
+                statusDiv.innerHTML = `
+                    <div style="font-size: 24px; margin-bottom: 10px;">❌</div>
+                    <div>Erreur: ${error.message}</div>
+                `;
+            }
+        }
+
+        function showToken() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = 'status info';
+            statusDiv.innerHTML = `
+                <div style="font-size: 14px; font-weight: normal; text-align: left;">
+                    <strong>Token JWT:</strong>
+                    <div class="token-display">${token}</div>
+                </div>
+            `;
+        }
+
+        // Vérifier si un token existe déjà
+        window.addEventListener('load', () => {
+            const existingToken = localStorage.getItem('token');
+            if (existingToken) {
+                const statusDiv = document.getElementById('status');
+                statusDiv.className = 'status info';
+                statusDiv.innerHTML = `
+                    <div style="font-size: 16px;">ℹ️ Un token existe déjà</div>
+                    <div style="font-size: 14px; margin-top: 10px; opacity: 0.8;">
+                        Cliquez sur le bouton pour le remplacer par le nouveau token avec accès complet.
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>

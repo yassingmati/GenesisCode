@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "token": "test-jwt-token",
+  "user": {
+    "_id": "test-user-id",
+    "email": "test@example.com",
+    "firstName": "Test",
+    "lastName": "User",
+    "isVerified": true
+  }
+}
+

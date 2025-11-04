@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
@@ -17,9 +17,100 @@ const PROXY_FILE = `${API_BASE}/proxyFile`;
 const PROXY_VIDEO = `${API_BASE}/proxyVideo`;
 const LANGS = [{ code: 'fr', label: 'Français' }, { code: 'en', label: 'English' }, { code: 'ar', label: 'العربية' }];
 
+// Fonction pour trouver un path accessible
+async function findAccessiblePath(token) {
+  try {
+    const catsRes = await fetch(`${API_BASE}/categories`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const cats = await catsRes.json();
+    
+    // Chercher dans chaque catégorie
+    for (const cat of cats) {
+      const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const paths = await pRes.json();
+      
+      // Retourner le premier path accessible
+      if (paths && paths.length > 0) {
+        return paths[0];
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Erreur lors de la recherche d\'un path accessible:', error);
+    return null;
+  }
+}
+
+// Fonction pour trouver un level dans les paths accessibles
+async function findLevelInAccessiblePaths(levelId, token) {
+  try {
+    // Récupérer les catégories
+    const catsRes = await fetch(`${API_BASE}/categories`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    const cats = await catsRes.json();
+    
+    // Chercher dans chaque catégorie
+    for (const cat of cats) {
+      const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const paths = await pRes.json();
+      
+      // Chercher dans chaque path
+      for (const path of paths) {
+        const lvRes = await fetch(`${API_BASE}/paths/${path._id}/levels`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        const levels = await lvRes.json();
+        
+        // Chercher le level spécifique
+        const targetLevel = levels.find(level => level._id === levelId);
+        if (targetLevel) {
+          console.log(`Level trouvé dans path ${path._id}`);
+          // Ajouter l'information du path au level
+          return {
+            ...targetLevel,
+            path: {
+              _id: path._id,
+              name: path.name,
+              translations: path.translations
+            }
+          };
+        }
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Erreur lors de la recherche du level:', error);
+    return null;
+  }
+}
+
 export default function LevelPagePdfAutoProxy() {
   const { levelId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation();
 
   const [level, setLevel] = useState(null);
@@ -38,6 +129,8 @@ export default function LevelPagePdfAutoProxy() {
   // Video state
   const [videoEffectiveUrl, setVideoEffectiveUrl] = useState(null);
   const [videoStatusMsg, setVideoStatusMsg] = useState(null);
+  const [showVideoOverlay, setShowVideoOverlay] = useState(false);
+  const [isCompactLayout, setIsCompactLayout] = useState(() => window.innerWidth <= 1024);
 
   const [orderedLevelIds, setOrderedLevelIds] = useState([]);
 
@@ -64,9 +157,33 @@ export default function LevelPagePdfAutoProxy() {
     (async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE}/levels/${levelId}`);
-        if (!res.ok) throw new Error('Niveau introuvable');
-        const l = await res.json();
+        const token = localStorage.getItem('token');
+        
+        // Essayer d'abord de charger le level individuellement
+        const res = await fetch(`${API_BASE}/levels/${levelId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        let l;
+        if (!res.ok) {
+          if (res.status === 403) {
+            // Si accès refusé, essayer de trouver le level dans les paths accessibles
+            console.log('Level non accessible directement, recherche dans les paths...');
+            l = await findLevelInAccessiblePaths(levelId, token);
+            if (!l) {
+              throw new Error('Accès refusé - Niveau verrouillé');
+            }
+          } else if (res.status === 404) {
+            throw new Error('Niveau introuvable');
+          } else {
+            throw new Error('Erreur lors du chargement du niveau');
+          }
+        } else {
+          l = await res.json();
+        }
 
         // Normalize urls
         const vids = {};
@@ -118,12 +235,28 @@ export default function LevelPagePdfAutoProxy() {
             });
           }
         } else {
-          // Pas de parcours associé - utiliser un parcours par défaut
-          console.warn('Aucun parcours associé à ce niveau, utilisation du parcours par défaut');
-          setPathInfo({
-            _id: 'default-path',
-            name: 'Parcours par défaut'
-          });
+          // Pas de parcours associé - essayer de trouver un path accessible
+          console.warn('Aucun parcours associé à ce niveau, recherche d\'un path accessible...');
+          try {
+            const accessiblePath = await findAccessiblePath(token);
+            if (accessiblePath) {
+              setPathInfo({
+                _id: accessiblePath._id,
+                name: accessiblePath.name || 'Parcours'
+              });
+            } else {
+              setPathInfo({
+                _id: 'default-path',
+                name: 'Parcours par défaut'
+              });
+            }
+          } catch (err) {
+            console.warn('Impossible de trouver un path accessible:', err);
+            setPathInfo({
+              _id: 'default-path',
+              name: 'Parcours par défaut'
+            });
+          }
         }
       } catch (err) {
         console.error(err);
@@ -136,15 +269,31 @@ export default function LevelPagePdfAutoProxy() {
     // Load sequence
     (async () => {
       try {
-        const catsRes = await fetch(`${API_BASE}/categories`);
+        const token = localStorage.getItem('token');
+        const catsRes = await fetch(`${API_BASE}/categories`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const cats = await catsRes.json();
         const seq = [];
         for (const cat of cats) {
-          const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`);
+          const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            }
+          });
           const paths = await pRes.json();
           paths.sort((a,b)=>(a.order||0)-(b.order||0));
           for (const p of paths) {
-            const lvRes = await fetch(`${API_BASE}/paths/${p._id}/levels`).catch(()=>({json:()=>[]}));
+            const lvRes = await fetch(`${API_BASE}/paths/${p._id}/levels`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            }).catch(()=>({json:()=>[]}));
             const lvls = await lvRes.json();
             lvls.sort((a,b)=>(a.order||0)-(b.order||0));
             for (const ll of lvls) seq.push(ll._id);
@@ -335,6 +484,13 @@ export default function LevelPagePdfAutoProxy() {
     };
   }, [videoEffectiveUrl]);
 
+  // Responsive layout detection
+  useEffect(() => {
+    const onResize = () => setIsCompactLayout(window.innerWidth <= 1024);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
@@ -367,8 +523,20 @@ export default function LevelPagePdfAutoProxy() {
   // Load exercises for the current level
   const loadExercises = useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/levels/${levelId}`);
-      if (!response.ok) throw new Error('Impossible de charger les exercices');
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/levels/${levelId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Accès refusé - Niveau verrouillé');
+        } else {
+          throw new Error('Impossible de charger les exercices');
+        }
+      }
       const data = await response.json();
       setExercises(data.exercises || []);
     } catch (err) {
@@ -616,7 +784,7 @@ export default function LevelPagePdfAutoProxy() {
       {/* Main Content - Full screen PDF with wider sidebar for bigger video */}
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: showExercises ? '1fr 1fr' : '1fr 480px',
+        gridTemplateColumns: showExercises ? '1fr 1fr' : (isCompactLayout ? '1fr' : '1fr 480px'),
         height: 'calc(100vh - 64px)'
       }}>
         {/* PDF Section - MODIFIÉ pour supprimer l'espace entre les pages */}
@@ -681,9 +849,36 @@ export default function LevelPagePdfAutoProxy() {
               />
             )}
           </div>
-        </section>
 
-        {/* Video Sidebar - Now larger and redesigned */}
+          {/* Floating video button for compact layouts */}
+          {isCompactLayout && (
+            <button
+              onClick={() => setShowVideoOverlay(true)}
+              aria-label="Ouvrir la vidéo"
+              style={{
+                position: 'absolute',
+                right: 16,
+                top: 16,
+                width: 56,
+                height: 56,
+                borderRadius: 56,
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                color: 'white',
+                boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+                zIndex: 20
+              }}
+            >
+              🎬
+            </button>
+          )}
+        </section>
+        {/* Video Sidebar (hidden in compact layout; use overlay instead) */}
+        {!isCompactLayout && (
         <aside style={{ 
           background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
           borderLeft: '1px solid rgba(15,23,42,0.06)',
@@ -843,7 +1038,16 @@ export default function LevelPagePdfAutoProxy() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <button 
-                onClick={() => prevId ? navigate(`/courses/levels/${prevId}`) : navigate('/courses')}
+                onClick={() => {
+                  const fromSpecific = location.state?.fromSpecific;
+                  const backCategoryId = location.state?.categoryId;
+                  const backPathId = location.state?.pathId;
+                  if (fromSpecific && backCategoryId && backPathId) {
+                    navigate(`/learning/specific/${backCategoryId}/paths/${backPathId}`);
+                  } else {
+                    prevId ? navigate(`/courses/levels/${prevId}`) : navigate('/courses');
+                  }
+                }}
                 style={{
                   background: prevId ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#e6e9ef',
                   color: prevId ? 'white' : '#94a3b8',
@@ -938,6 +1142,7 @@ export default function LevelPagePdfAutoProxy() {
           </div>
 
         </aside>
+        )}
 
         {/* Exercise Section - Only shown when showExercises is true */}
         {showExercises && (
@@ -1178,6 +1383,67 @@ export default function LevelPagePdfAutoProxy() {
           </section>
         )}
       </div>
+      {/* Compact video overlay modal */}
+      {isCompactLayout && showVideoOverlay && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}
+          onClick={() => setShowVideoOverlay(false)}
+        >
+          <div style={{
+            width: '92vw',
+            maxWidth: 800,
+            aspectRatio: '16 / 9',
+            background: '#000',
+            borderRadius: 12,
+            overflow: 'hidden',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.35)'
+          }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {videoEffectiveUrl ? (
+              <video
+                ref={videoRef}
+                key={videoEffectiveUrl}
+                src={videoEffectiveUrl}
+                controls
+                style={{ width: '100%', height: '100%', display: 'block', background: '#000' }}
+                onError={handleVideoError}
+              />
+            ) : (
+              <div style={{ color: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                {t('noVideo')}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => setShowVideoOverlay(false)}
+            aria-label="Fermer la vidéo"
+            style={{
+              position: 'absolute',
+              top: 20,
+              right: 20,
+              width: 40,
+              height: 40,
+              borderRadius: 40,
+              border: 'none',
+              cursor: 'pointer',
+              background: 'rgba(255,255,255,0.9)',
+              color: '#111827',
+              fontSize: 18,
+              fontWeight: 700
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       </div>
     </CourseAccessGuard>
   );

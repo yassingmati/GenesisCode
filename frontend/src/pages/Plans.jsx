@@ -26,11 +26,24 @@ export default function Plans() {
   useEffect(() => {
     let mounted = true;
     setLoading(true);
-    api.get('/api/subscriptions/plans')
-      .then(res => { if (mounted) setPlans(res.data.plans || []); })
+    // Utiliser l'endpoint public /api/plans qui est accessible sans authentification
+    api.get('/api/plans')
+      .then(res => { 
+        if (mounted) {
+          const plansData = res.data?.plans || res.data || [];
+          // Normaliser les plans pour gérer les différents formats (id vs _id)
+          const normalizedPlans = plansData.map(plan => ({
+            ...plan,
+            _id: plan._id || plan.id,
+            id: plan.id || plan._id
+          }));
+          setPlans(normalizedPlans);
+        }
+      })
       .catch(err => {
         console.error('plans fetch error', err);
         toast.error('Impossible de récupérer les offres.');
+        if (mounted) setPlans([]);
       })
       .finally(() => { if (mounted) setLoading(false); });
     return () => { mounted = false; };

@@ -77,7 +77,7 @@ exports.register = async (req, res) => {
             // Generate JWT
             const token = jwt.sign(
                 { id: newUser._id, email: newUser.email },
-                process.env.JWT_SECRET,
+                process.env.JWT_SECRET || 'devsecret',
                 { expiresIn: '1d' }
             );
 
@@ -110,7 +110,7 @@ exports.register = async (req, res) => {
         // Generate JWT
         const token = jwt.sign(
             { id: newUser._id, uid: userRecord.uid },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET || 'devsecret',
             { expiresIn: '1d' }
         );
 
@@ -173,7 +173,7 @@ exports.loginWithEmail = async (req, res) => {
             // Generate JWT
             const token = jwt.sign(
                 { id: dbUser._id, email: dbUser.email },
-                process.env.JWT_SECRET,
+                process.env.JWT_SECRET || 'devsecret',
                 { expiresIn: '1d' }
             );
 
@@ -215,7 +215,7 @@ exports.loginWithEmail = async (req, res) => {
         // Generate JWT
         const token = jwt.sign(
             { id: dbUser._id, uid },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET || 'devsecret',
             { expiresIn: '1d' }
         );
 
@@ -290,7 +290,7 @@ exports.loginWithGoogle = async (req, res) => {
         // Generate JWT
         const token = jwt.sign(
             { id: dbUser._id, uid },
-            process.env.JWT_SECRET,
+            process.env.JWT_SECRET || 'devsecret',
             { expiresIn: '1d' }
         );
 
@@ -328,7 +328,7 @@ exports.sendVerificationEmail = async (req, res) => {
         }
 
         // Generate a verification token
-        const verificationToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const verificationToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '1h' });
         
         // Send the email
         await sendVerificationEmail(user.email, verificationToken);
@@ -349,7 +349,7 @@ exports.sendVerificationEmail = async (req, res) => {
 exports.verifyEmail = async (req, res) => {
     try {
         const { token } = req.query;
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
         const user = await User.findById(decoded.id);
 
         if (!user) return res.status(404).json({ message: 'User not found.' });

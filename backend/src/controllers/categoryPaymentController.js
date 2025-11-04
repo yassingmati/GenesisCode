@@ -9,7 +9,11 @@ class CategoryPaymentController {
    */
   static async getCategoryPlans(req, res) {
     try {
+      console.log('📋 Récupération des plans de catégories (endpoint public)...');
+      
       const plans = await CategoryPaymentService.getAllCategoryPlans();
+      
+      console.log(`✅ ${plans.length} plans trouvés`);
       
       return res.json({
         success: true,
@@ -17,7 +21,8 @@ class CategoryPaymentController {
       });
       
     } catch (error) {
-      console.error('Error getting category plans:', error);
+      console.error('❌ Error getting category plans:', error);
+      console.error('Error stack:', error.stack);
       return res.status(500).json({
         success: false,
         message: 'Erreur lors de la récupération des plans',

@@ -15,37 +15,55 @@ exports.requireActiveSubscription = async (req, res, next) => {
       });
     }
 
-    const user = await User.findById(req.user.id);
-    if (!user) {
+    // Fast-path: utiliser l'abonnement déjà attaché au contexte utilisateur
+    let subscription = req.user.subscription || null;
+
+    // Fallback DB uniquement si non présent sur req.user
+    if (!subscription) {
+      const user = await User.findById(req.user.id).select('subscription');
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: 'Utilisateur non trouvé',
+          code: 'USER_NOT_FOUND'
+        });
+      }
+      subscription = user.subscription || null;
+    }
+
+    if (!subscription) {
       return res.status(404).json({
         success: false,
-        message: 'Utilisateur non trouvé',
-        code: 'USER_NOT_FOUND'
+        message: 'Abonnement introuvable',
+        code: 'SUBSCRIPTION_NOT_FOUND'
       });
     }
 
     // Vérifier l'abonnement dans le modèle User
-    if (!user.subscription || !user.subscription.status || user.subscription.status !== 'active') {
+    if (!subscription.status || subscription.status !== 'active') {
       return res.status(403).json({
         success: false,
         message: 'Abonnement actif requis',
         code: 'SUBSCRIPTION_REQUIRED',
-        subscription: user.subscription
+        subscription
       });
     }
 
     // Vérifier que l'abonnement n'est pas expiré
-    if (user.subscription.currentPeriodEnd && user.subscription.currentPeriodEnd < new Date()) {
+    if (
+      subscription.currentPeriodEnd &&
+      new Date(subscription.currentPeriodEnd).getTime() < Date.now()
+    ) {
       return res.status(403).json({
         success: false,
         message: 'Abonnement expiré',
         code: 'SUBSCRIPTION_EXPIRED',
-        subscription: user.subscription
+        subscription
       });
     }
 
     // Ajouter les informations d'abonnement à la requête
-    req.subscription = user.subscription;
+    req.subscription = subscription;
     next();
 
   } catch (error) {
@@ -72,8 +90,20 @@ exports.requirePlan = (requiredPlanId) => {
         });
       }
 
-      const user = await User.findById(req.user.id);
-      if (!user || !user.subscription) {
+      let subscription = (req.user && req.user.subscription) || null;
+      if (!subscription) {
+        const user = await User.findById(req.user.id).select('subscription');
+        if (!user || !user.subscription) {
+          return res.status(403).json({
+            success: false,
+            message: 'Abonnement requis',
+            code: 'SUBSCRIPTION_REQUIRED'
+          });
+        }
+        subscription = user.subscription;
+      }
+
+      if (!subscription) {
         return res.status(403).json({
           success: false,
           message: 'Abonnement requis',
@@ -81,17 +111,17 @@ exports.requirePlan = (requiredPlanId) => {
         });
       }
 
-      if (user.subscription.planId !== requiredPlanId) {
+      if (subscription.planId !== requiredPlanId) {
         return res.status(403).json({
           success: false,
           message: `Plan ${requiredPlanId} requis`,
           code: 'INSUFFICIENT_PLAN',
-          currentPlan: user.subscription.planId,
+          currentPlan: subscription.planId,
           requiredPlan: requiredPlanId
         });
       }
 
-      req.subscription = user.subscription;
+      req.subscription = subscription;
       next();
 
     } catch (error) {
@@ -193,19 +223,31 @@ exports.optionalSubscription = async (req, res, next) => {
       return next();
     }
 
-    const user = await User.findById(req.user.id);
-    if (!user || !user.subscription) {
+    let subscription = (req.user && req.user.subscription) || null;
+    if (!subscription) {
+      const user = await User.findById(req.user.id).select('subscription');
+      if (!user || !user.subscription) {
+        req.subscription = null;
+        return next();
+      }
+      subscription = user.subscription;
+    }
+
+    if (!subscription) {
       req.subscription = null;
       return next();
     }
 
     // Vérifier que l'abonnement n'est pas expiré
-    if (user.subscription.currentPeriodEnd && user.subscription.currentPeriodEnd < new Date()) {
+    if (
+      subscription.currentPeriodEnd &&
+      new Date(subscription.currentPeriodEnd).getTime() < Date.now()
+    ) {
       req.subscription = null;
       return next();
     }
 
-    req.subscription = user.subscription;
+    req.subscription = subscription;
     next();
 
   } catch (error) {

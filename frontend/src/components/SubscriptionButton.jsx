@@ -14,36 +14,55 @@ const SubscriptionButton = ({
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Charger les plans disponibles
+  // Charger les plans de catégorie (nouveau système)
   useEffect(() => {
-    if (categoryId) {
-      loadPlans();
-    }
-  }, [categoryId]);
-
-  const loadPlans = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/course-access/plans`);
-      const data = await response.json();
-      
-      if (data.success) {
-        // Filtrer les plans par catégorie si spécifié
-        let filteredPlans = data.plans || [];
-        if (categoryId) {
-          filteredPlans = filteredPlans.filter(plan => 
-            plan.type === 'global' || 
-            (plan.type === 'category' && plan.targetId === categoryId)
-          );
+    const loadCategoryPlans = async () => {
+      try {
+        setLoading(true);
+        // Utiliser l'endpoint public pour les plans de catégories
+        const res = await fetch('/api/category-payments/plans');
+        const data = await res.json();
+        if (data?.success && Array.isArray(data?.plans)) {
+          const adapted = data.plans
+            .filter(p => p.active !== false) // Filtrer les plans actifs
+            .map(p => ({
+              _id: p._id || p.id,
+              id: p.id || p._id,
+              name: p.translations?.fr?.name || p.name || 'Plan',
+              description: p.translations?.fr?.description || p.description || '',
+              price: p.price || 0,
+              currency: p.currency || 'TND',
+              paymentType: p.paymentType || 'one_time',
+              category: p.category,
+              features: Array.isArray(p.features) ? p.features : []
+            }));
+          setPlans(adapted);
+        } else if (Array.isArray(data)) {
+          // Gérer le cas où la réponse est directement un tableau
+          const adapted = data
+            .filter(p => p.active !== false)
+            .map(p => ({
+              _id: p._id || p.id,
+              id: p.id || p._id,
+              name: p.translations?.fr?.name || p.name || 'Plan',
+              description: p.translations?.fr?.description || p.description || '',
+              price: p.price || 0,
+              currency: p.currency || 'TND',
+              paymentType: p.paymentType || 'one_time',
+              category: p.category,
+              features: Array.isArray(p.features) ? p.features : []
+            }));
+          setPlans(adapted);
         }
-        setPlans(filteredPlans);
+      } catch (e) {
+        console.error('Error loading category plans:', e);
+        setPlans([]);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Error loading plans:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    loadCategoryPlans();
+  }, [categoryId]);
 
   const handleSubscribe = () => {
     setShowModal(true);

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Injection de Token - CodeGenesis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .user-select {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .info-box strong {
+            color: #333;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .success {
+            background: #4caf50;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .token-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .token-display pre {
+            background: #282c34;
+            color: #61dafb;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔑 Injection de Token</h1>
+        <p class="subtitle">Outil de développement pour tester l'authentification</p>
+
+        <div class="warning">
+            ⚠️ <strong>Attention:</strong> Cet outil est uniquement pour le développement. Ne l'utilisez pas en production.
+        </div>
+
+        <div class="user-select">
+            <label for="userSelect">Sélectionner un utilisateur :</label>
+            <select id="userSelect">
+                <option value="">-- Choisir un utilisateur --</option>
+                <option value="user1">Utilisateur 1 (68f255f939d55ec4ff20c936)</option>
+                <option value="user2">Utilisateur 2 (68f6460c74ab496c1885e395)</option>
+            </select>
+        </div>
+
+        <div class="info-box" id="userInfo" style="display: none;">
+            <p><strong>ID:</strong> <span id="userId"></span></p>
+            <p><strong>Email:</strong> <span id="userEmail"></span></p>
+            <p><strong>Catégorie:</strong> Débutant (Accès accordé)</p>
+            <p><strong>Levels débloqués:</strong> 3 premiers levels</p>
+        </div>
+
+        <button onclick="injectToken()">🚀 Injecter le Token</button>
+        <button onclick="clearAuth()" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">🗑️ Effacer l'Authentification</button>
+
+        <div class="success" id="successMessage">
+            ✅ Token injecté avec succès ! Redirection dans 2 secondes...
+        </div>
+
+        <div class="token-display" id="tokenDisplay">
+            <p style="margin-bottom: 10px; font-weight: 600; color: #333;">Token JWT généré :</p>
+            <pre id="tokenValue"></pre>
+        </div>
+    </div>
+
+    <script>
+        const users = {
+            user1: {
+                id: '68f255f939d55ec4ff20c936',
+                email: 'yassine1.gmatii@gmail.com',
+                token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZjI1NWY5MzlkNTVlYzRmZjIwYzkzNiIsImVtYWlsIjoieWFzc2luZTEuZ21hdGlpQGdtYWlsLmNvbSIsImlhdCI6MTc2MDk3NTY5NywiZXhwIjoxNzYxMDYyMDk3fQ.yrN2VAs8ykwkUD4FEplZgexKtdge34J2uAj2GK1DEpw'
+            },
+            user2: {
+                id: '68f6460c74ab496c1885e395',
+                email: 'test+1760970252689@example.com',
+                token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ZjY0NjBjNzRhYjQ5NmMxODg1ZTM5NSIsImVtYWlsIjoidGVzdCsxNzYwOTcwMjUyNjg5QGV4YW1wbGUuY29tIiwiaWF0IjoxNzYwOTcwNzQzLCJleHAiOjE3NjEwNTcxNDN9.nMQQHJzi83Qo96JawayWPbVFRWDjl88ucEkTKa-1ZlU'
+            }
+        };
+
+        const userSelect = document.getElementById('userSelect');
+        const userInfo = document.getElementById('userInfo');
+        const userId = document.getElementById('userId');
+        const userEmail = document.getElementById('userEmail');
+        const successMessage = document.getElementById('successMessage');
+        const tokenDisplay = document.getElementById('tokenDisplay');
+        const tokenValue = document.getElementById('tokenValue');
+
+        userSelect.addEventListener('change', (e) => {
+            const selectedUser = users[e.target.value];
+            if (selectedUser) {
+                userInfo.style.display = 'block';
+                userId.textContent = selectedUser.id;
+                userEmail.textContent = selectedUser.email;
+                tokenDisplay.style.display = 'block';
+                tokenValue.textContent = selectedUser.token;
+            } else {
+                userInfo.style.display = 'none';
+                tokenDisplay.style.display = 'none';
+            }
+        });
+
+        function injectToken() {
+            const selectedUserId = userSelect.value;
+            if (!selectedUserId) {
+                alert('Veuillez sélectionner un utilisateur');
+                return;
+            }
+
+            const user = users[selectedUserId];
+            
+            // Injecter le token et les données utilisateur
+            localStorage.setItem('token', user.token);
+            localStorage.setItem('user', JSON.stringify({
+                id: user.id,
+                email: user.email
+            }));
+
+            // Afficher le message de succès
+            successMessage.style.display = 'block';
+
+            // Rediriger vers les cours après 2 secondes
+            setTimeout(() => {
+                window.location.href = '/courses';
+            }, 2000);
+        }
+
+        function clearAuth() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            alert('Authentification effacée !');
+            userSelect.value = '';
+            userInfo.style.display = 'none';
+            tokenDisplay.style.display = 'none';
+        }
+    </script>
+</body>
+</html>

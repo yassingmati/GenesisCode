@@ -2,11 +2,16 @@
     const admin = require('firebase-admin');
 
     // Solution avec variables d'environnement
+    const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY || '';
+    const normalizedPrivateKey = rawPrivateKey
+      ? rawPrivateKey.replace(/\\n/g, '\n')
+      : '';
+
     const firebaseConfig = {
     type: "service_account",
     project_id: process.env.FIREBASE_PROJECT_ID,
     private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    private_key: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    private_key: normalizedPrivateKey,
     client_email: process.env.FIREBASE_CLIENT_EMAIL,
     client_id: process.env.FIREBASE_CLIENT_ID,
     auth_uri: "https://accounts.google.com/o/oauth2/auth",
@@ -33,11 +38,13 @@ if (!admin.apps.length) {
     if (missingVars.length > 0) {
         console.warn('Variables Firebase manquantes:', missingVars.join(', '));
         console.warn('Firebase Admin sera désactivé - certaines fonctionnalités ne fonctionneront pas');
-    } else {
+    } else if (normalizedPrivateKey) {
         admin.initializeApp({
             credential: admin.credential.cert(firebaseConfig)
         });
         console.log('Firebase Admin initialisé avec succès via .env');
+    } else {
+        console.warn('Clé privée Firebase manquante - Firebase Admin désactivé');
     }
 }
 } catch (error) {

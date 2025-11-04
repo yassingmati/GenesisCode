@@ -20,9 +20,18 @@ export function AuthProvider({ children }) {
   // Firebase user (client)
   const [currentUser, setCurrentUser] = useState(null);
 
-  // Admin JWT + données
-  const [admin, setAdmin]   = useState(null);
-  const [token, setToken]   = useState(null);
+  // Admin JWT + données - Charger depuis localStorage au démarrage
+  const [admin, setAdmin] = useState(() => {
+    try {
+      const adminData = localStorage.getItem('adminData');
+      return adminData ? JSON.parse(adminData) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [token, setToken] = useState(() => {
+    return localStorage.getItem('adminToken') || null;
+  });
 
   // Loading initial state
   const [loading, setLoading] = useState(true);

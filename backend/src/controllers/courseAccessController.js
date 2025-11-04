@@ -1,5 +1,6 @@
 // src/controllers/courseAccessController.js
 const CourseAccessService = require('../services/courseAccessService');
+const AccessControlService = require('../services/accessControlService');
 const Plan = require('../models/Plan');
 const Path = require('../models/Path');
 const Level = require('../models/Level');
@@ -51,7 +52,7 @@ class CourseAccessController {
       const { pathId, levelId } = req.params;
       const userId = req.user.id;
 
-      const access = await CourseAccessService.checkUserAccess(userId, pathId, levelId);
+      const access = await AccessControlService.checkUserAccess(userId, pathId, levelId);
       
       if (access.hasAccess) {
         return res.json({
@@ -264,35 +265,6 @@ class CourseAccessController {
     }
   }
 
-  /**
-   * Récupérer les plans disponibles pour un parcours
-   */
-  static async getAvailablePlans(req, res) {
-    try {
-      const { pathId } = req.params;
-      
-      // Récupérer tous les plans actifs
-      const allPlans = await Plan.find({ active: true }).sort({ sortOrder: 1 }).lean();
-      
-      // Filtrer les plans pertinents pour ce parcours
-      const relevantPlans = allPlans.filter(plan => 
-        plan.type === 'global' || 
-        (plan.type === 'category' && plan.targetId) ||
-        (plan.type === 'path' && plan.targetId === pathId)
-      );
-      
-      return res.json({
-        success: true,
-        plans: relevantPlans
-      });
-    } catch (error) {
-      console.error('Error getting available plans:', error);
-      return res.status(500).json({
-        success: false,
-        message: 'Erreur lors de la récupération des plans'
-      });
-    }
-  }
 }
 
 module.exports = CourseAccessController;

@@ -42,6 +42,33 @@ router.post('/konnect', async (req, res) => {
       return res.status(200).json({ received: true, note: 'no user matched' });
     }
 
+    // Idempotence: if same payment and status already applied, exit early
+    const prevStatus = user.subscription?.konnectStatus || null;
+    const prevPaymentId = user.subscription?.konnectPaymentId || null;
+    if (prevPaymentId === paymentId && prevStatus === status) {
+      return res.status(200).json({ received: true, idempotent: true });
+    }
+
+    // Keep Subscription collection in sync (best-effort upsert)
+    try {
+      const Subscription = require('../models/Subscription');
+      if (paymentId) {
+        await Subscription.findOneAndUpdate(
+          { konnectPaymentId: paymentId },
+          {
+            $setOnInsert: { user: user._id },
+            $set: {
+              konnectStatus: status,
+              status: ['paid', 'success', 'completed', 'succeeded'].includes(status) ? 'active' : (['cancelled', 'canceled', 'failed', 'declined', 'error'].includes(status) ? 'incomplete' : 'pending')
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
+    } catch (syncErr) {
+      console.warn('[Webhook] Subscription sync warning:', syncErr && syncErr.message ? syncErr.message : syncErr);
+    }
+
     // Normalize status handling: consider paid/success/completed as success
     if (['paid', 'success', 'completed', 'succeeded'].includes(status)) {
       user.subscription = user.subscription || {};

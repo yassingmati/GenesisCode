@@ -39,8 +39,10 @@ const KonnectPaymentHandler = ({
         throw new Error('ID du plan manquant');
       }
 
+      // Toujours passer categoryPlanId si disponible (nouveau système)
       const paymentData = {
-        planId: planId,
+        planId: undefined,
+        categoryPlanId: plan.raw?._id || planId,
         customerEmail: customerEmail,
         returnUrl: `${window.location.origin}/payment/success`,
         cancelUrl: `${window.location.origin}/payment/cancel`
@@ -48,7 +50,35 @@ const KonnectPaymentHandler = ({
 
       console.log('📋 Données de paiement:', paymentData);
 
-      const result = await KonnectService.initPayment(paymentData);
+      let result;
+      try {
+        result = await KonnectService.initPayment(paymentData);
+      } catch (e) {
+        // Fallback: le backend attend un ancien Plan. Construire une URL Konnect directe avec le plan catégorie
+        const isPlanNotFound = /Plan introuvable|404/.test(e?.message || '');
+        if (isPlanNotFound && plan) {
+          const amount = plan.raw?.price || (plan.priceMonthly ? plan.priceMonthly / 100 : 0);
+          const currency = plan.currency || plan.raw?.currency || 'TND';
+          const description = plan.name || 'Accès catégorie';
+          const merchantOrderId = `cat_${Date.now()}`;
+
+          const paymentUrl = KonnectService.buildPaymentUrl({
+            amount,
+            currency,
+            description,
+            returnUrl: paymentData.returnUrl,
+            cancelUrl: paymentData.cancelUrl,
+            merchantOrderId,
+            customerEmail
+          });
+
+          setPaymentUrl(paymentUrl);
+          setPaymentId(null);
+          setPaymentStatus('ready');
+          return;
+        }
+        throw e;
+      }
 
       if (result.success) {
         if (result.freeAccess) {

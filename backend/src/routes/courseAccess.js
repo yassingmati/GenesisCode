@@ -2,8 +2,7 @@
 const express = require('express');
 const router = express.Router();
 const CourseAccessController = require('../controllers/courseAccessController');
-const { protect, optionalAuth } = require('../middlewares/authMiddleware');
-const { requireCourseAccess, allowPreviewAccess } = require('../middlewares/courseAccessMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
 
 // Routes publiques (doivent être avant le middleware protect)
 router.get('/plans', CourseAccessController.getAllPlans);

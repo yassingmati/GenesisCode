@@ -14,6 +14,11 @@ const {
   languageMiddleware
 } = require('../controllers/CourseController');
 
+// Import des middlewares de contrôle d'accès
+const { requireFlexibleCourseAccess, requireFlexibleLevelAccess, requireExerciseAccess } = require('../middlewares/flexibleAccessMiddleware');
+const { protect } = require('../middlewares/authMiddleware');
+const { protectUserOrAdmin } = require('../middlewares/flexibleAuthMiddleware');
+
 // Import des middlewares de contrôle parental
 const { 
   checkParentalControls, 
@@ -82,21 +87,23 @@ const catchErrors = fn => (req, res, next) => {
 /* ===========================
    Categories
    =========================== */
-router.post('/categories', catchErrors(CourseController.createCategory));
-router.get('/categories', catchErrors(CourseController.getAllCategories));
-router.get('/categories/:id', validateId('id'), catchErrors(CourseController.getCategory));
-router.put('/categories/:id', validateId('id'), catchErrors(CourseController.updateCategory));
-router.delete('/categories/:id', validateId('id'), catchErrors(CourseController.deleteCategory));
+router.get('/catalog', catchErrors(CourseController.getCatalog));
+router.post('/categories', protectUserOrAdmin, catchErrors(CourseController.createCategory));
+router.get('/categories', protectUserOrAdmin, catchErrors(CourseController.getAllCategories));
+router.get('/categories/:id', protectUserOrAdmin, validateId('id'), catchErrors(CourseController.getCategory));
+router.put('/categories/:id', protectUserOrAdmin, validateId('id'), catchErrors(CourseController.updateCategory));
+router.delete('/categories/:id', protectUserOrAdmin, validateId('id'), catchErrors(CourseController.deleteCategory));
 
 /* ===========================
    Paths (Parcours)
    =========================== */
-router.post('/paths', catchErrors(CourseController.createPath));
-router.get('/paths', catchErrors(CourseController.getAllPaths));
-router.get('/paths/:id', validateId('id'), catchErrors(CourseController.getPath));
-router.put('/paths/:id', validateId('id'), catchErrors(CourseController.updatePath));
-router.delete('/paths/:id', validateId('id'), catchErrors(CourseController.deletePath));
+router.post('/paths', protectUserOrAdmin, catchErrors(CourseController.createPath));
+router.get('/paths', protectUserOrAdmin, catchErrors(CourseController.getAllPaths));
+router.get('/paths/:id', protectUserOrAdmin, validateId('id'), requireFlexibleCourseAccess(), catchErrors(CourseController.getPath));
+router.put('/paths/:id', protectUserOrAdmin, validateId('id'), catchErrors(CourseController.updatePath));
+router.delete('/paths/:id', protectUserOrAdmin, validateId('id'), catchErrors(CourseController.deletePath));
 router.get('/categories/:categoryId/paths',
+  protectUserOrAdmin,
   validateId('categoryId'),
   catchErrors(CourseController.getPathsByCategory)
 );
@@ -104,21 +111,21 @@ router.get('/categories/:categoryId/paths',
 /* ===========================
    Levels
    =========================== */
-router.post('/levels', catchErrors(CourseController.createLevel));
-router.get('/paths/:id/levels', validateId('id'), catchErrors(CourseController.getLevelsByPath));
-router.get('/levels/:id', validateId('id'), catchErrors(CourseController.getLevelContent));
-router.put('/levels/:id', validateId('id'), catchErrors(CourseController.updateLevel));
-router.delete('/levels/:id', validateId('id'), catchErrors(CourseController.deleteLevel));
+router.post('/levels', protectUserOrAdmin, catchErrors(CourseController.createLevel));
+router.get('/paths/:id/levels', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.getLevelsByPath));
+router.get('/levels/:id', protectUserOrAdmin, validateId('id'), requireFlexibleLevelAccess(), catchErrors(CourseController.getLevelContent));
+router.put('/levels/:id', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.updateLevel));
+router.delete('/levels/:id', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.deleteLevel));
 
 /* Exercises for a level (list) */
-router.get('/levels/:id/exercises', validateId('id'), catchErrors(CourseController.getExercisesByLevel));
+router.get('/levels/:id/exercises', protectUserOrAdmin, validateId('id'), requireFlexibleLevelAccess(), catchErrors(CourseController.getExercisesByLevel));
 
 /* ===========================
    Exercises (CRUD & submit)
    =========================== */
-router.post('/exercises', catchErrors(CourseController.createExercise));
-router.get('/exercises/:id', validateId('id'), catchErrors(CourseController.getExercise));
-router.put('/exercises/:id', validateId('id'), catchErrors(CourseController.updateExercise));
+router.post('/exercises', protectUserOrAdmin, catchErrors(CourseController.createExercise));
+router.get('/exercises/:id', protectUserOrAdmin, validateId('id'), requireExerciseAccess(), catchErrors(CourseController.getExercise));
+router.put('/exercises/:id', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.updateExercise));
 
 /**
  * POST /exercises/:id/submit
@@ -140,8 +147,8 @@ router.put('/exercises/:id', validateId('id'), catchErrors(CourseController.upda
  *   revealSolutions?: boolean
  * }
  */
-router.post('/exercises/:id/submit', validateId('id'), catchErrors(CourseController.submitExercise));
-router.delete('/exercises/:id', validateId('id'), catchErrors(CourseController.deleteExercise));
+router.post('/exercises/:id/submit', protectUserOrAdmin, validateId('id'), requireExerciseAccess(), catchErrors(CourseController.submitExercise));
+router.delete('/exercises/:id', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.deleteExercise));
 
 /* ===========================
    Progress & Statistics Routes
@@ -150,12 +157,14 @@ router.delete('/exercises/:id', validateId('id'), catchErrors(CourseController.d
 router.get('/users/:userId/exercises/:exerciseId/progress', 
   validateUserId('userId'), 
   validateId('exerciseId'), 
+  protectUserOrAdmin,
   catchErrors(CourseController.getUserExerciseProgress)
 );
 
 // Statistiques globales d'un utilisateur
 router.get('/users/:userId/stats', 
   validateUserId('userId'), 
+  protectUserOrAdmin,
   catchErrors(CourseController.getUserStats)
 );
 
@@ -163,6 +172,7 @@ router.get('/users/:userId/stats',
 router.get('/users/:userId/levels/:levelId/progress', 
   validateUserId('userId'), 
   validateId('levelId'), 
+  protectUserOrAdmin,
   catchErrors(CourseController.getUserLevelProgress)
 );
 
@@ -175,19 +185,23 @@ router.get('/users/:userId/levels/:levelId/progress',
 router.post(
   '/levels/:levelId/video',
   validateId('levelId'),
+  protectUserOrAdmin,
   CourseController.uploadVideoMiddleware,
   catchErrors(CourseController.saveVideoPath)
 );
 
 router.get(
   '/levels/:levelId/video',
+  protectUserOrAdmin,
   validateId('levelId'),
+  requireFlexibleLevelAccess(),
   catchErrors(CourseController.streamVideo)
 );
 
 router.delete(
   '/levels/:levelId/video',
   validateId('levelId'),
+  protectUserOrAdmin,
   catchErrors(CourseController.deleteLevelVideo)
 );
 
@@ -197,19 +211,23 @@ router.delete(
 router.post(
   '/levels/:levelId/pdf',
   validateId('levelId'),
+  protectUserOrAdmin,
   CourseController.uploadPDFMiddleware,
   catchErrors(CourseController.savePDFPath)
 );
 
 router.get(
   '/levels/:levelId/pdf',
+  protectUserOrAdmin,
   validateId('levelId'),
+  requireFlexibleLevelAccess(),
   catchErrors(CourseController.streamPDF)
 );
 
 router.delete(
   '/levels/:levelId/pdf',
   validateId('levelId'),
+  protectUserOrAdmin,
   catchErrors(CourseController.deleteLevelPDF)
 );
 

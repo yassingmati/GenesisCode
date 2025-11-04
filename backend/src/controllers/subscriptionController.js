@@ -69,7 +69,7 @@ exports.subscribe = async (req, res) => {
     await user.save();
 
     return res.json({
-      message: 'Paiement créé. Rediriger l'utilisateur vers paymentUrl',
+      message: 'Paiement créé. Rediriger l\'utilisateur vers paymentUrl',
       paymentUrl: initResult.paymentUrl,
       konnect: { id: initResult.konnectPaymentId, raw: initResult.raw }
     });

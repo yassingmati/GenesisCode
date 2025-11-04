@@ -99,8 +99,8 @@ categoryAccessSchema.statics.findActiveByUser = function(userId) {
   }).populate('category categoryPlan');
 };
 
-categoryAccessSchema.statics.findActiveByUserAndCategory = function(userId, categoryId) {
-  return this.findOne({
+categoryAccessSchema.statics.findActiveByUserAndCategory = function(userId, categoryId, populate = false) {
+  const query = this.findOne({
     user: userId,
     category: categoryId,
     status: 'active',
@@ -108,7 +108,13 @@ categoryAccessSchema.statics.findActiveByUserAndCategory = function(userId, cate
       { expiresAt: { $gt: new Date() } },
       { expiresAt: null }
     ]
-  }).populate('category categoryPlan');
+  });
+  
+  if (populate) {
+    return query.populate('category categoryPlan');
+  }
+  
+  return query;
 };
 
 categoryAccessSchema.statics.findExpired = function() {
@@ -162,5 +168,10 @@ categoryAccessSchema.methods.hasUnlockedLevel = function(pathId, levelId) {
 };
 
 module.exports = mongoose.model('CategoryAccess', categoryAccessSchema);
+
+
+
+
+
 
 

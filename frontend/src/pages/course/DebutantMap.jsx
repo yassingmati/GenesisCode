@@ -4,8 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import './CourseStyles.css';
+import '../../styles/courseTheme.css';
+import API_CONFIG from '../../config/api';
 
-const API_BASE = 'http://localhost:5000/api/courses';
+const API_BASE = `${API_CONFIG.BASE_URL}/api/courses`;
 
 const LANGS = [
   { code: 'fr', label: 'Français', flag: '🇫🇷' },
@@ -69,7 +71,9 @@ export default function DebutantMap() {
       
       try {
         // Chargement des catégories
-        const rc = await fetch(`${API_BASE}/categories`);
+        const rc = await fetch(`${API_BASE}/categories`, {
+          headers: API_CONFIG.getDefaultHeaders()
+        });
         if (!rc.ok) throw new Error(`Erreur catégories: ${rc.status}`);
         const cats = await rc.json();
         
@@ -80,7 +84,9 @@ export default function DebutantMap() {
         const pmap = {};
         await Promise.all((cats || []).map(async (cat) => {
           try {
-            const rp = await fetch(`${API_BASE}/categories/${cat._id}/paths`);
+            const rp = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
+              headers: API_CONFIG.getDefaultHeaders()
+            });
             pmap[cat._id] = rp.ok ? (await rp.json()) : [];
           } catch {
             pmap[cat._id] = [];
@@ -95,7 +101,9 @@ export default function DebutantMap() {
         const lmap = {};
         await Promise.all(allPaths.map(async p => {
           try {
-            const rl = await fetch(`${API_BASE}/paths/${p._id}/levels`);
+            const rl = await fetch(`${API_BASE}/paths/${p._id}/levels`, {
+              headers: API_CONFIG.getDefaultHeaders()
+            });
             lmap[p._id] = rl.ok ? (await rl.json()) : [];
           } catch {
             lmap[p._id] = [];
@@ -225,9 +233,13 @@ export default function DebutantMap() {
   }
 
   return (
-    <div className="debutant-map">
+    <div className="debutant-map" style={{ minHeight: '100vh', background: 'var(--bg-gradient)' }}>
       {/* Header avec contrôles */}
-      <header className="map-header">
+      <header className="map-header" style={{ 
+        background: 'rgba(255,255,255,0.1)', 
+        backdropFilter: 'blur(10px)', 
+        borderBottom: '1px solid rgba(255,255,255,0.2)' 
+      }}>
         <div className="header-left">
           <button 
             className="btn-sidebar-toggle"
@@ -431,37 +443,47 @@ export default function DebutantMap() {
 
         {/* Contenu principal */}
         <main className={`map-main ${!sidebarOpen ? 'expanded' : ''}`}>
-          {filteredCategories.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">🔍</div>
-              <h3>Aucun contenu trouvé</h3>
-              <p>Essayez d'élargir votre recherche ou de modifier les filtres.</p>
-              <button className="btn-primary" onClick={resetFilters}>
-                Réinitialiser les filtres
-              </button>
-            </div>
-          ) : (
-            <div className="content-container">
-              {filteredCategories.map(cat => (
-                <CategorySection
-                  key={cat._id}
-                  category={cat}
-                  paths={pathsByCategory[cat._id] || []}
-                  levelsByPath={levelsByPath}
-                  activeCategory={activeCategory}
-                  lang={lang}
-                  viewMode={viewMode}
-                  openLevel={openLevel}
-                  seqMap={seqMap}
-                  hasAnyVideo={hasAnyVideo}
-                  hasAnyPdf={hasAnyPdf}
-                  debouncedQ={debouncedQ}
-                  videoOnly={videoOnly}
-                  pdfOnly={pdfOnly}
-                />
-              ))}
-            </div>
-          )}
+          <div className="container-responsive">
+            {filteredCategories.length === 0 ? (
+              <div className="empty-state" style={{ 
+                textAlign: 'center', 
+                padding: 40, 
+                color: 'white',
+                background: 'rgba(255,255,255,0.1)',
+                borderRadius: 'var(--card-radius)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)'
+              }}>
+                <div className="empty-icon" style={{ fontSize: 48, marginBottom: 16 }}>🔍</div>
+                <h3 style={{ marginBottom: 8, color: 'white' }}>Aucun contenu trouvé</h3>
+                <p style={{ marginBottom: 24, opacity: 0.9 }}>Essayez d'élargir votre recherche ou de modifier les filtres.</p>
+                <button className="btn-ghost" onClick={resetFilters}>
+                  Réinitialiser les filtres
+                </button>
+              </div>
+            ) : (
+              <div className="content-container">
+                {filteredCategories.map(cat => (
+                  <CategorySection
+                    key={cat._id}
+                    category={cat}
+                    paths={pathsByCategory[cat._id] || []}
+                    levelsByPath={levelsByPath}
+                    activeCategory={activeCategory}
+                    lang={lang}
+                    viewMode={viewMode}
+                    openLevel={openLevel}
+                    seqMap={seqMap}
+                    hasAnyVideo={hasAnyVideo}
+                    hasAnyPdf={hasAnyPdf}
+                    debouncedQ={debouncedQ}
+                    videoOnly={videoOnly}
+                    pdfOnly={pdfOnly}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </main>
       </div>
     </div>
@@ -494,15 +516,32 @@ function CategorySection({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      style={{ marginBottom: 40 }}
     >
-              <div className="category-header">
-        <h2 className="category-title">
+      <div className="category-header" style={{ 
+        background: 'rgba(255,255,255,0.1)', 
+        borderRadius: 'var(--card-radius)', 
+        padding: 24, 
+        marginBottom: 24,
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)'
+      }}>
+        <h2 className="category-title" style={{ 
+          color: 'white', 
+          margin: 0, 
+          fontSize: 24, 
+          fontWeight: 700 
+        }}>
           {category.translations?.[lang]?.name || category.translations?.fr?.name || 'Sans nom'}
         </h2>
-        <div className="category-meta">
+        <div className="category-meta" style={{ 
+          color: 'rgba(255,255,255,0.8)', 
+          fontSize: 14, 
+          marginTop: 4 
+        }}>
           {paths.length} parcours
         </div>
-              </div>
+      </div>
 
       <div className="paths-container">
         {paths.map(path => {
@@ -543,19 +582,38 @@ function CategorySection({
 // =========================
 function PathSection({ path, levels, lang, viewMode, openLevel, seqMap, hasAnyVideo, hasAnyPdf }) {
   return (
-    <article className="path-section">
-      <div className="path-header">
-                      <div className="path-info">
-          <h3 className="path-title">
+    <article className="path-section" style={{ marginBottom: 32 }}>
+      <div className="path-header" style={{ 
+        background: 'rgba(255,255,255,0.1)', 
+        borderRadius: 'var(--card-radius)', 
+        padding: 20, 
+        marginBottom: 20,
+        backdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div className="path-info">
+          <h3 className="path-title" style={{ 
+            color: 'white', 
+            margin: 0, 
+            fontSize: 18, 
+            fontWeight: 600 
+          }}>
             {path.translations?.[lang]?.name || path.translations?.fr?.name || 'Sans nom'}
           </h3>
-          <div className="path-meta">
+          <div className="path-meta" style={{ 
+            color: 'rgba(255,255,255,0.8)', 
+            fontSize: 14, 
+            marginTop: 4 
+          }}>
             {levels.length} niveau(s) • ordre {path.order ?? '—'}
-                        </div>
-                      </div>
+          </div>
+        </div>
 
         <button 
-          className="btn-scroll-to-start"
+          className="btn-ghost"
           onClick={() => {
             const el = document.getElementById(`lvl-${path._id}-${levels[0]?._id}`);
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -563,9 +621,13 @@ function PathSection({ path, levels, lang, viewMode, openLevel, seqMap, hasAnyVi
         >
           Aller au début
         </button>
-                            </div>
+      </div>
 
-      <div className={`levels-container ${viewMode}`}>
+      <div className={`levels-container ${viewMode}`} style={{ 
+        display: 'grid', 
+        gridTemplateColumns: viewMode === 'list' ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', 
+        gap: 20 
+      }}>
         {levels.map((lvl, index) => (
           <LevelCard
             key={lvl._id}
@@ -601,7 +663,7 @@ function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel,
   return (
     <motion.div
       id={`lvl-${pathId}-${level._id}`}
-      className={`level-card ${viewMode}`}
+      className={`level-card ${viewMode} card-surface`}
       variants={cardVariants}
       initial="hidden"
       animate="visible"
@@ -617,41 +679,88 @@ function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel,
         }
       }}
       aria-label={`${level.translations?.[lang]?.title || level.translations?.fr?.title || 'niveau'}`}
+      style={{ 
+        padding: 20, 
+        cursor: 'pointer',
+        transition: 'all 0.3s ease'
+      }}
     >
-      <div className="level-header">
-        <div className="level-number">
+      <div className="level-header" style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        marginBottom: 16 
+      }}>
+        <div className="level-number" style={{ 
+          background: 'linear-gradient(135deg, #4facfe, #00f2fe)', 
+          color: 'white', 
+          padding: '8px 16px', 
+          borderRadius: 20, 
+          fontSize: 14, 
+          fontWeight: 700 
+        }}>
           {seqNumber || '-'}
         </div>
-        <div className="level-badges">
-          {hasVideo && <span className="badge video-badge">🎬</span>}
-          {hasPdf && <span className="badge pdf-badge">📄</span>}
+        <div className="level-badges" style={{ display: 'flex', gap: 8 }}>
+          {hasVideo && <span className="badge video-badge" style={{ 
+            background: 'rgba(79, 172, 254, 0.1)', 
+            color: '#4facfe', 
+            padding: '4px 8px', 
+            borderRadius: 12, 
+            fontSize: 12, 
+            fontWeight: 600 
+          }}>🎬</span>}
+          {hasPdf && <span className="badge pdf-badge" style={{ 
+            background: 'rgba(0, 242, 254, 0.1)', 
+            color: '#00f2fe', 
+            padding: '4px 8px', 
+            borderRadius: 12, 
+            fontSize: 12, 
+            fontWeight: 600 
+          }}>📄</span>}
         </div>
       </div>
 
-      <div className="level-content">
-        <h4 className="level-title">
+      <div className="level-content" style={{ marginBottom: 16 }}>
+        <h4 className="level-title" style={{ 
+          color: 'var(--text-primary)', 
+          margin: '0 0 8px 0', 
+          fontSize: 16, 
+          fontWeight: 600 
+        }}>
           {level.translations?.[lang]?.title || level.translations?.fr?.title || 'Sans titre'}
         </h4>
-        <div className="level-meta">
+        <div className="level-meta" style={{ 
+          color: 'var(--text-muted)', 
+          fontSize: 14 
+        }}>
           {(level.exercises || []).length} exercice(s) • ordre {level.order ?? '—'}
         </div>
       </div>
 
-      <div className="level-actions">
+      <div className="level-actions" style={{ display: 'flex', gap: 8 }}>
         <button 
-          className="btn-preview"
+          className="btn-ghost"
           onClick={(e) => { 
             e.stopPropagation(); 
             // TODO: Implémenter l'aperçu
           }}
+          style={{ flex: 1, fontSize: 14 }}
         >
           Aperçu
         </button>
         <button 
-          className="btn-start"
+          className="btn-ghost"
           onClick={(e) => { 
             e.stopPropagation(); 
             openLevel(level._id); 
+          }}
+          style={{ 
+            flex: 1, 
+            fontSize: 14, 
+            background: 'linear-gradient(135deg, #4facfe, #00f2fe)', 
+            color: 'white',
+            border: 'none'
           }}
         >
           Commencer

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CodeGenesis</title>
+    <script>
+      // Redirection pour GitHub Pages (SPA routing)
+      // Cette page gère les routes React Router qui ne sont pas directement accessibles
+      var path = window.location.pathname;
+      var search = window.location.search;
+      var hash = window.location.hash;
+      
+      // Rediriger vers index.html pour que React Router prenne le relais
+      var newPath = '/index.html';
+      if (path !== '/' && path !== '/index.html') {
+        newPath += path.replace(/^\/+/, '/');
+      }
+      newPath += search + hash;
+      
+      window.location.replace(newPath);
+    </script>
+  </head>
+  <body>
+    <p>Redirection en cours...</p>
+    <script>
+      // Fallback si JavaScript est désactivé
+      setTimeout(function() {
+        window.location.replace('/');
+      }, 1000);
+    </script>
+  </body>
+</html>
+

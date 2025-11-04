@@ -1,0 +1,39 @@
+{
+  "success": true,
+  "plans": [
+    {
+      "_id": "free",
+      "name": "Plan Gratuit",
+      "description": "Accès à la première leçon de chaque parcours",
+      "priceMonthly": null,
+      "currency": "TND",
+      "interval": null,
+      "features": ["Première leçon gratuite", "Accès limité"],
+      "type": "global",
+      "active": true
+    },
+    {
+      "_id": "premium-global",
+      "name": "Premium Global",
+      "description": "Accès complet à tous les parcours",
+      "priceMonthly": 4999,
+      "currency": "TND",
+      "interval": "month",
+      "features": ["Tous les parcours", "Exercices illimités", "Support prioritaire"],
+      "type": "global",
+      "active": true
+    },
+    {
+      "_id": "premium-debutant",
+      "name": "Premium Débutant",
+      "description": "Accès aux parcours débutant",
+      "priceMonthly": 1999,
+      "currency": "TND",
+      "interval": "month",
+      "features": ["Parcours débutant", "Exercices illimités"],
+      "type": "category",
+      "active": true
+    }
+  ]
+}
+

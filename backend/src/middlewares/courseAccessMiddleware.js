@@ -1,5 +1,6 @@
 // src/middlewares/courseAccessMiddleware.js
-const CourseAccessService = require('../services/courseAccessService');
+const AccessControlService = require('../services/accessControlService');
+const { logAccessDecision } = require('../utils/accessLogger');
 
 /**
  * Middleware pour vérifier l'accès aux cours
@@ -7,6 +8,7 @@ const CourseAccessService = require('../services/courseAccessService');
 exports.requireCourseAccess = (options = {}) => {
   return async (req, res, next) => {
     try {
+      const t0 = Date.now();
       if (!req.user || !req.user.id) {
         return res.status(401).json({ 
           success: false, 
@@ -28,25 +30,41 @@ exports.requireCourseAccess = (options = {}) => {
         });
       }
 
-      // Vérifier l'accès
-      const access = await CourseAccessService.checkUserAccess(userId, pathId, levelId, exerciseId);
+      // Vérifier l'accès via service unifié
+      const access = await AccessControlService.checkUserAccess(userId, pathId, levelId, exerciseId);
       
       if (!access.hasAccess) {
-        // Récupérer les plans disponibles pour ce parcours
-        const availablePlans = await CourseAccessService.getPlansForPath(pathId);
-        
+        logAccessDecision({
+          userId,
+          context: 'course',
+          pathId,
+          levelId,
+          exerciseId,
+          decision: 'deny',
+          reason: access.reason,
+          latencyMs: Date.now() - t0
+        });
         return res.status(403).json({ 
           success: false, 
           message: 'Accès refusé',
           code: 'ACCESS_DENIED',
           reason: access.reason,
-          availablePlans: availablePlans,
-          requiresSubscription: true
+          data: { access }
         });
       }
 
       // Ajouter les informations d'accès à la requête
       req.courseAccess = access;
+      logAccessDecision({
+        userId,
+        context: 'course',
+        pathId,
+        levelId,
+        exerciseId,
+        decision: 'allow',
+        reason: access.source || 'unknown',
+        latencyMs: Date.now() - t0
+      });
       next();
     } catch (error) {
       console.error('Course access middleware error:', error);
@@ -85,8 +103,8 @@ exports.allowPreviewAccess = (options = {}) => {
         });
       }
 
-      // Vérifier l'accès (même en mode preview)
-      const access = await CourseAccessService.checkUserAccess(userId, pathId, levelId);
+      // Vérifier l'accès (même en mode preview) via service unifié
+      const access = await AccessControlService.checkUserAccess(userId, pathId, levelId);
       
       if (!access.hasAccess) {
         // En mode preview, on permet la visualisation mais pas l'interaction
@@ -154,7 +172,7 @@ exports.requireExerciseAccess = () => {
       }
 
       const pathId = exercise.level.path;
-      const access = await CourseAccessService.checkUserAccess(userId, pathId, levelId, exerciseId);
+      const access = await AccessControlService.checkUserAccess(userId, pathId, levelId, exerciseId);
       
       if (!access.hasAccess || !access.canInteract) {
         return res.status(403).json({ 
