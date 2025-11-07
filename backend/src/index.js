@@ -235,6 +235,7 @@ app.use(cors({
     });
     
     if (isAllowed) {
+      // Utiliser l'origine de la requête, pas CLIENT_ORIGIN
       callback(null, true);
     } else {
       console.warn(`⚠️  CORS: Origine non autorisée: ${origin}`);
@@ -255,6 +256,17 @@ app.use(cors({
   maxAge: 86400 // Cache preflight requests for 24 hours
 }));
 
+// Middleware pour forcer le bon header CORS en production
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  // Si l'origine est le frontend déployé, forcer le header correct
+  if (origin && (origin.includes('codegenesis-platform.web.app') || origin.includes('codegenesis-platform.firebaseapp.com'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+});
+
 // Gérer les requêtes OPTIONS (preflight) explicitement
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
@@ -271,15 +283,27 @@ app.options('*', (req, res) => {
     process.env.NODE_ENV !== 'production';
   
   if (isAllowed) {
-    res.header('Access-Control-Allow-Origin', origin || '*');
+    // Utiliser l'origine de la requête, pas CLIENT_ORIGIN
+    const allowedOrigin = origin || (allowedOrigins.includes('https://codegenesis-platform.web.app') ? 'https://codegenesis-platform.web.app' : '*');
+    res.header('Access-Control-Allow-Origin', allowedOrigin);
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range, X-Requested-With');
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Max-Age', '86400');
     res.sendStatus(204);
   } else {
-    console.warn(`⚠️  CORS OPTIONS: Origine non autorisée: ${origin}`);
-    res.sendStatus(403);
+    // Permettre quand même le frontend déployé
+    if (origin && (origin.includes('codegenesis-platform.web.app') || origin.includes('codegenesis-platform.firebaseapp.com'))) {
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range, X-Requested-With');
+      res.header('Access-Control-Allow-Credentials', 'true');
+      res.header('Access-Control-Max-Age', '86400');
+      res.sendStatus(204);
+    } else {
+      console.warn(`⚠️  CORS OPTIONS: Origine non autorisée: ${origin}`);
+      res.sendStatus(403);
+    }
   }
 });
 
