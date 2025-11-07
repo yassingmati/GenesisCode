@@ -4,8 +4,9 @@ import axios from 'axios';
 import { useNotificationCache } from '../hooks/useNotificationCache';
 import { useRequestThrottle } from '../hooks/useRequestThrottle';
 import { NotificationErrorDisplay } from './NotificationErrorHandler';
+import { getApiUrl } from '../utils/apiConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
 /**
  * Composant de notifications style Facebook avec écon

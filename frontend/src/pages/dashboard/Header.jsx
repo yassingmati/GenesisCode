@@ -4,7 +4,8 @@ import { useTranslation } from '../../hooks/useTranslation';
 import LanguageSelector from '../../components/LanguageSelector';
 import logo from '../../assets/images/ChatGPT_Image_9_juil._2025__13_14_57-removebg-preview.png';
 import logoIco from '../../assets/images/logo.ico';
-const API_BASE = 'http://localhost:5000/api';
+import { getApiUrl } from '../../utils/apiConfig';
+const API_BASE = getApiUrl('/api');
 
 function getAuthHeader() {
   if (typeof window === 'undefined') return {};

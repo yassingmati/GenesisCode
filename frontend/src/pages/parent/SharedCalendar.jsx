@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import CalendarWidget from '../../components/parent/CalendarWidget';
+import { getApiUrl } from '../../utils/apiConfig';
 
 const CalendarContainer = styled.div`
   padding: 2rem;
@@ -414,7 +415,7 @@ export default function SharedCalendar() {
   const fetchChildren = async () => {
     try {
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/parent/children`, {
         headers: { 

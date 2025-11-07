@@ -3,9 +3,10 @@ import styled from 'styled-components';
 import { toast } from 'react-toastify';
 import { FiEdit, FiTrash2, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw } from 'react-icons/fi';
 import axios from 'axios';
+import { getApiUrl } from '../../utils/apiConfig';
 
 // Configuration API
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || getApiUrl('');
 
 // Client API avec gestion d'authentification
 const api = axios.create({

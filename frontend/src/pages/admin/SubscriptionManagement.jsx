@@ -2,6 +2,7 @@ import React from 'react';
 import styled, { keyframes } from 'styled-components';
 import axios from 'axios';
 import { toast, ToastContainer } from 'react-toastify';
+import { getApiUrl } from '../../utils/apiConfig';
 import 'react-toastify/dist/ReactToastify.css';
 import {
   FiRefreshCw, FiChevronLeft, FiChevronRight,
@@ -161,7 +162,7 @@ export default function SubscriptionManagement() {
 
   // axios instance
   const api = useMemo(() => {
-    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+    const API_BASE = process.env.REACT_APP_API_URL || getApiUrl('');
     const instance = axios.create({ baseURL: API_BASE, withCredentials: true, timeout: 20000 });
 
     instance.interceptors.request.use(cfg => {

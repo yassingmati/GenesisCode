@@ -1,3 +1,4 @@
+import { getApiUrl } from './utils/apiConfig';
 import React from 'react';
 import { render } from '@testing-library/react';
 import { BrowserRouter } from 'react-router-dom';
@@ -9,7 +10,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
  * Mock de l'API config pour les tests
  */
 jest.mock('./config/api', () => ({
-  BASE_URL: 'http://localhost:5000',
+  BASE_URL: getApiUrl(''),
   getFullUrl: (endpoint) => `http://localhost:5000${endpoint}`,
   getDefaultHeaders: () => ({
     'Content-Type': 'application/json',

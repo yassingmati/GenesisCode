@@ -22,7 +22,11 @@ const SimplePaymentModal = ({ isOpen, onClose, onSuccess }) => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:5000/api/plans');
+      const apiUrl = process.env.REACT_APP_API_BASE_URL || 
+        (process.env.NODE_ENV === 'production' 
+          ? 'https://codegenesis-backend.onrender.com' 
+          : 'http://localhost:5000');
+      const response = await fetch(`${apiUrl}/api/plans`);
       const data = await response.json();
 
       if (data.success) {
@@ -75,7 +79,11 @@ const SimplePaymentModal = ({ isOpen, onClose, onSuccess }) => {
 
       console.log('Initiating subscription for plan:', plan._id);
 
-      const response = await fetch('http://localhost:5000/api/payment/init', {
+      const apiUrl = process.env.REACT_APP_API_BASE_URL || 
+        (process.env.NODE_ENV === 'production' 
+          ? 'https://codegenesis-backend.onrender.com' 
+          : 'http://localhost:5000');
+      const response = await fetch(`${apiUrl}/api/payment/init`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

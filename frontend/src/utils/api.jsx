@@ -1,8 +1,12 @@
 // src/utils/api.js
 import axios from 'axios';
 import { toast } from 'react-toastify';
+import { getApiUrl } from './apiConfig';
 
-const baseURL = process.env.REACT_APP_API_BASE_URL || ''; // ex: http://localhost:5000
+// En production, utiliser URL relative (même domaine) pour éviter CORS via rewrites Firebase Hosting
+// En développement, utiliser localhost
+const baseURL = process.env.REACT_APP_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
 const api = axios.create({
   baseURL,

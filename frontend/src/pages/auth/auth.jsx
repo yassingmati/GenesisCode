@@ -6,9 +6,13 @@ import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
 import axios from 'axios';
+import { getApiUrl } from '../../utils/apiConfig';
 
 const auth = getAuth(app);
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+// En production, utiliser URL relative (même domaine) pour éviter CORS
+// En développement, utiliser localhost
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
 const Auth = ({ type }) => {
   const [formData, setFormData] = useState({

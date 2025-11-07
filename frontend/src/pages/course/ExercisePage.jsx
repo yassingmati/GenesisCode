@@ -7,7 +7,8 @@ import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
 import './CourseStyles.css';
 import './ExerciseEnhancements.css';
 
-const API_BASE = 'http://localhost:5000/api/courses';
+import { getApiUrl } from '../../utils/apiConfig';
+const API_BASE = getApiUrl('/api/courses');
 
 // =========================
 // HELPER FUNCTIONS

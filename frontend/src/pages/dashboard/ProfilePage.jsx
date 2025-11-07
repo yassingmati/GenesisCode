@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../../utils/apiConfig';
 import './ProfilePage.css'; // Nous allons créer ce fichier CSS
 import ParentInvitationSection from '../../components/ParentInvitationSection';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = getApiUrl('/api');
 
 function getAuthHeader() {
   if (typeof window === 'undefined') return {};

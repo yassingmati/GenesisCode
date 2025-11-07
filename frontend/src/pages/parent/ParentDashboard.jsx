@@ -13,6 +13,7 @@ import CalendarWidget from '../../components/parent/CalendarWidget';
 import QuickActionsPanel from '../../components/parent/QuickActionsPanel';
 import ToastComponent, { useToast } from '../../components/Toast';
 import LoadingSpinner from '../../components/LoadingSpinner';
+import { getApiUrl } from '../../utils/apiConfig';
 
 const DashboardContainer = styled.div`
   padding: 1.5rem;
@@ -685,7 +686,7 @@ export default function ParentDashboard() {
         throw new Error('Accès refusé : vous devez être un parent pour accéder à cette page');
       }
       
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       const response = await fetch(`${API_BASE_URL}/api/parent/children`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -750,7 +751,7 @@ export default function ParentDashboard() {
   const fetchAnalytics = async () => {
     try {
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/reports/comparison?period=week`, {
         headers: { 
@@ -771,7 +772,7 @@ export default function ParentDashboard() {
   const fetchCalendarEvents = async () => {
     try {
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       // Récupérer les événements pour tous les enfants
       const events = [];

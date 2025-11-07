@@ -3,6 +3,7 @@ import React, { useEffect, useState, useRef, useMemo } from 'react';
 import styled, { keyframes } from 'styled-components';
 import axios from 'axios';
 import { ToastContainer, toast } from 'react-toastify';
+import { getApiUrl } from '../../utils/apiConfig';
 import 'react-toastify/dist/ReactToastify.css';
 import {
   FiEdit, FiTrash2, FiPlus, FiX, FiSearch, FiChevronLeft,
@@ -237,7 +238,7 @@ const Modal = styled.div`
    API client
    =========================== */
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api/courses',
+  baseURL: getApiUrl('/api/courses'),
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -1206,7 +1207,7 @@ function LevelsPanel({ onOpenCreate }) {
     open: false, levelId: null, lang: null, mediaType: null 
   });
 
-  const API_BASE_URL = 'http://localhost:5000';
+  const API_BASE_URL = getApiUrl('');
 
   useEffect(() => {
     fetchPaths();

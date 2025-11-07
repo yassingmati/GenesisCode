@@ -1,3 +1,4 @@
+import { getApiUrl } from '../../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
@@ -6,7 +7,7 @@ import axios from 'axios';
 import { fixAdminAuth, ensureValidToken } from '../../utils/refreshAdminToken';
 
 // Configuration API
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE = process.env.REACT_APP_API_URL || getApiUrl('');
 
 // Client API avec gestion d'authentification
 const api = axios.create({

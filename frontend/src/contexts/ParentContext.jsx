@@ -1,5 +1,6 @@
 // src/contexts/ParentContext.jsx
 import React, { createContext, useContext, useReducer } from 'react';
+import { getApiUrl } from '../utils/apiConfig';
 
 const ParentContext = createContext();
 
@@ -123,7 +124,7 @@ export const useParentChildren = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/parent/children`, {
         headers: { 
@@ -162,7 +163,7 @@ export const useParentControls = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/parent/children/${childId}`, {
         headers: { 
@@ -190,7 +191,7 @@ export const useParentControls = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/parent/children/${childId}/controls`, {
         method: 'PUT',
@@ -220,7 +221,7 @@ export const useParentControls = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/parent/children/${childId}/apply-template`, {
         method: 'POST',
@@ -263,7 +264,7 @@ export const useParentAnalytics = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/parent/children/${childId}/analytics?period=${period}`, {
         headers: { 
@@ -302,7 +303,7 @@ export const useParentCalendar = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/calendar/${childId}`, {
         headers: { 
@@ -341,7 +342,7 @@ export const useParentReports = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/reports/overall?period=${period}`, {
         headers: { 
@@ -369,7 +370,7 @@ export const useParentReports = () => {
       dispatch({ type: 'SET_LOADING', payload: true });
       
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       
       const response = await fetch(`${API_BASE_URL}/api/reports/comparison?period=${period}`, {
         headers: { 

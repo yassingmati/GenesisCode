@@ -8,11 +8,13 @@ import SubmissionPanel from '../../components/ui/SubmissionPanel';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import ErrorMessage from '../../components/ui/ErrorMessage';
 import CourseAccessGuard from '../../components/CourseAccessGuard';
+import { getApiUrl } from '../../utils/apiConfig';
 import './CourseStyles.css';
 import '../../components/ExerciseStyles.css';
 
-const API_BASE = 'http://localhost:5000/api/courses';
-const API_ORIGIN = 'http://localhost:5000';
+import { getApiUrl } from '../../utils/apiConfig';
+const API_BASE = getApiUrl('/api/courses');
+const API_ORIGIN = getApiUrl('');
 const PROXY_FILE = `${API_BASE}/proxyFile`;
 const PROXY_VIDEO = `${API_BASE}/proxyVideo`;
 const LANGS = [{ code: 'fr', label: 'Français' }, { code: 'en', label: 'English' }, { code: 'ar', label: 'العربية' }];

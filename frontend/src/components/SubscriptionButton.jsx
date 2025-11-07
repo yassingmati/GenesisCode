@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import SubscriptionModal from './SubscriptionModal';
+import { getApiUrl } from '../utils/apiConfig';
 import './SubscriptionButton.css';
 
 const SubscriptionButton = ({ 
@@ -20,7 +21,7 @@ const SubscriptionButton = ({
       try {
         setLoading(true);
         // Utiliser l'endpoint public pour les plans de catégories
-        const res = await fetch('/api/category-payments/plans');
+        const res = await fetch(getApiUrl('/api/category-payments/plans'));
         const data = await res.json();
         if (data?.success && Array.isArray(data?.plans)) {
           const adapted = data.plans

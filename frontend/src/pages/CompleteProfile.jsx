@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import styled, { keyframes } from 'styled-components';
+import { getApiUrl } from '../utils/apiConfig';
 
 // --- Définition des Styles (CSS-in-JS) ---
 
@@ -147,7 +148,7 @@ const ErrorMessage = styled.div`
 
 // --- Composant React ---
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 const TOTAL_STEPS = 2;
 
 const CompleteProfile = () => {

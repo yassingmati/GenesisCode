@@ -1,8 +1,9 @@
+import { getApiUrl } from '../utils/apiConfig';
 // src/components/NotificationTester.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
 /**
  * Composant de test pour les notifications

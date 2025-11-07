@@ -219,34 +219,30 @@ console.log('🌐 CORS - CLIENT_ORIGIN:', CLIENT_ORIGIN);
 app.use(cors({
   origin: function (origin, callback) {
     // Permettre les requêtes sans origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
     
     // En développement, permettre toutes les origines
     if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
     
-    // En production, vérifier si l'origine est autorisée
-    // Vérifier si l'origine correspond exactement ou commence par une origine autorisée
+    // Vérifier si l'origine est autorisée
     const isAllowed = allowedOrigins.some(allowed => {
       if (origin === allowed) return true;
       if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
       return false;
-    });
+    }) || origin.includes('codegenesis-platform.web.app') || 
+        origin.includes('codegenesis-platform.firebaseapp.com');
     
     if (isAllowed) {
-      // Utiliser l'origine de la requête, pas CLIENT_ORIGIN
-      callback(null, true);
+      // Retourner explicitement l'origine de la requête
+      callback(null, origin);
     } else {
       console.warn(`⚠️  CORS: Origine non autorisée: ${origin}`);
       console.warn(`   Origines autorisées: ${allowedOrigins.join(', ')}`);
-      // En production, permettre quand même le frontend déployé pour éviter les problèmes
-      if (origin.includes('codegenesis-platform.web.app') || origin.includes('codegenesis-platform.firebaseapp.com')) {
-        console.log(`✅ Permettant quand même ${origin} (frontend déployé)`);
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+      callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
@@ -257,12 +253,24 @@ app.use(cors({
 }));
 
 // Middleware pour forcer le bon header CORS en production
+// Ce middleware s'assure que le header CORS utilise l'origine de la requête
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  // Si l'origine est le frontend déployé, forcer le header correct
-  if (origin && (origin.includes('codegenesis-platform.web.app') || origin.includes('codegenesis-platform.firebaseapp.com'))) {
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Si l'origine est présente et autorisée, forcer le header correct
+  if (origin) {
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (origin === allowed) return true;
+      if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
+      return false;
+    }) || origin.includes('codegenesis-platform.web.app') || 
+        origin.includes('codegenesis-platform.firebaseapp.com');
+    
+    if (isAllowed) {
+      // Forcer le header avec l'origine de la requête
+      res.header('Access-Control-Allow-Origin', origin);
+      res.header('Access-Control-Allow-Credentials', 'true');
+    }
   }
   next();
 });

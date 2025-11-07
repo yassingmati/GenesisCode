@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useParams } from 'react-router-dom';
+import { getApiUrl } from '../../utils/apiConfig';
 
 const Container = styled.div`
   padding: 2rem;
@@ -230,7 +231,7 @@ export default function ChildDetails() {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
       const response = await fetch(`${API_BASE_URL}/api/parent/children/${childId}`, {
         headers: { 
           'Authorization': `Bearer ${token}`,

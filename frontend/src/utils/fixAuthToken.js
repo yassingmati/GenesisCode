@@ -39,7 +39,11 @@ async function testAuth() {
   }
   
   try {
-    const response = await fetch('http://localhost:5000/api/courses/categories', {
+    const apiUrl = process.env.REACT_APP_API_BASE_URL || 
+      (process.env.NODE_ENV === 'production' 
+        ? 'https://codegenesis-backend.onrender.com' 
+        : 'http://localhost:5000');
+    const response = await fetch(`${apiUrl}/api/courses/categories`, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

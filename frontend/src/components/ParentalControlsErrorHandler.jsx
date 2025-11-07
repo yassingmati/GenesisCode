@@ -1,8 +1,9 @@
 // src/components/ParentalControlsErrorHandler.jsx
 import React, { useState } from 'react';
 import axios from 'axios';
+import { getApiUrl } from '../utils/apiConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
 /**
  * Hook pour gérer les erreurs des contrôles parentaux

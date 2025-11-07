@@ -1,7 +1,13 @@
+import { getApiUrl } from '../utils/apiConfig';
 // Configuration des URLs API avec intégration Konnect
 const API_CONFIG = {
-  // URL de base du backend (utilise la variable d'environnement en production)
-  BASE_URL: process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000',
+  // URL de base du backend
+  // En production: utiliser le backend Render
+  // En développement: localhost
+  BASE_URL: process.env.REACT_APP_API_BASE_URL || 
+    (process.env.NODE_ENV === 'production' 
+      ? 'https://codegenesis-backend.onrender.com' 
+      : getApiUrl('')),
   
   // Configuration Konnect - PRODUCTION
   KONNECT: {
