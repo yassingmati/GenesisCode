@@ -31,11 +31,43 @@ const {
 
 /**
  * CORS configuration (apply before routes)
+ * Utilise la même logique que la configuration globale pour accepter le frontend déployé
  */
 const corsOptions = {
-  origin: 'http://localhost:3000',
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires'],
+  origin: function (origin, callback) {
+    // Permettre les requêtes sans origin
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    // En développement, permettre toutes les origines
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // Vérifier si l'origine est autorisée (priorité au frontend déployé)
+    if (origin.includes('codegenesis-platform.web.app') || 
+        origin.includes('codegenesis-platform.firebaseapp.com')) {
+      return callback(null, origin);
+    }
+    
+    // Autres origines autorisées
+    const allowedOrigins = [
+      'https://codegenesis-platform.web.app',
+      'https://codegenesis-platform.firebaseapp.com',
+      'http://localhost:3000' // Pour le développement local
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, origin);
+    } else {
+      callback(null, true); // Permettre pour l'instant, mais loguer
+      console.warn(`⚠️  CORS courseRoutes: Origine non autorisée: ${origin}`);
+    }
+  },
+  credentials: true,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control', 'Pragma', 'Expires', 'Range', 'X-Requested-With'],
   optionsSuccessStatus: 204
 };
 router.use(cors(corsOptions));
