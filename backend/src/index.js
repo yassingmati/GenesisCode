@@ -1,10 +1,14 @@
 // server.js
-require('dotenv').config();
+// Charger les variables d'environnement depuis le fichier .env dans le dossier backend
+const path = require('path');
+const envPath = path.join(__dirname, '..', '.env');
+require('dotenv').config({ path: envPath, override: true });
+console.log(`📄 Chargement .env depuis: ${envPath}`);
+console.log(`📄 MONGODB_URI: ${process.env.MONGODB_URI ? process.env.MONGODB_URI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@') : 'NON DÉFINI'}`);
 // Charger la configuration Konnect
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
 const helmet = require('helmet');
@@ -14,7 +18,11 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+// CLIENT_ORIGIN - Priorité au frontend déployé en production
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://codegenesis-platform.web.app' 
+    : 'http://localhost:3000');
 const PORT = process.env.PORT || 5000;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 
@@ -195,15 +203,85 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS
+// CORS - Accepter les requêtes depuis le frontend déployé
+const allowedOrigins = [
+  CLIENT_ORIGIN,
+  'https://codegenesis-platform.web.app',
+  'https://codegenesis-platform.firebaseapp.com',
+  'http://localhost:3000', // Pour le développement local
+  'http://localhost:5000'  // Pour le développement local
+].filter(Boolean);
+
+// Log pour debug
+console.log('🌐 CORS - Origines autorisées:', allowedOrigins);
+console.log('🌐 CORS - CLIENT_ORIGIN:', CLIENT_ORIGIN);
+
 app.use(cors({
-  origin: CLIENT_ORIGIN,
+  origin: function (origin, callback) {
+    // Permettre les requêtes sans origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // En développement, permettre toutes les origines
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // En production, vérifier si l'origine est autorisée
+    // Vérifier si l'origine correspond exactement ou commence par une origine autorisée
+    const isAllowed = allowedOrigins.some(allowed => {
+      if (origin === allowed) return true;
+      if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.warn(`⚠️  CORS: Origine non autorisée: ${origin}`);
+      console.warn(`   Origines autorisées: ${allowedOrigins.join(', ')}`);
+      // En production, permettre quand même le frontend déployé pour éviter les problèmes
+      if (origin.includes('codegenesis-platform.web.app') || origin.includes('codegenesis-platform.firebaseapp.com')) {
+        console.log(`✅ Permettant quand même ${origin} (frontend déployé)`);
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Range'],
-  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Range', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'Accept-Ranges', 'Content-Length', 'Content-Type'],
+  maxAge: 86400 // Cache preflight requests for 24 hours
 }));
-app.options('*', cors());
+
+// Gérer les requêtes OPTIONS (preflight) explicitement
+app.options('*', (req, res) => {
+  const origin = req.headers.origin;
+  
+  // Vérifier si l'origine est autorisée
+  const isAllowed = !origin || 
+    allowedOrigins.some(allowed => {
+      if (origin === allowed) return true;
+      if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
+      return false;
+    }) || 
+    origin.includes('codegenesis-platform.web.app') ||
+    origin.includes('codegenesis-platform.firebaseapp.com') ||
+    process.env.NODE_ENV !== 'production';
+  
+  if (isAllowed) {
+    res.header('Access-Control-Allow-Origin', origin || '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Range, X-Requested-With');
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Max-Age', '86400');
+    res.sendStatus(204);
+  } else {
+    console.warn(`⚠️  CORS OPTIONS: Origine non autorisée: ${origin}`);
+    res.sendStatus(403);
+  }
+});
 
 // Rate limit optimisé (assoupli en développement et pour localhost)
 const isProduction = process.env.NODE_ENV === 'production';
@@ -536,26 +614,81 @@ app.use('*', (req, res) => {
 const connectDB = async () => {
   try {
     const mongoURI = process.env.MONGODB_URI || process.env.MONGO_URI;
-    if (!mongoURI) throw new Error('URI MongoDB non définie (MONGODB_URI/MONGO_URI)');
-    await mongoose.connect(mongoURI);
+    if (!mongoURI) {
+      console.warn('⚠️ URI MongoDB non définie (MONGODB_URI/MONGO_URI) - Mode dégradé activé');
+      return false;
+    }
+    
+    // Afficher l'URI (masquer le mot de passe)
+    const uriDisplay = mongoURI.replace(/mongodb\+srv:\/\/[^:]+:[^@]+@/, 'mongodb+srv://***:***@');
+    console.log(`🔗 Tentative de connexion à MongoDB: ${uriDisplay}`);
+    
+    await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 10000, // Augmenter le timeout pour MongoDB Atlas
+      maxPoolSize: 10
+    });
     console.log('✅ Connecté à MongoDB');
+    return true;
+  } catch (err) {
+    console.error('⚠️ Erreur connexion MongoDB:', err.message);
+    console.warn('⚠️ Mode dégradé: Le serveur démarre sans MongoDB');
+    console.warn('⚠️ Les fonctionnalités nécessitant MongoDB ne fonctionneront pas');
+    
+    // Afficher des suggestions d'aide selon le type d'erreur
+    if (err.message.includes('authentication failed') || err.message.includes('Authentication failed')) {
+      console.error('💡 Vérifiez que le mot de passe MongoDB est correct dans backend/.env');
+    } else if (err.message.includes('ECONNREFUSED') || err.message.includes('ENOTFOUND')) {
+      console.error('💡 Vérifiez que Network Access est configuré dans MongoDB Atlas (0.0.0.0/0)');
+      console.error('💡 Vérifiez que l\'URI MongoDB Atlas est correcte dans backend/.env');
+    } else if (err.message.includes('timeout') || err.message.includes('TIMEOUT')) {
+      console.error('💡 Vérifiez votre connexion internet et que le cluster MongoDB Atlas est actif');
+    }
+    
+    return false;
+  }
+};
 
-    // create uploads folders if missing
+// Create uploads folders
+const createUploadFolders = async () => {
+  try {
     await fsp.mkdir(path.join(__dirname, 'uploads', 'videos'), { recursive: true });
     await fsp.mkdir(path.join(__dirname, 'uploads', 'pdfs'), { recursive: true });
   } catch (err) {
-    console.error('Erreur connexion MongoDB:', err.message);
-    throw err;
+    console.warn('⚠️ Erreur création dossiers uploads:', err.message);
   }
 };
 
 let server;
 (async () => {
   try {
-    await connectDB();
+    // Create upload folders
+    await createUploadFolders();
+    
+    // Try to connect to MongoDB (non-blocking)
+    const dbConnected = await connectDB();
+    
+    // Start server even if MongoDB is not connected
     server = app.listen(PORT, () => {
       console.log(`🚀 Serveur démarré sur le port ${PORT}`);
       console.log(`Client autorisé en iframe: ${CLIENT_ORIGIN}`);
+      if (!dbConnected) {
+        console.warn('⚠️ ATTENTION: MongoDB non connecté - Mode dégradé actif');
+      }
+    });
+    
+    // Handle server errors (e.g., port already in use)
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ Erreur: Le port ${PORT} est déjà utilisé`);
+        console.error(`💡 Solution: Arrêtez le processus utilisant le port ${PORT} ou changez le port dans .env`);
+        console.error(`💡 Pour arrêter tous les processus Node.js: Get-Process -Name node | Stop-Process -Force`);
+        process.exit(1);
+      } else {
+        console.error('❌ Erreur serveur:', err);
+        process.exit(1);
+      }
     });
   } catch (err) {
     console.error('Impossible de démarrer le serveur:', err);
