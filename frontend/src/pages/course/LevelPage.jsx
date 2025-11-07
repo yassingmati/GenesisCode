@@ -12,7 +12,6 @@ import { getApiUrl } from '../../utils/apiConfig';
 import './CourseStyles.css';
 import '../../components/ExerciseStyles.css';
 
-import { getApiUrl } from '../../utils/apiConfig';
 const API_BASE = getApiUrl('/api/courses');
 const API_ORIGIN = getApiUrl('');
 const PROXY_FILE = `${API_BASE}/proxyFile`;
