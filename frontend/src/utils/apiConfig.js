@@ -1,4 +1,3 @@
-import { getApiUrl } from './apiConfig';
 // Configuration centralisée de l'URL de l'API
 // Cette fonction retourne toujours l'URL du backend, que ce soit en développement ou en production
 
@@ -14,7 +13,7 @@ export const getApiBaseUrl = () => {
   }
   
   // En développement, utiliser localhost
-  return getApiUrl('');
+  return 'http://localhost:5000';
 };
 
 export const getApiUrl = (endpoint) => {

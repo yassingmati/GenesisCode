@@ -204,18 +204,39 @@ app.use(helmet({
 }));
 
 // CORS - Accepter les requêtes depuis le frontend déployé
+// Ne pas inclure CLIENT_ORIGIN dans allowedOrigins si c'est localhost:3000 en production
 const allowedOrigins = [
-  CLIENT_ORIGIN,
   'https://codegenesis-platform.web.app',
   'https://codegenesis-platform.firebaseapp.com',
-  'http://localhost:3000', // Pour le développement local
-  'http://localhost:5000'  // Pour le développement local
+  'http://localhost:3000', // Pour le développement local uniquement
+  'http://localhost:5000'  // Pour le développement local uniquement
 ].filter(Boolean);
+
+// Ajouter CLIENT_ORIGIN seulement s'il n'est pas localhost en production
+if (CLIENT_ORIGIN && !(process.env.NODE_ENV === 'production' && CLIENT_ORIGIN.includes('localhost'))) {
+  allowedOrigins.push(CLIENT_ORIGIN);
+}
 
 // Log pour debug
 console.log('🌐 CORS - Origines autorisées:', allowedOrigins);
 console.log('🌐 CORS - CLIENT_ORIGIN:', CLIENT_ORIGIN);
 
+// Middleware pour forcer le bon header CORS
+// Ce middleware s'assure que le header CORS utilise l'origine de la requête
+const forceCorsOrigin = (req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Si l'origine est présente et autorisée, forcer le header correct
+  if (origin && (origin.includes('codegenesis-platform.web.app') || 
+                 origin.includes('codegenesis-platform.firebaseapp.com'))) {
+    // Forcer le header avec l'origine de la requête
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+  }
+  next();
+};
+
+// Configuration CORS avec callback pour retourner l'origine de la requête
 app.use(cors({
   origin: function (origin, callback) {
     // Permettre les requêtes sans origin (mobile apps, Postman, etc.)
@@ -228,13 +249,19 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Vérifier si l'origine est autorisée
+    // Vérifier si l'origine est autorisée (priorité au frontend déployé)
+    if (origin.includes('codegenesis-platform.web.app') || 
+        origin.includes('codegenesis-platform.firebaseapp.com')) {
+      // Retourner explicitement l'origine de la requête pour le frontend déployé
+      console.log(`✅ CORS: Autorisation de l'origine: ${origin}`);
+      return callback(null, origin);
+    }
+    
     const isAllowed = allowedOrigins.some(allowed => {
       if (origin === allowed) return true;
       if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
       return false;
-    }) || origin.includes('codegenesis-platform.web.app') || 
-        origin.includes('codegenesis-platform.firebaseapp.com');
+    });
     
     if (isAllowed) {
       // Retourner explicitement l'origine de la requête
@@ -252,28 +279,9 @@ app.use(cors({
   maxAge: 86400 // Cache preflight requests for 24 hours
 }));
 
-// Middleware pour forcer le bon header CORS en production
-// Ce middleware s'assure que le header CORS utilise l'origine de la requête
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-  
-  // Si l'origine est présente et autorisée, forcer le header correct
-  if (origin) {
-    const isAllowed = allowedOrigins.some(allowed => {
-      if (origin === allowed) return true;
-      if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
-      return false;
-    }) || origin.includes('codegenesis-platform.web.app') || 
-        origin.includes('codegenesis-platform.firebaseapp.com');
-    
-    if (isAllowed) {
-      // Forcer le header avec l'origine de la requête
-      res.header('Access-Control-Allow-Origin', origin);
-      res.header('Access-Control-Allow-Credentials', 'true');
-    }
-  }
-  next();
-});
+// Appliquer le middleware de force CORS après cors()
+// Ce middleware écrase le header CORS avec l'origine de la requête si nécessaire
+app.use(forceCorsOrigin);
 
 // Gérer les requêtes OPTIONS (preflight) explicitement
 app.options('*', (req, res) => {

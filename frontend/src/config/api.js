@@ -7,7 +7,7 @@ const API_CONFIG = {
   BASE_URL: process.env.REACT_APP_API_BASE_URL || 
     (process.env.NODE_ENV === 'production' 
       ? 'https://codegenesis-backend.onrender.com' 
-      : getApiUrl('')),
+      : 'http://localhost:5000'),
   
   // Configuration Konnect - PRODUCTION
   KONNECT: {
