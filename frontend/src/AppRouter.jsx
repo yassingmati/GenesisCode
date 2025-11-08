@@ -119,14 +119,86 @@ const GlobalStyle = createGlobalStyle`
  * role: 'client' | 'admin'
  */
 function PrivateRoute({ children, role }) {
-  const { currentUser, admin } = useAuth();
+  const { currentUser, admin, loading } = useAuth();
+  const [isChecking, setIsChecking] = React.useState(true);
 
-  if (role === 'client' && !currentUser) {
-    return <Navigate to="/login" replace />;
+  React.useEffect(() => {
+    // Si le contexte est encore en chargement, attendre
+    if (loading) {
+      return;
+    }
+
+    // Vérifier le backend auth si pas d'utilisateur Firebase
+    if (role === 'client' && !currentUser) {
+      const backendToken = localStorage.getItem('token');
+      const backendUser = localStorage.getItem('user');
+      const hasBackendAuth = backendToken && backendUser;
+
+      if (!hasBackendAuth) {
+        // Pas d'authentification, laisser PrivateRoute rediriger
+        setIsChecking(false);
+        return;
+      }
+
+      // Il y a un token backend, attendre un peu que le contexte se mette à jour
+      const timeout = setTimeout(() => {
+        setIsChecking(false);
+      }, 300);
+      return () => clearTimeout(timeout);
+    }
+
+    setIsChecking(false);
+  }, [currentUser, admin, loading, role]);
+
+  // Afficher un loader pendant la vérification
+  if (loading || isChecking) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        color: 'white',
+        fontFamily: 'Inter, system-ui'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '50px',
+            height: '50px',
+            border: '4px solid rgba(255,255,255,0.3)',
+            borderTop: '4px solid white',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 20px'
+          }}></div>
+          <p>Vérification de l'authentification...</p>
+        </div>
+        <style>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
   }
+
+  // Vérifier l'authentification après le chargement
+  if (role === 'client') {
+    const backendToken = localStorage.getItem('token');
+    const backendUser = localStorage.getItem('user');
+    const hasBackendAuth = backendToken && backendUser;
+    
+    if (!currentUser && !hasBackendAuth) {
+      return <Navigate to="/login" replace />;
+    }
+  }
+  
   if (role === 'admin' && !admin) {
     return <Navigate to="/admin/login" replace />;
   }
+  
   return children;
 }
 
