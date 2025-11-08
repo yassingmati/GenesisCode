@@ -16,14 +16,19 @@ const sendVerificationEmail = require('../utils/emailService');
 
 // Initialize Firestore seulement si Firebase est disponible
 let db, usersCollection;
-if (isFirebaseAvailable()) {
+const isFirestoreAvailable = () => {
+  if (!isFirebaseAvailable()) return false;
   try {
-    db = admin.firestore();
-    usersCollection = db.collection('users');
+    if (!db) {
+      db = admin.firestore();
+      usersCollection = db.collection('users');
+    }
+    return true;
   } catch (error) {
     console.warn('Firestore non disponible:', error.message);
+    return false;
   }
-}
+};
 
 /**
  * Helper function to format the user object for responses.
@@ -273,11 +278,16 @@ exports.loginWithEmail = async (req, res) => {
             }
         }
 
-        // Update last login in Firestore
-        if (isFirebaseAvailable()) {
-            await usersCollection.doc(uid).set({
-                lastLogin: admin.firestore.FieldValue.serverTimestamp()
-            }, { merge: true });
+        // Update last login in Firestore (optional - MongoDB is primary DB)
+        if (isFirestoreAvailable()) {
+            try {
+                await usersCollection.doc(uid).set({
+                    lastLogin: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } catch (firestoreError) {
+                // Firestore update is optional - log but don't fail
+                console.warn('Firestore update failed (non-critical):', firestoreError.message);
+            }
         }
 
         // Generate JWT
@@ -346,14 +356,21 @@ exports.loginWithGoogle = async (req, res) => {
             await dbUser.save();
         }
 
-        // Update Firestore
-        await usersCollection.doc(uid).set({
-            uid,
-            email,
-            fullName: name || email.split('@')[0],
-            lastLogin: admin.firestore.FieldValue.serverTimestamp(),
-            authProvider: 'google',
-        }, { merge: true });
+        // Update Firestore (optional - MongoDB is primary DB)
+        if (isFirestoreAvailable()) {
+            try {
+                await usersCollection.doc(uid).set({
+                    uid,
+                    email,
+                    fullName: name || email.split('@')[0],
+                    lastLogin: admin.firestore.FieldValue.serverTimestamp(),
+                    authProvider: 'google',
+                }, { merge: true });
+            } catch (firestoreError) {
+                // Firestore update is optional - log but don't fail
+                console.warn('Firestore update failed (non-critical):', firestoreError.message);
+            }
+        }
 
         // Generate JWT
         const token = jwt.sign(
