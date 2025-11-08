@@ -3,7 +3,10 @@ import { getApiUrl } from '../utils/apiConfig';
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://codegenesis-backend.onrender.com' 
+    : getApiUrl(''));
 
 /**
  * Hook personnalisé pour gérer les erreurs de notifications

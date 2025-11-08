@@ -1,52 +1,74 @@
-// Test de l'endpoint de login
-const http = require('http');
+// Script de test pour le login
+const axios = require('axios');
 
-function testLogin(email, password) {
-  return new Promise((resolve) => {
-    const postData = JSON.stringify({ email, password });
+const API_URL = process.env.API_URL || 'http://localhost:5000/api';
+
+async function testLogin() {
+  console.log('🧪 Test du login...\n');
+  
+  // Test 1: Health check
+  console.log('1️⃣ Test du health check...');
+  try {
+    const healthResponse = await axios.get(`${API_URL}/health`);
+    console.log('✅ Health check OK:', healthResponse.data);
+  } catch (error) {
+    console.error('❌ Health check échoué:', error.message);
+    if (error.code === 'ECONNREFUSED') {
+      console.error('❌ Le serveur n\'est pas démarré. Démarrez-le avec: cd backend && npm start');
+      process.exit(1);
+    }
+  }
+  
+  console.log('\n2️⃣ Test du login avec email/password...');
+  
+  // Test avec un utilisateur de test
+  const testEmail = 'test@example.com';
+  const testPassword = 'password123';
+  
+  try {
+    const loginResponse = await axios.post(`${API_URL}/auth/login`, {
+      email: testEmail,
+      password: testPassword
+    });
     
-    const req = http.request({
-      hostname: 'localhost',
-      port: 5000,
-      path: '/api/auth/login',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
+    console.log('✅ Login réussi!');
+    console.log('Token:', loginResponse.data.token ? '✅ Présent' : '❌ Absent');
+    console.log('User:', loginResponse.data.user);
+    console.log('Message:', loginResponse.data.message);
+    
+    // Test avec le token
+    if (loginResponse.data.token) {
+      console.log('\n3️⃣ Test de l\'authentification avec le token...');
+      try {
+        const userResponse = await axios.get(`${API_URL}/users/me`, {
+          headers: {
+            'Authorization': `Bearer ${loginResponse.data.token}`
+          }
+        });
+        console.log('✅ Authentification token OK:', userResponse.data);
+      } catch (tokenError) {
+        console.error('❌ Erreur avec le token:', tokenError.response?.data || tokenError.message);
       }
-    }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => {
-        console.log(`\nLogin Test - Status: ${res.statusCode}`);
-        console.log(`Response: ${body}`);
-        resolve({ status: res.statusCode, body: JSON.parse(body) });
-      });
-    });
+    }
     
-    req.on('error', (err) => {
-      console.log(`\nLogin Test - ERROR: ${err.message}`);
-      resolve({ status: 0, body: err.message });
-    });
+  } catch (error) {
+    console.error('❌ Login échoué');
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Message:', error.response.data.message || error.response.data.error);
+      console.error('Data:', error.response.data);
+    } else {
+      console.error('Erreur:', error.message);
+    }
     
-    req.write(postData);
-    req.end();
-  });
-}
-
-async function main() {
-  console.log('Testing login endpoint...');
-  
-  // Test avec l'utilisateur existant
-  const result = await testLogin('test+1760970252689@example.com', 'anypassword');
-  
-  if (result.status === 200 && result.body.token) {
-    console.log('\n✅ Login successful!');
-    console.log(`Token: ${result.body.token.substring(0, 50)}...`);
-    console.log(`User: ${JSON.stringify(result.body.user, null, 2)}`);
-  } else {
-    console.log('\n❌ Login failed');
+    // Si l'utilisateur n'existe pas, proposer de le créer
+    if (error.response?.status === 404) {
+      console.log('\n💡 L\'utilisateur n\'existe pas. Essayez de vous inscrire d\'abord:');
+      console.log(`   POST ${API_URL}/auth/register`);
+      console.log(`   Body: { "email": "${testEmail}", "password": "${testPassword}" }`);
+    }
   }
 }
 
-main().catch(console.error);
+// Exécuter le test
+testLogin().catch(console.error);

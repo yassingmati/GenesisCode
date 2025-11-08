@@ -58,8 +58,25 @@ exports.register = async (req, res) => {
         if (!isFirebaseAvailable()) {
             console.warn('Firebase non disponible - création directe dans MongoDB');
             
+            // Vérifier si MongoDB est connecté
+            const mongoose = require('mongoose');
+            if (mongoose.connection.readyState !== 1) {
+                return res.status(503).json({ 
+                    message: 'Service temporairement indisponible. La base de données n\'est pas connectée. Veuillez réessayer plus tard.' 
+                });
+            }
+            
             // Vérifier si l'utilisateur existe déjà
-            const existingUser = await User.findOne({ email });
+            let existingUser;
+            try {
+                existingUser = await User.findOne({ email });
+            } catch (dbError) {
+                console.error('Erreur MongoDB lors de la recherche utilisateur:', dbError);
+                return res.status(503).json({ 
+                    message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.' 
+                });
+            }
+            
             if (existingUser) {
                 return res.status(409).json({ message: 'This email is already in use.' });
             }
@@ -152,8 +169,24 @@ exports.loginWithEmail = async (req, res) => {
         if (!isFirebaseAvailable() || !process.env.FIREBASE_WEB_API_KEY) {
             console.warn('Firebase non disponible - utilisation de l\'authentification simple');
             
+            // Vérifier si MongoDB est connecté
+            const mongoose = require('mongoose');
+            if (mongoose.connection.readyState !== 1) {
+                return res.status(503).json({ 
+                    message: 'Service temporairement indisponible. La base de données n\'est pas connectée. Veuillez réessayer plus tard.' 
+                });
+            }
+            
             // Authentification simple avec MongoDB uniquement
-            const dbUser = await User.findOne({ email });
+            let dbUser;
+            try {
+                dbUser = await User.findOne({ email });
+            } catch (dbError) {
+                console.error('Erreur MongoDB lors de la recherche utilisateur:', dbError);
+                return res.status(503).json({ 
+                    message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.' 
+                });
+            }
             
             if (!dbUser) {
                 return res.status(404).json({ message: 'No account is associated with this email.' });

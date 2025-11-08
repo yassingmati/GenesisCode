@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../utils/apiConfig';
 
 // Composants d'exercice
 import CodeExercise from '../components/exercises/CodeExercise';
@@ -104,9 +105,16 @@ const ExercisePage = () => {
     
     try {
       setIsSubmitting(true);
-      const response = await axios.post(`http://localhost:5000/api/courses/exercises/${exerciseId}/submit`, {
+      const apiUrl = getApiUrl(`/api/courses/exercises/${exerciseId}/submit`);
+      const token = localStorage.getItem('token');
+      const response = await axios.post(apiUrl, {
         userId: getCurrentUserId(),
         answer: prepareSubmissionAnswer()
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
       
       setSubmissionResult(response.data);

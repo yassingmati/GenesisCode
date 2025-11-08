@@ -3,10 +3,12 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 import { getApiUrl } from './apiConfig';
 
-// En production, utiliser URL relative (même domaine) pour éviter CORS via rewrites Firebase Hosting
+// En production, utiliser le backend Render
 // En développement, utiliser localhost
 const baseURL = process.env.REACT_APP_API_BASE_URL || 
-  (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://codegenesis-backend.onrender.com' 
+    : getApiUrl(''));
 
 const api = axios.create({
   baseURL,

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiCheck, FiX, FiLoader, FiCreditCard } from 'react-icons/fi';
+import { getApiUrl } from '../utils/apiConfig';
 import './SimplePaymentModal.css';
 
 const SimplePaymentModal = ({ isOpen, onClose, onSuccess }) => {
@@ -25,7 +26,7 @@ const SimplePaymentModal = ({ isOpen, onClose, onSuccess }) => {
       const apiUrl = process.env.REACT_APP_API_BASE_URL || 
         (process.env.NODE_ENV === 'production' 
           ? 'https://codegenesis-backend.onrender.com' 
-          : 'http://localhost:5000');
+          : getApiUrl(''));
       const response = await fetch(`${apiUrl}/api/plans`);
       const data = await response.json();
 
@@ -82,15 +83,24 @@ const SimplePaymentModal = ({ isOpen, onClose, onSuccess }) => {
       const apiUrl = process.env.REACT_APP_API_BASE_URL || 
         (process.env.NODE_ENV === 'production' 
           ? 'https://codegenesis-backend.onrender.com' 
-          : 'http://localhost:5000');
+          : getApiUrl(''));
+      const token = localStorage.getItem('token');
+      const user = localStorage.getItem('user');
+      const userEmail = user ? JSON.parse(user).email : 'user@genesis.com';
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${apiUrl}/api/payment/init`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
+        headers,
         body: JSON.stringify({
           planId: plan._id,
-          customerEmail: 'user@genesis.com'
+          customerEmail: userEmail
         })
       });
 

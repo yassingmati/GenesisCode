@@ -29,6 +29,36 @@ exports.requireFlexibleLevelAccess = () => {
         });
       }
 
+      // Vérifier si l'utilisateur est un administrateur
+      const isAdmin = req.admin || (req.user.roles && req.user.roles.includes('admin')) || req.user.role === 'admin';
+      
+      if (isAdmin) {
+        // Les administrateurs ont accès à tous les niveaux
+        console.log(`[DEBUG flexibleAccessMiddleware] Admin access granted: userId=${userId}, levelId=${levelId}`);
+        const Level = require('../models/Level');
+        const level = await Level.findById(levelId).populate('path').lean();
+        
+        if (!level) {
+          return res.status(404).json({ 
+            success: false, 
+            message: 'Niveau non trouvé',
+            code: 'LEVEL_NOT_FOUND'
+          });
+        }
+
+        req.levelAccess = { 
+          hasAccess: true, 
+          accessType: 'admin', 
+          canView: true, 
+          canInteract: true, 
+          canDownload: true, 
+          source: 'admin' 
+        };
+        req.pathId = level.path._id;
+        req.categoryId = level.path.category;
+        return next();
+      }
+
       // Récupérer le niveau pour obtenir pathId et categoryId
       const Level = require('../models/Level');
       const level = await Level.findById(levelId).populate('path').lean();
@@ -99,6 +129,23 @@ exports.requireFlexibleCourseAccess = () => {
         });
       }
 
+      // Vérifier si l'utilisateur est un administrateur
+      const isAdmin = req.admin || (req.user.roles && req.user.roles.includes('admin')) || req.user.role === 'admin';
+      
+      if (isAdmin) {
+        // Les administrateurs ont accès à tous les parcours
+        console.log(`[DEBUG flexibleAccessMiddleware] Admin access granted: userId=${userId}, pathId=${pathId}`);
+        req.courseAccess = { 
+          hasAccess: true, 
+          accessType: 'admin', 
+          canView: true, 
+          canInteract: true, 
+          canDownload: true, 
+          source: 'admin' 
+        };
+        return next();
+      }
+
       // Vérifier l'accès via AccessControlService
       const access = await AccessControlService.checkUserAccess(userId, pathId);
       
@@ -150,6 +197,9 @@ exports.requireExerciseAccess = () => {
         });
       }
 
+      // Vérifier si l'utilisateur est un administrateur
+      const isAdmin = req.admin || (req.user.roles && req.user.roles.includes('admin')) || req.user.role === 'admin';
+      
       // Récupérer l'exercice pour obtenir levelId, pathId
       const Exercise = require('../models/Exercise');
       const exercise = await Exercise.findById(exerciseId).populate({
@@ -167,6 +217,22 @@ exports.requireExerciseAccess = () => {
 
       const levelId = exercise.level._id;
       const pathId = exercise.level.path._id;
+
+      if (isAdmin) {
+        // Les administrateurs ont accès à tous les exercices
+        console.log(`[DEBUG flexibleAccessMiddleware] Admin access granted: userId=${userId}, exerciseId=${exerciseId}`);
+        req.exerciseAccess = { 
+          hasAccess: true, 
+          accessType: 'admin', 
+          canView: true, 
+          canInteract: true, 
+          canDownload: true, 
+          source: 'admin' 
+        };
+        req.levelId = levelId;
+        req.pathId = pathId;
+        return next();
+      }
 
       // Vérifier l'accès via AccessControlService
       const access = await AccessControlService.checkUserAccess(userId, pathId, levelId, exerciseId);

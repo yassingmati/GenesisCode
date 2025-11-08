@@ -3,7 +3,10 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../utils/apiConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://codegenesis-backend.onrender.com' 
+    : getApiUrl(''));
 
 /**
  * Composant pour afficher les notifications dans le dashboard

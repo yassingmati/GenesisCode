@@ -1,0 +1,86 @@
+// Script pour configurer MongoDB Atlas dans backend/.env
+const fs = require('fs');
+const path = require('path');
+const readline = require('readline');
+
+const rl = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+function question(prompt) {
+  return new Promise((resolve) => {
+    rl.question(prompt, resolve);
+  });
+}
+
+async function setupMongoDB() {
+  console.log('\n═══════════════════════════════════════════════════════════');
+  console.log('      CONFIGURATION MONGODB ATLAS - CodeGenesis');
+  console.log('═══════════════════════════════════════════════════════════\n');
+
+  console.log('D\'après MongoDB Atlas:');
+  console.log('  Cluster: cluster0.whxj5zj.mongodb.net');
+  console.log('  Utilisateur: discord');
+  console.log('  Network Access: ✅ Configuré (0.0.0.0/0 actif)\n');
+
+  // Demander le mot de passe
+  const password = await question('Entrez le mot de passe pour l\'utilisateur "discord": ');
+  
+  if (!password) {
+    console.error('❌ Mot de passe requis');
+    process.exit(1);
+  }
+
+  // Construire l'URI
+  const mongoURI = `mongodb+srv://discord:${password}@cluster0.whxj5zj.mongodb.net/codegenesis?retryWrites=true&w=majority&appName=Cluster0`;
+
+  // Lire le fichier .env actuel
+  const envPath = path.join(__dirname, '.env');
+  let envContent = '';
+
+  try {
+    envContent = fs.readFileSync(envPath, 'utf8');
+  } catch (err) {
+    console.error('❌ Erreur lecture fichier .env:', err.message);
+    process.exit(1);
+  }
+
+  // Remplacer ou ajouter MONGODB_URI
+  const lines = envContent.split('\n');
+  let updated = false;
+  const newLines = lines.map(line => {
+    if (line.startsWith('MONGODB_URI=') || line.startsWith('MONGO_URI=')) {
+      updated = true;
+      return `MONGODB_URI=${mongoURI}`;
+    }
+    return line;
+  });
+
+  // Si MONGODB_URI n'existe pas, l'ajouter
+  if (!updated) {
+    newLines.push(`MONGODB_URI=${mongoURI}`);
+  }
+
+  // Écrire le fichier .env
+  try {
+    fs.writeFileSync(envPath, newLines.join('\n'), 'utf8');
+    console.log('\n✅ Fichier .env mis à jour avec succès!');
+    console.log(`\nURI MongoDB Atlas configurée:`);
+    console.log(`mongodb+srv://discord:***@cluster0.whxj5zj.mongodb.net/codegenesis`);
+    console.log('\n📋 Prochaines étapes:');
+    console.log('1. ✅ Network Access est déjà configuré (0.0.0.0/0 actif)');
+    console.log('2. Le serveur redémarrera automatiquement avec nodemon');
+    console.log('3. Vous devriez voir: ✅ Connecté à MongoDB');
+    console.log('4. Testez avec: node test-server.js (depuis le dossier racine)');
+    console.log('\n✅ Configuration terminée!\n');
+  } catch (err) {
+    console.error('❌ Erreur écriture fichier .env:', err.message);
+    process.exit(1);
+  }
+
+  rl.close();
+}
+
+setupMongoDB().catch(console.error);
+

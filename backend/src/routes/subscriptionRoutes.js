@@ -60,16 +60,31 @@ router.get('/me', catchErrors(async (req, res) => {
       });
     }
 
+    // Populate le plan si ce n'est pas déjà fait
+    if (subscription.plan && typeof subscription.plan === 'object' && !subscription.plan._id) {
+      await subscription.populate('plan');
+    }
+
     return res.json({
       success: true,
       subscription: {
         id: subscription._id,
         status: subscription.status,
-        plan: subscription.plan,
+        plan: subscription.plan ? {
+          _id: subscription.plan._id || subscription.plan.id,
+          id: subscription.plan._id || subscription.plan.id,
+          name: subscription.plan.name,
+          description: subscription.plan.description,
+          priceMonthly: subscription.plan.priceMonthly,
+          currency: subscription.plan.currency
+        } : null,
+        planId: subscription.plan?._id || subscription.plan?.id || null,
         currentPeriodStart: subscription.currentPeriodStart,
         currentPeriodEnd: subscription.currentPeriodEnd,
         cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-        createdAt: subscription.createdAt
+        canceledAt: subscription.canceledAt,
+        createdAt: subscription.createdAt,
+        konnectStatus: subscription.konnectStatus
       },
       message: 'Abonnement récupéré avec succès'
     });

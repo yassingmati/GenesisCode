@@ -92,9 +92,13 @@ export default function SingleExercisePage() {
         userId: getUserId()
       };
 
+      const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/exercises/${exercise._id}/submit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify(payload)
       });
 

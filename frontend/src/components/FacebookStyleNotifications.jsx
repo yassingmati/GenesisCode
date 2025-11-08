@@ -6,7 +6,10 @@ import { useRequestThrottle } from '../hooks/useRequestThrottle';
 import { NotificationErrorDisplay } from './NotificationErrorHandler';
 import { getApiUrl } from '../utils/apiConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://codegenesis-backend.onrender.com' 
+    : getApiUrl(''));
 
 /**
  * Composant de notifications style Facebook avec écon
