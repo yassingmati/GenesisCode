@@ -36,50 +36,117 @@ export function AuthProvider({ children }) {
   // Loading initial state
   const [loading, setLoading] = useState(true);
 
+  // Vérifier immédiatement le backend auth au démarrage (avant Firebase)
+  useEffect(() => {
+    const checkBackendAuthOnInit = () => {
+      try {
+        const backendToken = localStorage.getItem('token');
+        const backendUser = localStorage.getItem('user');
+        
+        if (backendToken && backendUser) {
+          try {
+            const userData = JSON.parse(backendUser);
+            // Créer un objet utilisateur compatible avec Firebase
+            const mockFirebaseUser = {
+              uid: userData._id || userData.id,
+              email: userData.email,
+              displayName: userData.firstName && userData.lastName 
+                ? `${userData.firstName} ${userData.lastName}` 
+                : userData.email,
+              emailVerified: userData.isVerified || false,
+              // Ajouter les données personnalisées
+              ...userData
+            };
+            
+            console.log('✅ Utilisateur backend trouvé dans localStorage:', mockFirebaseUser.email);
+            setCurrentUser(mockFirebaseUser);
+          } catch (parseError) {
+            console.error('❌ Erreur lors du parsing des données utilisateur:', parseError);
+            // Nettoyer les données corrompues
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+          }
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la vérification de l\'authentification backend:', error);
+      }
+    };
+
+    // Vérifier immédiatement au chargement
+    checkBackendAuthOnInit();
+  }, []); // Exécuter une seule fois au montage
+
   // Surveille l'état Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, user => {
-      setCurrentUser(user);
-      setLoading(false);
+      // Si un utilisateur Firebase est connecté, l'utiliser
+      if (user) {
+        setCurrentUser(user);
+      } else {
+        // Si pas d'utilisateur Firebase, vérifier le backend auth
+        const backendToken = localStorage.getItem('token');
+        const backendUser = localStorage.getItem('user');
+        if (backendToken && backendUser && !currentUser) {
+          try {
+            const userData = JSON.parse(backendUser);
+            const mockFirebaseUser = {
+              uid: userData._id || userData.id,
+              email: userData.email,
+              displayName: userData.firstName && userData.lastName 
+                ? `${userData.firstName} ${userData.lastName}` 
+                : userData.email,
+              emailVerified: userData.isVerified || false,
+              ...userData
+            };
+            setCurrentUser(mockFirebaseUser);
+          } catch (e) {
+            console.error('Erreur parsing user:', e);
+          }
+        }
+      }
+      // Marquer le chargement comme terminé (avec un petit délai pour laisser le temps au backend auth)
+      setTimeout(() => setLoading(false), 100);
     });
     return unsubscribe;
   }, []);
 
-  // Vérifie aussi les utilisateurs connectés via l'API backend
+  // Vérifie aussi les utilisateurs connectés via l'API backend (vérification périodique)
   useEffect(() => {
     const checkBackendAuth = () => {
       try {
         const backendToken = localStorage.getItem('token');
         const backendUser = localStorage.getItem('user');
         
-        if (backendToken && backendUser) {
-          const userData = JSON.parse(backendUser);
-          // Créer un objet utilisateur compatible avec Firebase
-          const mockFirebaseUser = {
-            uid: userData._id || userData.id,
-            email: userData.email,
-            displayName: userData.firstName && userData.lastName 
-              ? `${userData.firstName} ${userData.lastName}` 
-              : userData.email,
-            emailVerified: userData.isVerified || false,
-            // Ajouter les données personnalisées
-            ...userData
-          };
-          
-          if (!currentUser) {
+        if (backendToken && backendUser && !currentUser) {
+          try {
+            const userData = JSON.parse(backendUser);
+            // Créer un objet utilisateur compatible avec Firebase
+            const mockFirebaseUser = {
+              uid: userData._id || userData.id,
+              email: userData.email,
+              displayName: userData.firstName && userData.lastName 
+                ? `${userData.firstName} ${userData.lastName}` 
+                : userData.email,
+              emailVerified: userData.isVerified || false,
+              // Ajouter les données personnalisées
+              ...userData
+            };
+            
             setCurrentUser(mockFirebaseUser);
+          } catch (parseError) {
+            console.error('❌ Erreur lors du parsing des données utilisateur:', parseError);
           }
+        } else if (!backendToken && !backendUser && currentUser && !currentUser.uid?.startsWith('firebase:')) {
+          // Si le token backend a été supprimé mais qu'on a un utilisateur backend, le retirer
+          setCurrentUser(null);
         }
       } catch (error) {
-        console.error('Erreur lors de la vérification de l\'authentification backend:', error);
+        console.error('❌ Erreur lors de la vérification de l\'authentification backend:', error);
       }
     };
 
-    // Vérifier immédiatement
-    checkBackendAuth();
-
-    // Vérifier périodiquement (toutes les 5 secondes)
-    const interval = setInterval(checkBackendAuth, 5000);
+    // Vérifier périodiquement (toutes les 10 secondes)
+    const interval = setInterval(checkBackendAuth, 10000);
 
     return () => clearInterval(interval);
   }, [currentUser]);

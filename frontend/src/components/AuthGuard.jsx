@@ -13,21 +13,42 @@ export default function AuthGuard({ children, requireAuth = true }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Attendre que le contexte d'auth soit initialisé
-      if (loading) {
-        return;
-      }
+      // Vérifier le localStorage en premier (plus rapide)
+      const backendToken = localStorage.getItem('token');
+      const backendUser = localStorage.getItem('user');
+      const hasBackendAuth = backendToken && backendUser;
 
       // Si l'authentification est requise
       if (requireAuth) {
+        // Si on a un token backend, attendre un peu que le contexte se mette à jour
+        if (hasBackendAuth && !currentUser && loading) {
+          // Attendre que le contexte charge l'utilisateur depuis localStorage
+          const timeout = setTimeout(() => {
+            setIsChecking(false);
+          }, 500); // Attendre 500ms max
+          return () => clearTimeout(timeout);
+        }
+
         // Vérifier si l'utilisateur est connecté (Firebase ou Backend)
         const isAuthenticated = currentUser !== null;
         
-        // Vérifier aussi le localStorage pour les utilisateurs backend
-        const backendToken = localStorage.getItem('token');
-        const backendUser = localStorage.getItem('user');
-        const hasBackendAuth = backendToken && backendUser;
+        // Si on a un token backend mais pas d'utilisateur dans le contexte, 
+        // attendre un peu plus que le contexte se mette à jour
+        if (hasBackendAuth && !isAuthenticated) {
+          // Donner une chance au contexte de charger l'utilisateur
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Re-vérifier après l'attente
+          const backendUserAfterWait = localStorage.getItem('user');
+          if (backendUserAfterWait) {
+            // L'utilisateur existe toujours, autoriser l'accès
+            // Le contexte se mettra à jour bientôt
+            setIsChecking(false);
+            return;
+          }
+        }
 
+        // Si toujours pas d'authentification
         if (!isAuthenticated && !hasBackendAuth) {
           console.log('🔒 Accès refusé - Redirection vers login');
           navigate('/login', { replace: true });
