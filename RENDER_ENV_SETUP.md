@@ -57,31 +57,31 @@
 
 ### Variables OPTIONNELLES (Services externes)
 
-9. **STRIPE_SECRET_KEY**
+16. **STRIPE_SECRET_KEY**
    - **Description**: Clé secrète Stripe (si vous utilisez Stripe)
    - **Où l'obtenir**: https://dashboard.stripe.com/apikeys
    - **Format**: `sk_test_...` ou `sk_live_...`
 
-10. **STRIPE_WEBHOOK_SECRET**
+17. **STRIPE_WEBHOOK_SECRET**
     - **Description**: Secret webhook Stripe (pour valider les webhooks)
     - **Où l'obtenir**: https://dashboard.stripe.com/webhooks
     - **Format**: `whsec_...`
 
-11. **KONNECT_API_KEY**
+18. **KONNECT_API_KEY**
     - **Description**: Clé API Konnect (si vous utilisez Konnect pour les paiements)
     - **Où l'obtenir**: Votre dashboard Konnect
     - **Format**: Votre clé API Konnect
 
-15. **FIREBASE_PROJECT_ID**
+22. **FIREBASE_PROJECT_ID**
     - **Description**: ID du projet Firebase
     - **Où l'obtenir**: Firebase Console > Project Settings
 
-16. **FIREBASE_CLIENT_EMAIL**
+23. **FIREBASE_CLIENT_EMAIL**
     - **Description**: Email du compte de service Firebase
     - **Format**: `firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com`
     - **Où l'obtenir**: Firebase Console > Project Settings > Service Accounts
 
-17. **FIREBASE_PRIVATE_KEY**
+24. **FIREBASE_PRIVATE_KEY**
     - **Description**: Clé privée Firebase (compte de service)
     - **Format**: 
       ```
@@ -92,25 +92,25 @@
     - **Important**: Dans Render, vous devez inclure les vrais sauts de ligne
     - **Où l'obtenir**: Firebase Console > Project Settings > Service Accounts > Generate new private key
 
-18. **FIREBASE_PRIVATE_KEY_ID**
+25. **FIREBASE_PRIVATE_KEY_ID**
     - **Description**: ID de la clé privée Firebase
     - **Où l'obtenir**: Dans le fichier JSON du compte de service Firebase
 
-19. **FIREBASE_CLIENT_ID**
+26. **FIREBASE_CLIENT_ID**
     - **Description**: ID client Firebase
     - **Où l'obtenir**: Dans le fichier JSON du compte de service Firebase
 
-20. **FIREBASE_CLIENT_X509_CERT_URL**
+27. **FIREBASE_CLIENT_X509_CERT_URL**
     - **Description**: URL du certificat X509 Firebase
     - **Format**: `https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-xxxxx%40your-project.iam.gserviceaccount.com`
     - **Où l'obtenir**: Dans le fichier JSON du compte de service Firebase
 
-21. **FIREBASE_STORAGE_BUCKET**
+28. **FIREBASE_STORAGE_BUCKET**
     - **Description**: Bucket de stockage Firebase
     - **Format**: `your-project.appspot.com`
     - **Où l'obtenir**: Firebase Console > Storage
 
-22. **FIREBASE_WEB_API_KEY**
+29. **FIREBASE_WEB_API_KEY**
     - **Description**: Clé API web Firebase (pour l'authentification côté client)
     - **Où l'obtenir**: Firebase Console > Project Settings > General > Web API Key
 
@@ -168,16 +168,32 @@ Exécutez cette commande deux fois pour obtenir deux secrets différents (un pou
 
 ## 📝 Exemple de Configuration Complète
 
-Voici un exemple de configuration minimale pour Render:
+Voici un exemple de configuration complète pour Render:
 
 ```
+# Variables Requises
 MONGODB_URI=mongodb+srv://user:password@cluster0.xxxxx.mongodb.net/codegenesis?retryWrites=true&w=majority
 JWT_SECRET=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6
 JWT_ADMIN_SECRET=z9y8x7w6v5u4t3s2r1q0p9o8n7m6l5k4j3i2h1g0f9e8d7c6b5a4
 CLIENT_ORIGIN=https://codegenesis-platform.web.app
 NODE_ENV=production
+
+# Variables Recommandées
 APP_BASE_URL=https://codegenesis-platform.web.app
 CLIENT_URL=https://codegenesis-platform.web.app
+SERVER_URL=https://codegenesis-backend.onrender.com
+
+# Variables Email (Pour la validation d'email)
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=xxxx xxxx xxxx xxxx
+
+# Variables Optionnelles (Services externes)
+# STRIPE_SECRET_KEY=sk_test_...
+# STRIPE_WEBHOOK_SECRET=whsec_...
+# KONNECT_API_KEY=your-konnect-api-key
+# KONNECT_RECEIVER_WALLET_ID=your-receiver-wallet-id
+# FIREBASE_PROJECT_ID=your-firebase-project-id
+# etc.
 ```
 
 ## ⚠️ Notes Importantes
@@ -204,6 +220,13 @@ CLIENT_URL=https://codegenesis-platform.web.app
 5. **Redéploiement**:
    - Après avoir ajouté/modifié des variables d'environnement, Render redéploiera automatiquement votre service
    - Vérifiez les logs après le redéploiement pour vous assurer que tout fonctionne
+
+6. **Configuration Email (Gmail)**:
+   - Activez la vérification en 2 étapes sur votre compte Gmail
+   - Créez un "Mot de passe d'application" depuis: https://myaccount.google.com/apppasswords
+   - Utilisez ce mot de passe dans EMAIL_PASS (sans espaces)
+   - Assurez-vous que SERVER_URL pointe vers l'URL de votre backend Render
+   - Testez l'envoi d'email en utilisant l'endpoint `/api/auth/send-verification`
 
 ## 🔍 Vérification
 
