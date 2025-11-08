@@ -1,0 +1,51 @@
+# ============================================
+# VARIABLES D'ENVIRONNEMENT POUR RENDER
+# ============================================
+# Copiez ces variables dans Render Dashboard > Your Service > Environment
+
+# ============================================
+# VARIABLES REQUISES (OBLIGATOIRES)
+# ============================================
+
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/codegenesis?retryWrites=true&w=majority
+JWT_SECRET=your-super-secret-jwt-key-minimum-32-characters-long
+JWT_ADMIN_SECRET=your-super-secret-admin-jwt-key-minimum-32-characters-long
+CLIENT_ORIGIN=https://codegenesis-platform.web.app
+NODE_ENV=production
+
+# ============================================
+# VARIABLES OPTIONNELLES (RECOMMANDÉES)
+# ============================================
+
+APP_BASE_URL=https://codegenesis-platform.web.app
+CLIENT_URL=https://codegenesis-platform.web.app
+
+# ============================================
+# STRIPE (OPTIONNEL)
+# ============================================
+
+# STRIPE_SECRET_KEY=sk_test_...
+# STRIPE_WEBHOOK_SECRET=whsec_...
+
+# ============================================
+# KONNECT (OPTIONNEL)
+# ============================================
+
+# KONNECT_API_KEY=your-konnect-api-key
+# KONNECT_RECEIVER_WALLET_ID=your-receiver-wallet-id
+# KONNECT_BASE_URL=https://api.sandbox.konnect.network
+# KONNECT_WEBHOOK_URL=https://your-backend-url.onrender.com/api/konnect/webhook
+
+# ============================================
+# FIREBASE (OPTIONNEL)
+# ============================================
+
+# FIREBASE_PROJECT_ID=your-firebase-project-id
+# FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
+# FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+# FIREBASE_PRIVATE_KEY_ID=your-private-key-id
+# FIREBASE_CLIENT_ID=your-client-id
+# FIREBASE_CLIENT_X509_CERT_URL=https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-xxxxx%40your-project.iam.gserviceaccount.com
+# FIREBASE_STORAGE_BUCKET=your-project.appspot.com
+# FIREBASE_WEB_API_KEY=your-firebase-web-api-key
+
