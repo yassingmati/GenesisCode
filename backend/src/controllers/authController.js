@@ -225,17 +225,52 @@ exports.loginWithEmail = async (req, res) => {
 
         const { localId: uid } = response.data;
 
-        // Find or create user in MongoDB
-        let dbUser = await User.findOne({ firebaseUid: uid });
+        // Find user by email first (to handle users created with simple auth)
+        let dbUser = await User.findOne({ email });
 
-        if (!dbUser) {
-            const firebaseUser = await admin.auth().getUser(uid);
-            dbUser = new User({
-                firebaseUid: uid,
-                email: firebaseUser.email,
-                userType: 'student', // Default role
-            });
-            await dbUser.save();
+        if (dbUser) {
+            // User exists - update firebaseUid if different
+            if (dbUser.firebaseUid !== uid) {
+                // Check if another user already has this firebaseUid
+                const existingUserWithUid = await User.findOne({ firebaseUid: uid });
+                if (existingUserWithUid && existingUserWithUid._id.toString() !== dbUser._id.toString()) {
+                    // Another user has this firebaseUid - this shouldn't happen, but handle it
+                    console.error(`Conflict: User ${dbUser._id} has email ${email}, but user ${existingUserWithUid._id} has firebaseUid ${uid}`);
+                    // Use the existing user with this firebaseUid
+                    dbUser = existingUserWithUid;
+                } else {
+                    // Safe to update firebaseUid
+                    dbUser.firebaseUid = uid;
+                    await dbUser.save();
+                }
+            }
+        } else {
+            // User doesn't exist - try to find by firebaseUid
+            dbUser = await User.findOne({ firebaseUid: uid });
+            
+            if (!dbUser) {
+                // User doesn't exist at all - create new user
+                try {
+                    const firebaseUser = await admin.auth().getUser(uid);
+                    dbUser = new User({
+                        firebaseUid: uid,
+                        email: firebaseUser.email || email,
+                        userType: 'student', // Default role
+                    });
+                    await dbUser.save();
+                } catch (createError) {
+                    // If user creation fails due to duplicate key, try to find by email again
+                    if (createError.code === 11000) {
+                        console.warn('Duplicate key error during user creation, retrying find by email');
+                        dbUser = await User.findOne({ email });
+                        if (!dbUser) {
+                            throw createError; // Re-throw if still not found
+                        }
+                    } else {
+                        throw createError; // Re-throw other errors
+                    }
+                }
+            }
         }
 
         // Update last login in Firestore
