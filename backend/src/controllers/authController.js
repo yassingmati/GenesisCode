@@ -332,6 +332,8 @@ exports.loginWithGoogle = async (req, res) => {
     try {
         const { idToken } = req.body;
 
+        console.log('🔵 Authentification Google - Token reçu:', idToken ? idToken.substring(0, 50) + '...' : 'AUCUN');
+
         if (!idToken) {
             return res.status(400).json({ message: 'Google ID token is missing.' });
         }
@@ -341,24 +343,30 @@ exports.loginWithGoogle = async (req, res) => {
         // Si Firebase Admin est disponible, vérifier le token
         if (isFirebaseAvailable()) {
             try {
+                console.log('🔵 Vérification token avec Firebase Admin...');
                 const decodedToken = await admin.auth().verifyIdToken(idToken);
                 uid = decodedToken.uid;
                 email = decodedToken.email;
                 name = decodedToken.name;
+                console.log('✅ Token vérifié avec Firebase Admin:', { uid, email, name });
             } catch (verifyError) {
-                console.error('Erreur vérification token Google:', verifyError);
+                console.error('❌ Erreur vérification token Google:', verifyError);
                 if (verifyError.code === 'auth/id-token-expired') {
                     return res.status(401).json({ message: 'Google token has expired.' });
                 }
                 if (verifyError.code === 'auth/id-token-invalid') {
                     return res.status(401).json({ message: 'Google token is invalid.' });
                 }
+                // Si la vérification échoue, essayer le fallback
+                console.warn('⚠️ Vérification Firebase échouée, utilisation du fallback...');
                 throw verifyError;
             }
-        } else {
-            // Fallback: décoder le token JWT sans vérification Firebase
-            // ⚠️ En production, il faudrait vérifier le token avec Google directement
-            console.warn('⚠️ Firebase Admin non disponible - décodage token Google sans vérification');
+        }
+        
+        // Fallback: décoder le token JWT sans vérification Firebase
+        // Utilisé si Firebase Admin n'est pas disponible ou si la vérification échoue
+        if (!uid || !email) {
+            console.warn('⚠️ Firebase Admin non disponible ou vérification échouée - décodage token Google sans vérification');
             try {
                 // Vérifier que le token a le bon format (3 parties séparées par des points)
                 const tokenParts = idToken.split('.');
@@ -372,19 +380,22 @@ exports.loginWithGoogle = async (req, res) => {
                 const jsonPayload = Buffer.from(base64, 'base64').toString('utf-8');
                 const decoded = JSON.parse(jsonPayload);
                 
-                console.log('✅ Token Google décodé:', {
+                console.log('✅ Token Google décodé (fallback):', {
                     hasSub: !!decoded.sub,
                     hasEmail: !!decoded.email,
                     hasName: !!decoded.name,
-                    email: decoded.email
+                    email: decoded.email,
+                    allKeys: Object.keys(decoded)
                 });
                 
-                uid = decoded.sub || decoded.user_id || decoded.uid || `google-${Date.now()}`;
-                email = decoded.email || decoded.email_address;
-                name = decoded.name || decoded.display_name || decoded.full_name;
+                // Firebase Auth token contient généralement: sub, email, name, picture, etc.
+                uid = decoded.sub || decoded.user_id || decoded.uid || decoded.firebase?.identities?.email?.[0] || `google-${Date.now()}`;
+                email = decoded.email || decoded.email_address || decoded.firebase?.email;
+                name = decoded.name || decoded.display_name || decoded.full_name || decoded.firebase?.displayName;
             } catch (decodeError) {
                 console.error('❌ Erreur décodage token Google:', decodeError);
                 console.error('   Token reçu:', idToken.substring(0, 50) + '...');
+                console.error('   Stack:', decodeError.stack);
                 return res.status(401).json({ 
                     message: 'Google token is invalid or malformed.',
                     error: decodeError.message 
