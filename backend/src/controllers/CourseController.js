@@ -997,7 +997,7 @@ class CourseController {
         error: 'userId requis' 
       });
     }
-
+    
     // Valider que userId est une chaîne non vide (peut être un ObjectId MongoDB ou une string)
     if (typeof userId !== 'string' || userId.trim().length === 0) {
       console.warn('submitExercise: userId invalide', { exerciseId, userId, type: typeof userId });

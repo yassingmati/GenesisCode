@@ -216,6 +216,8 @@ function PageTitleUpdater() {
     if (p === '/') document.title = 'Accueil';
     else if (p === '/login') document.title = 'Connexion';
     else if (p === '/register') document.title = 'Inscription';
+    else if (p === '/forgot-password') document.title = 'Mot de passe oublié';
+    else if (p.startsWith('/reset-password')) document.title = 'Réinitialiser le mot de passe';
     else if (p === '/complete-profile') document.title = 'Compléter le profil';
     else if (p === '/verify-email-reminder') document.title = 'Vérifier votre email';
     else if (p === '/verified-success') document.title = 'Email vérifié';
@@ -256,7 +258,6 @@ export default function AppRouter() {
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/verify-email-reminder" element={<VerifyEmailReminder />} />
             <Route path="/verified-success" element={<VerifiedSuccess />} />

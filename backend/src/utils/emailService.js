@@ -40,11 +40,11 @@ const sendVerificationEmail = async (email, token) => {
           <h2 style="color: #333; margin-top: 0;">Vérification d'email</h2>
           <p style="color: #666; line-height: 1.6;">Merci de vous être inscrit sur notre plateforme. Veuillez cliquer sur le lien ci-dessous pour vérifier votre adresse email :</p>
           <p style="margin: 30px 0; text-align: center;">
-            <a href="${verificationLink}" 
+          <a href="${verificationLink}" 
                style="display: inline-block; padding: 15px 30px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-              Vérifier mon email
-            </a>
-          </p>
+            Vérifier mon email
+          </a>
+        </p>
           <p style="color: #999; font-size: 14px; margin-top: 30px;">Si vous n'avez pas créé de compte, veuillez ignorer cet email.</p>
           <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
             Ce lien expirera dans 1 heure.
@@ -74,8 +74,7 @@ const sendPasswordResetEmail = async (email, token) => {
     return;
   }
 
-  // Utiliser le format avec paramètre de route pour une meilleure URL
-  const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password/${token}`;
+  const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password?token=${token}`;
   
   const mailOptions = {
     from: process.env.EMAIL_USER,
@@ -97,15 +96,15 @@ const sendPasswordResetEmail = async (email, token) => {
           </p>
           <p style="color: #999; font-size: 14px; margin-top: 30px;">Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet email. Votre mot de passe ne sera pas modifié.</p>
           <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-            Ce lien expirera dans 1 heure.
-          </p>
+          Ce lien expirera dans 1 heure.
+        </p>
         </div>
       </div>
     `
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+  await transporter.sendMail(mailOptions);
     console.log('✅ Email de réinitialisation envoyé à:', email);
   } catch (error) {
     console.error('❌ Erreur envoi email de réinitialisation:', error);

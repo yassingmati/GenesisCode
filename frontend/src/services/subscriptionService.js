@@ -146,7 +146,7 @@ class SubscriptionService {
       console.error('❌ Erreur abonnement:', error);
       // Re-throw avec un message plus clair si nécessaire
       if (error.message) {
-        throw error;
+      throw error;
       }
       throw new Error('Erreur lors de l\'abonnement. Veuillez réessayer.');
     }

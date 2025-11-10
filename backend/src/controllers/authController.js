@@ -349,7 +349,7 @@ exports.loginWithGoogle = async (req, res) => {
         if (isFirebaseAvailable()) {
             try {
                 console.log('🔵 Tentative de vérification avec Firebase Admin...');
-                const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
                 uid = decodedToken.uid;
                 email = decodedToken.email;
                 name = decodedToken.name;
@@ -450,7 +450,7 @@ exports.loginWithGoogle = async (req, res) => {
 
         // Rechercher ou créer l'utilisateur dans MongoDB
         let dbUser = await User.findOne({ firebaseUid: uid });
-        
+
         if (!dbUser) {
             // Chercher par email si pas trouvé par firebaseUid
             dbUser = await User.findOne({ email });
@@ -555,9 +555,9 @@ exports.sendVerification = async (req, res) => {
             process.env.JWT_SECRET || 'devsecret',
             { expiresIn: '24h' }
         );
-
+        
         await sendVerificationEmail(user.email, verificationToken);
-
+        
         res.json({ message: 'Verification email sent.' });
 
     } catch (error) {
