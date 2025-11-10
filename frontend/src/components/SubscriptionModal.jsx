@@ -289,12 +289,18 @@ const SubscriptionModal = ({
                         <span className="features-title">Fonctionnalités incluses</span>
                       </div>
                       <ul className="features-list">
-                        {plan.features.map((feature, index) => (
-                          <li key={index} className="feature-item">
-                            <span className="feature-check">✓</span>
-                            <span className="feature-text">{feature}</span>
-                          </li>
-                        ))}
+                        {Array.isArray(plan.features) && plan.features.length > 0 
+                          ? plan.features.map((feature, index) => (
+                              <li key={index} className="feature-item">
+                                <span className="feature-check">✓</span>
+                                <span className="feature-text">{feature}</span>
+                              </li>
+                            ))
+                          : (
+                            <li className="feature-item" style={{color: '#999', fontStyle: 'italic'}}>
+                              Aucun avantage listé
+                            </li>
+                          )}
                       </ul>
                     </div>
 
