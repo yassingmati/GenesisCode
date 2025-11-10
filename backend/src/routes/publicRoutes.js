@@ -56,10 +56,7 @@ router.get('/plans', async (req, res) => {
   }
 });
 
-// Public Konnect payment initialization to maintain compatibility with frontend expecting /api/payment/init
-router.post('/payment/init', ensureHandler('initSubscriptionPayment', paymentController));
-
-// Public webhook endpoint for Konnect
-router.get('/payment/webhook', ensureHandler('handleKonnectWebhook', paymentController));
+// NOTE: Les routes de paiement sont gérées par paymentRoutes.js monté à /api/payment
+// Pas besoin de les dupliquer ici pour éviter les conflits
 
 module.exports = router;

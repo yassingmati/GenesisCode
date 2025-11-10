@@ -1,143 +1,218 @@
-# Guide des Tests - CodeGenesis
+# Guide d'Utilisation des Tests - Plans, Subscription, Admin et Vérification Email
+
+Ce guide explique comment exécuter les tests automatisés pour les fonctionnalités de plans, subscription, admin et vérification email.
+
+## Prérequis
+
+1. **Backend démarré**: Le backend doit être en cours d'exécution
+2. **MongoDB connecté**: La base de données MongoDB doit être accessible
+3. **Variables d'environnement configurées**: Voir `backend/env.example`
+
+## Configuration
+
+### 1. Vérifier l'environnement
+
+Avant d'exécuter les tests, vérifiez que l'environnement est correctement configuré:
+
+```bash
+node test-env-check.js
+```
+
+Ce script vérifie:
+- ✅ Variables d'environnement requises
+- ✅ Connexion MongoDB
+- ✅ Connexion au backend
+- ✅ Configuration email
+
+### 2. Variables d'environnement requises
+
+Assurez-vous que le fichier `backend/.env` contient:
+
+```env
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=your-jwt-secret
+JWT_ADMIN_SECRET=your-admin-jwt-secret
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASS=your-app-password
+SERVER_URL=http://localhost:5000
+CLIENT_URL=http://localhost:3000
+```
+
+## Exécution des Tests
+
+### Tous les tests
+
+Pour exécuter tous les tests:
+
+```bash
+node test-plans-subscription-admin-email.js
+```
+
+Ce script exécute:
+1. Tests de création d'admin
+2. Tests de gestion des plans
+3. Tests de subscription
+4. Tests de vérification email
+
+Et génère un rapport détaillé dans `TEST_RESULTS_PLANS_SUBSCRIPTION.md`.
+
+### Tests spécifiques
+
+Vous pouvez également exécuter les tests individuellement:
+
+#### Tests de création d'admin
+
+```bash
+node test-admin-creation.js
+```
+
+#### Tests de gestion des plans
+
+```bash
+node test-plans-management.js
+```
+
+#### Tests de subscription
+
+```bash
+node test-subscription-flow.js
+```
+
+#### Tests de vérification email
+
+```bash
+node test-email-verification.js
+```
 
 ## Structure des Tests
 
-### Backend Tests (`backend/tests/`)
+### 1. Tests de création d'admin
 
-#### Configuration
-- `jest.config.js` - Configuration Jest avec mongodb-memory-server
-- `setup.js` - Setup global pour les tests
-- `teardown.js` - Nettoyage après tests
+- ✅ Création admin via script
+- ✅ Création admin via API
+- ✅ Authentification admin
+- ✅ Liste des admins
 
-#### Fixtures (`backend/tests/fixtures/`)
-- `users.js` - Fixtures pour les utilisateurs
-- `categories.js` - Fixtures pour les catégories
-- `plans.js` - Fixtures pour les plans
-- `subscriptions.js` - Fixtures pour les abonnements
-- `paths.js` - Fixtures pour les parcours et niveaux
+### 2. Tests de gestion des plans
 
-#### Tests
-- **Controllers**: `tests/controllers/`
-  - `courseAccessController.test.js`
-  - `subscriptionController.test.js`
-  - `categoryPaymentController.test.js`
+- ✅ Création de plan
+- ✅ Modification de plan
+- ✅ Désactivation de plan
+- ✅ Réactivation de plan
+- ✅ Liste des plans (admin)
+- ✅ Liste des plans (public)
 
-- **Services**: `tests/services/`
-  - `accessControlService.test.js`
-  - `categoryPaymentService.test.js`
-  - `courseAccessService.test.js`
+### 3. Tests de subscription
 
-- **Routes**: `tests/routes/`
-  - `accessRoutes.test.js`
-  - `subscriptionRoutes.test.js`
-  - `categoryPaymentRoutes.test.js`
+- ✅ Abonnement plan gratuit
+- ✅ Abonnement plan payant
+- ✅ Récupération abonnement
+- ✅ Annulation abonnement
+- ✅ Reprise abonnement
 
-- **Middlewares**: `tests/middlewares/`
-  - `authMiddleware.test.js`
-  - `subscriptionMiddleware.test.js`
+### 4. Tests de vérification email
 
-### Frontend Tests (`frontend/src/__tests__/`)
+- ✅ Envoi email de vérification
+- ✅ Contenu de l'email
+- ✅ Clic sur lien de vérification
+- ✅ Statut après vérification
+- ✅ Réenvoi email (utilisateur vérifié)
 
-#### Configuration
-- `setupTests.js` - Configuration React Testing Library
-- `test-utils.jsx` - Utilitaires de test (providers, mocks)
+## Résultats des Tests
 
-#### Tests
-- **Composants**: `__tests__/components/`
-  - `CourseAccessGuard.test.jsx`
-  - `LevelAccessGate.test.jsx`
-  - `SubscriptionModal.test.jsx`
+### Rapport généré
 
-- **Services**: `__tests__/services/`
-  - `authService.test.js`
-  - `subscriptionService.test.js`
-  - `categoryPaymentService.test.js`
+Après l'exécution, un rapport est généré dans `TEST_RESULTS_PLANS_SUBSCRIPTION.md` avec:
 
-- **Hooks**: `__tests__/hooks/`
-  - `useCourse.test.js`
+- Résumé des tests (réussis/échoués)
+- Détails de chaque test
+- Erreurs rencontrées
+- Avertissements
+- Recommandations
 
-- **Contexts**: `__tests__/contexts/`
-  - `AuthContext.test.jsx`
+### Format du rapport
 
-### Tests E2E (`cypress/e2e/`)
+```markdown
+# Rapport de Test - Plans, Subscription, Admin et Vérification Email
 
-#### Configuration
-- `cypress.config.js` - Configuration Cypress
-- `cypress/support/commands.js` - Commandes personnalisées
-- `cypress/fixtures/` - Données de test
+## Résumé
+- Total des tests: X
+- Tests réussis: Y ✅
+- Tests échoués: Z ❌
+- Taux de succès: XX%
 
-#### Tests
-- `auth.spec.js` - Tests d'authentification
-- `subscription.spec.js` - Tests d'abonnement
-- `course-access.spec.js` - Tests d'accès aux cours
-
-## Commandes de Test
-
-### Backend
-```bash
-cd backend
-npm test                    # Tous les tests
-npm run test:watch          # Mode watch
-npm run test:coverage       # Avec couverture
-npm run test:controllers    # Tests controllers uniquement
-npm run test:services       # Tests services uniquement
-npm run test:routes         # Tests routes uniquement
+## Résultats détaillés
+...
 ```
 
-### Frontend
-```bash
-cd frontend
-npm test                    # Tous les tests
-npm run test:coverage       # Avec couverture
-npm run test:ci             # Mode CI (sans watch)
+## Dépannage
+
+### Erreurs courantes
+
+1. **Backend non accessible**
+   - Vérifiez que le backend est démarré
+   - Vérifiez que le port 5000 est disponible
+   - Vérifiez SERVER_URL dans `.env`
+
+2. **MongoDB non connecté**
+   - Vérifiez MONGODB_URI
+   - Vérifiez la connexion réseau
+   - Vérifiez les permissions MongoDB
+
+3. **Email non envoyé**
+   - Vérifiez EMAIL_USER et EMAIL_PASS
+   - Pour Gmail, utilisez un mot de passe d'application
+   - Vérifiez les logs du backend
+
+4. **Token invalide**
+   - Vérifiez JWT_SECRET et JWT_ADMIN_SECRET
+   - Vérifiez que les tokens ne sont pas expirés
+   - Réexécutez les tests de création d'admin
+
+### Logs
+
+Les tests affichent des logs détaillés dans la console:
+- ✅ Tests réussis
+- ❌ Tests échoués
+- ⚠️ Avertissements
+- 📋 Informations
+
+## Tests Manuels
+
+Pour les tests manuels, consultez `TEST_GUIDE_PLANS_SUBSCRIPTION.md` qui contient:
+
+- Instructions détaillées pour chaque test
+- Exemples de requêtes API
+- Checklist de test
+- Guide de dépannage
+
+## Intégration Continue
+
+Les tests peuvent être intégrés dans un pipeline CI/CD:
+
+```yaml
+# Exemple GitHub Actions
+- name: Run Tests
+  run: |
+    npm install
+    node test-env-check.js
+    node test-plans-subscription-admin-email.js
 ```
 
-### E2E (Cypress)
-```bash
-# Depuis la racine
-npm run test:e2e            # Exécuter tous les tests E2E
-npx cypress open            # Ouvrir l'interface Cypress
-```
+## Prochaines Étapes
 
-### Tous les tests
-```bash
-# Depuis la racine
-npm run test:all            # Backend + Frontend + E2E
-```
+Après l'exécution des tests:
 
-## CI/CD
+1. ✅ Vérifier le rapport généré
+2. ✅ Corriger les bugs identifiés
+3. ✅ Réexécuter les tests
+4. ✅ Mettre à jour la documentation
 
-Le workflow GitHub Actions (`.github/workflows/test.yml`) exécute automatiquement :
-1. Tests backend avec couverture
-2. Tests frontend avec couverture
-3. Tests E2E Cypress
+## Support
 
-## Fixtures Cypress
+En cas de problème:
 
-Les fixtures suivantes sont disponibles dans `cypress/fixtures/` :
-- `auth-success.json` - Réponse de connexion réussie
-- `plans.json` - Liste des plans
-- `subscription-init.json` - Initialisation de paiement
-- `access-granted.json` - Accès autorisé
-- `access-free.json` - Accès gratuit
-
-## Commandes Cypress Personnalisées
-
-- `cy.login(email, password)` - Connexion
-- `cy.logout()` - Déconnexion
-- `cy.setAuthToken(token)` - Définir un token d'authentification
-- `cy.visitWithAuth(url, token)` - Visiter une URL avec authentification
-
-## Notes Importantes
-
-1. **MongoDB Memory Server**: Les tests backend utilisent `mongodb-memory-server` pour une isolation complète
-2. **Mocks**: Les services externes (Konnect, Firebase) sont mockés dans les tests
-3. **Cleanup**: Chaque test nettoie les données avant de s'exécuter
-4. **Fixtures**: Utilisez les fixtures pour des données de test cohérentes
-
-## Couverture Visée
-
-- Backend: 80%+ pour controllers et services
-- Frontend: 70%+ pour composants critiques
-- E2E: Flux critiques complets
-
+1. Vérifiez les logs du backend
+2. Vérifiez la configuration de l'environnement
+3. Consultez `TEST_GUIDE_PLANS_SUBSCRIPTION.md`
+4. Vérifiez les erreurs dans le rapport généré

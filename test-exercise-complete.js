@@ -30,8 +30,10 @@ let testExercises = {};
  */
 async function setupTestUser() {
   try {
+    // Utiliser MongoDB Atlas si disponible, sinon local
+    const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/codegenesis';
+    
     if (mongoose.connection.readyState !== 1) {
-      const mongoURI = process.env.MONGODB_URI || 'mongodb://localhost:27017/codegenesis';
       await mongoose.connect(mongoURI, {
         useNewUrlParser: true,
         useUnifiedTopology: true,
@@ -39,9 +41,11 @@ async function setupTestUser() {
         maxPoolSize: 10
       });
       console.log('✅ Connecté à MongoDB:', mongoose.connection.db.databaseName);
+      console.log('   URI:', mongoURI.replace(/\/\/[^:]+:[^@]+@/, '//***:***@'));
     }
     
     const testEmail = 'test-exercise-complete@test.com';
+    const testPassword = 'test123456';
     
     // Chercher ou créer l'utilisateur
     let user = await User.findOne({ email: testEmail });
@@ -58,6 +62,9 @@ async function setupTestUser() {
       });
       await user.save();
       console.log('✅ Utilisateur créé:', user._id.toString());
+      
+      // Attendre un peu pour s'assurer que l'utilisateur est bien sauvegardé
+      await new Promise(resolve => setTimeout(resolve, 500));
     } else {
       console.log('✅ Utilisateur existant trouvé:', user._id.toString());
     }
@@ -73,6 +80,9 @@ async function setupTestUser() {
     savedUser.isProfileComplete = true;
     await savedUser.save();
     
+    // Attendre un peu pour s'assurer que l'utilisateur est bien sauvegardé dans MongoDB Atlas
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
     testUser = savedUser;
     
     console.log('✅ Utilisateur final pour les tests:', {
@@ -80,14 +90,46 @@ async function setupTestUser() {
       email: savedUser.email
     });
     
-    // Créer un token JWT directement
-    userToken = jwt.sign(
-      { id: savedUser._id.toString(), email: savedUser.email },
-      JWT_SECRET,
-      { expiresIn: '1d' }
-    );
-    
-    console.log('✅ Token JWT créé avec ID:', savedUser._id.toString());
+    // Utiliser l'API d'authentification réelle pour obtenir un token valide
+    try {
+      console.log('🔐 Tentative de connexion via API d\'authentification...');
+      const loginResponse = await fetch(`${API_BASE}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: testEmail,
+          password: testPassword // L'authentification simple accepte n'importe quel mot de passe
+        })
+      });
+      
+      const loginData = await loginResponse.json();
+      
+      if (loginResponse.ok && loginData.token) {
+        userToken = loginData.token;
+        console.log('✅ Token obtenu via API d\'authentification');
+      } else {
+        // Fallback: créer un token manuellement si l'API échoue
+        console.warn('⚠️ API login échouée, utilisation du token manuel');
+        console.warn('   Réponse API:', loginData);
+        userToken = jwt.sign(
+          { id: savedUser._id.toString(), email: savedUser.email },
+          JWT_SECRET,
+          { expiresIn: '1d' }
+        );
+        console.log('   Token créé avec ID:', savedUser._id.toString());
+      }
+    } catch (loginError) {
+      // Fallback: créer un token manuellement si l'API n'est pas disponible
+      console.warn('⚠️ Impossible d\'utiliser l\'API login, utilisation du token manuel:', loginError.message);
+      userToken = jwt.sign(
+        { id: savedUser._id.toString(), email: savedUser.email },
+        JWT_SECRET,
+        { expiresIn: '1d' }
+      );
+      console.log('   Token créé avec ID:', savedUser._id.toString());
+    }
     
     return savedUser;
   } catch (error) {

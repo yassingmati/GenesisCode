@@ -14,6 +14,21 @@ class CategoryPaymentService {
    */
   static async getAllCategoryPlans() {
     try {
+      // Vérifier que MongoDB est connecté
+      const mongoose = require('mongoose');
+      if (mongoose.connection.readyState !== 1) {
+        console.warn('⚠️ MongoDB non connecté, attente de la connexion...');
+        // Attendre jusqu'à 5 secondes que MongoDB se connecte
+        let attempts = 0;
+        while (mongoose.connection.readyState !== 1 && attempts < 50) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          attempts++;
+        }
+        if (mongoose.connection.readyState !== 1) {
+          throw new Error('MongoDB non connecté - impossible de récupérer les plans');
+        }
+      }
+      
       const plans = await CategoryPlan.findAllActive();
       // Convertir les plans en objets JavaScript simples et gérer les erreurs
       return plans.map(plan => {
