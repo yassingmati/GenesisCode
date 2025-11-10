@@ -411,28 +411,46 @@ async function testSubscribeToPaidPlan() {
     
     // D'abord vérifier et annuler l'abonnement gratuit si actif
     // Attendre un peu pour s'assurer que l'abonnement précédent est bien sauvegardé
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
-    const currentSub = await testGetMySubscription();
-    if (currentSub.success && currentSub.subscription && currentSub.subscription.status === 'active') {
-      console.log('   Annulation de l\'abonnement gratuit existant...');
-      const cancelResponse = await fetch(`${API_BASE}/api/subscriptions/cancel`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${userToken}`,
-          'Content-Type': 'application/json'
+    // Vérifier directement dans MongoDB pour s'assurer de l'état réel
+    const user = await User.findById(testUser._id);
+    if (user && user.subscription && user.subscription.status === 'active') {
+      console.log('   Abonnement actif trouvé dans MongoDB, annulation...');
+      
+      // Annuler l'abonnement directement dans MongoDB
+      user.subscription.status = 'canceled';
+      user.subscription.cancelAtPeriodEnd = true;
+      await user.save();
+      
+      console.log('   ✅ Abonnement annulé directement dans MongoDB');
+      
+      // Attendre un peu pour s'assurer que l'annulation est bien sauvegardée
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Vérifier à nouveau via l'API
+      const currentSub = await testGetMySubscription();
+      if (currentSub.success && currentSub.subscription && currentSub.subscription.status === 'active') {
+        console.log('   ⚠️ Abonnement toujours actif via API, tentative d\'annulation via API...');
+        const cancelResponse = await fetch(`${API_BASE}/api/subscriptions/cancel`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${userToken}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        const cancelData = await cancelResponse.json();
+        
+        if (cancelResponse.ok && cancelData.success) {
+          console.log('   ✅ Abonnement annulé via API');
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } else {
+          console.warn('   ⚠️ Échec annulation via API:', cancelData.message || cancelData.error);
         }
-      });
-      
-      const cancelData = await cancelResponse.json();
-      
-      if (cancelResponse.ok && cancelData.success) {
-        console.log('   ✅ Abonnement gratuit annulé');
-        // Attendre un peu pour s'assurer que l'annulation est bien sauvegardée
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } else {
-        console.warn('   ⚠️ Échec annulation:', cancelData.message || cancelData.error);
       }
+    } else {
+      console.log('   ℹ️ Aucun abonnement actif trouvé dans MongoDB');
     }
     
     const response = await fetch(`${API_BASE}/api/subscriptions/subscribe`, {
