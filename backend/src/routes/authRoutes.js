@@ -10,8 +10,12 @@ router.post('/login', checkMongoConnection, authController.loginWithEmail);
 router.post('/login/google', checkMongoConnection, authController.loginWithGoogle);
 
 // Vérification email
-router.post('/send-verification', authMiddleware.protect, authController.sendVerificationEmail);
+router.post('/send-verification', authMiddleware.protect, authController.sendVerification);
 router.get('/verify-email', authController.verifyEmail);
+
+// Mot de passe oublié
+router.post('/forgot-password', checkMongoConnection, authController.forgotPassword);
+router.post('/reset-password', checkMongoConnection, authController.resetPassword);
 
 // Profil utilisateur
 router.put('/profile/complete', authMiddleware.protect, authController.completeProfile);

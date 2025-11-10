@@ -22,6 +22,8 @@ import AuthGuard from './components/AuthGuard';
 import Home from './pages/Home';
 import LoginPage from './pages/auth/Login';
 import RegisterPage from './pages/auth/Register';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import CompleteProfile from './pages/CompleteProfile';
 import VerifyEmailReminder from './pages/VerifyEmailReminder';
 import VerifiedSuccess from './pages/VerifiedSuccess';
@@ -252,6 +254,8 @@ export default function AppRouter() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/verify-email-reminder" element={<VerifyEmailReminder />} />
             <Route path="/verified-success" element={<VerifiedSuccess />} />

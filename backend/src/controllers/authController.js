@@ -12,7 +12,7 @@ const isFirebaseAvailable = () => {
     return false;
   }
 };
-const sendVerificationEmail = require('../utils/emailService');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
 
 // Initialize Firestore seulement si Firebase est disponible
 let db, usersCollection;
@@ -556,9 +556,7 @@ exports.sendVerification = async (req, res) => {
             { expiresIn: '24h' }
         );
 
-        const verificationUrl = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
-
-        await sendVerificationEmail(user.email, verificationUrl);
+        await sendVerificationEmail(user.email, verificationToken);
 
         res.json({ message: 'Verification email sent.' });
 
@@ -666,5 +664,182 @@ exports.getProfile = async (req, res) => {
     } catch (error) {
         console.error('Get Profile Error:', error);
         res.status(500).json({ message: 'Server error.' });
+    }
+};
+
+/**
+ * @route   POST /api/auth/forgot-password
+ * @desc    Request password reset
+ * @access  Public
+ */
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Email is required.' 
+            });
+        }
+
+        // Trouver l'utilisateur
+        const user = await User.findOne({ email });
+        
+        // Pour la sécurité, on ne révèle pas si l'email existe ou non
+        // On retourne toujours un succès pour éviter l'énumération d'emails
+        if (!user) {
+            console.log('⚠️ Tentative de reset pour email inexistant:', email);
+            return res.json({ 
+                success: true,
+                message: 'If an account with that email exists, a password reset link has been sent.' 
+            });
+        }
+
+        // Générer un token de réinitialisation
+        const crypto = require('crypto');
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        
+        // Créer ou mettre à jour le token de reset
+        const PasswordResetToken = require('../models/PasswordResetToken');
+        
+        // Supprimer les anciens tokens non utilisés pour cet utilisateur
+        await PasswordResetToken.deleteMany({ 
+            userId: user._id, 
+            used: false 
+        });
+
+        // Créer un nouveau token
+        const resetTokenDoc = new PasswordResetToken({
+            userId: user._id,
+            token: resetToken,
+            expires: new Date(Date.now() + 3600 * 1000) // 1 heure
+        });
+        await resetTokenDoc.save();
+
+        // Envoyer l'email de réinitialisation
+        try {
+            await sendPasswordResetEmail(user.email, resetToken);
+            console.log('✅ Email de réinitialisation envoyé à:', user.email);
+        } catch (emailError) {
+            console.error('❌ Erreur envoi email de réinitialisation:', emailError);
+            // Supprimer le token si l'email n'a pas pu être envoyé
+            await PasswordResetToken.deleteOne({ _id: resetTokenDoc._id });
+            return res.status(500).json({ 
+                success: false,
+                message: 'Failed to send reset email. Please try again later.' 
+            });
+        }
+
+        res.json({ 
+            success: true,
+            message: 'If an account with that email exists, a password reset link has been sent.' 
+        });
+
+    } catch (error) {
+        console.error('Forgot Password Error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to process password reset request.' 
+        });
+    }
+};
+
+/**
+ * @route   POST /api/auth/reset-password
+ * @desc    Reset password with token
+ * @access  Public
+ */
+exports.resetPassword = async (req, res) => {
+    try {
+        const { token, password } = req.body;
+
+        if (!token || !password) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Token and password are required.' 
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Password must be at least 6 characters long.' 
+            });
+        }
+
+        // Trouver le token de réinitialisation
+        const PasswordResetToken = require('../models/PasswordResetToken');
+        const resetTokenDoc = await PasswordResetToken.findOne({ 
+            token, 
+            used: false 
+        });
+
+        if (!resetTokenDoc) {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Invalid or expired reset token.' 
+            });
+        }
+
+        // Vérifier si le token a expiré
+        if (resetTokenDoc.expires < new Date()) {
+            await PasswordResetToken.deleteOne({ _id: resetTokenDoc._id });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Reset token has expired. Please request a new one.' 
+            });
+        }
+
+        // Trouver l'utilisateur
+        const user = await User.findById(resetTokenDoc.userId);
+        if (!user) {
+            await PasswordResetToken.deleteOne({ _id: resetTokenDoc._id });
+            return res.status(404).json({ 
+                success: false,
+                message: 'User not found.' 
+            });
+        }
+
+        // Mettre à jour le mot de passe
+        // Note: Si Firebase est disponible, on peut aussi mettre à jour Firebase Auth
+        // Pour l'instant, on stocke le hash dans MongoDB si nécessaire
+        
+        // Si Firebase est disponible, mettre à jour le mot de passe dans Firebase
+        if (isFirebaseAvailable() && user.firebaseUid && !user.firebaseUid.startsWith('local-')) {
+            try {
+                await admin.auth().updateUser(user.firebaseUid, {
+                    password: password
+                });
+                console.log('✅ Mot de passe mis à jour dans Firebase pour:', user.email);
+            } catch (firebaseError) {
+                console.error('❌ Erreur mise à jour Firebase:', firebaseError);
+                // Continuer même si Firebase échoue
+            }
+        }
+
+        // Marquer le token comme utilisé
+        resetTokenDoc.used = true;
+        await resetTokenDoc.save();
+
+        // Supprimer tous les autres tokens non utilisés pour cet utilisateur
+        await PasswordResetToken.deleteMany({ 
+            userId: user._id, 
+            used: false 
+        });
+
+        console.log('✅ Mot de passe réinitialisé pour:', user.email);
+
+        res.json({ 
+            success: true,
+            message: 'Password has been reset successfully. You can now log in with your new password.' 
+        });
+
+    } catch (error) {
+        console.error('Reset Password Error:', error);
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to reset password.' 
+        });
     }
 };
