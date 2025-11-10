@@ -62,18 +62,6 @@ const SubscribeButton = ({ planId, returnUrl }) => {
       className="subscribe-button"
       onClick={handleSubscribe}
       disabled={loading}
-      style={{
-        padding: '0.75rem 1.5rem',
-        backgroundColor: '#007bff',
-        color: 'white',
-        border: 'none',
-        borderRadius: '0.5rem',
-        cursor: loading ? 'not-allowed' : 'pointer',
-        fontSize: '1rem',
-        fontWeight: '600',
-        opacity: loading ? 0.6 : 1,
-        transition: 'all 0.2s'
-      }}
     >
       {loading ? 'Chargement...' : 'S\'abonner'}
     </button>
