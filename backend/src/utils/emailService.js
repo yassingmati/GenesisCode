@@ -56,11 +56,20 @@ const sendVerificationEmail = async (email, token) => {
     `
   };
 
+  if (!transporter) {
+    throw new Error('Email transporter not initialized. Check EMAIL_USER and EMAIL_PASS configuration.');
+  }
+
   try {
     await transporter.sendMail(mailOptions);
     console.log('✅ Email de vérification envoyé à:', email);
   } catch (error) {
     console.error('❌ Erreur envoi email de vérification:', error);
+    console.error('   Code:', error.code);
+    console.error('   Message:', error.message);
+    if (error.response) {
+      console.error('   Response:', error.response);
+    }
     throw error;
   }
 };
@@ -107,11 +116,20 @@ const sendPasswordResetEmail = async (email, token) => {
     `
   };
 
+  if (!transporter) {
+    throw new Error('Email transporter not initialized. Check EMAIL_USER and EMAIL_PASS configuration.');
+  }
+
   try {
-  await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
     console.log('✅ Email de réinitialisation envoyé à:', email);
   } catch (error) {
     console.error('❌ Erreur envoi email de réinitialisation:', error);
+    console.error('   Code:', error.code);
+    console.error('   Message:', error.message);
+    if (error.response) {
+      console.error('   Response:', error.response);
+    }
     throw error;
   }
 };
