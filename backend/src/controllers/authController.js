@@ -441,8 +441,33 @@ exports.loginWithGoogle = async (req, res) => {
 
         // Vérifier que l'email est présent
         if (!email) {
-            return res.status(400).json({ message: 'Email not found in Google token.' });
+            console.error('❌ Email non trouvé dans le token décodé');
+            console.error('   UID:', uid);
+            console.error('   Name:', name);
+            return res.status(400).json({ 
+                message: 'Email not found in Google token.',
+                debug: {
+                    hasUid: !!uid,
+                    hasName: !!name,
+                    uid: uid
+                }
+            });
         }
+        
+        // Vérifier que l'uid est présent
+        if (!uid) {
+            console.error('❌ UID non trouvé dans le token décodé');
+            console.error('   Email:', email);
+            return res.status(400).json({ 
+                message: 'User ID not found in Google token.',
+                debug: {
+                    hasEmail: !!email,
+                    email: email
+                }
+            });
+        }
+        
+        console.log('✅ Données extraites du token:', { uid, email, name });
 
         // Find or create user in MongoDB
         let dbUser = await User.findOne({ firebaseUid: uid });
