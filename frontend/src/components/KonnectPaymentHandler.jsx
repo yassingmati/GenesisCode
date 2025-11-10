@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
 import KonnectService from '../services/konnectService';
+import SubscriptionService from '../services/subscriptionService';
 import { FiLoader, FiCheckCircle, FiXCircle, FiAlertCircle, FiExternalLink, FiCreditCard } from 'react-icons/fi';
 import './KonnectPaymentHandler.css';
 
@@ -39,20 +40,55 @@ const KonnectPaymentHandler = ({
         throw new Error('ID du plan manquant');
       }
 
-      // Toujours passer categoryPlanId si disponible (nouveau système)
-      const paymentData = {
-        planId: undefined,
-        categoryPlanId: plan.raw?._id || planId,
-        customerEmail: customerEmail,
-        returnUrl: `${window.location.origin}/payment/success`,
-        cancelUrl: `${window.location.origin}/payment/cancel`
-      };
+      // Déterminer si c'est un plan d'abonnement global ou un plan de catégorie
+      const isGlobalPlan = plan.type === 'global' || !plan.raw; // Plans depuis SubscriptionModal sont globaux
+      const isCategoryPlan = plan.type === 'category' || plan.raw; // Plans de catégorie ont raw
 
-      console.log('📋 Données de paiement:', paymentData);
+      console.log('📋 Type de plan:', { isGlobalPlan, isCategoryPlan, planType: plan.type, hasRaw: !!plan.raw });
 
       let result;
       try {
-        result = await KonnectService.initPayment(paymentData);
+        if (isGlobalPlan) {
+          // Plan d'abonnement global - utiliser SubscriptionService.subscribe
+          console.log('💳 Utilisation SubscriptionService pour plan global:', planId);
+          result = await SubscriptionService.subscribe(planId, {
+            returnUrl: `${window.location.origin}/payment/success`,
+            cancelUrl: `${window.location.origin}/payment/cancel`
+          });
+          
+          // Adapter la réponse pour le format attendu
+          if (result.subscription && result.subscription.status === 'active') {
+            // Plan gratuit activé
+            result = {
+              success: true,
+              freeAccess: true,
+              plan: plan,
+              message: result.message || 'Abonnement activé avec succès'
+            };
+          } else if (result.paymentUrl) {
+            // Plan payant - URL de paiement disponible
+            result = {
+              success: true,
+              paymentUrl: result.paymentUrl,
+              konnectPaymentId: result.konnect?.id || result.konnectPaymentId,
+              plan: plan,
+              message: result.message || 'Paiement créé. Rediriger l\'utilisateur vers paymentUrl'
+            };
+          } else {
+            throw new Error(result.message || result.error || 'Erreur lors de l\'abonnement');
+          }
+        } else {
+          // Plan de catégorie - utiliser KonnectService.initPayment
+          console.log('💳 Utilisation KonnectService pour plan catégorie:', planId);
+          const paymentData = {
+            planId: undefined,
+            categoryPlanId: plan.raw?._id || planId,
+            customerEmail: customerEmail,
+            returnUrl: `${window.location.origin}/payment/success`,
+            cancelUrl: `${window.location.origin}/payment/cancel`
+          };
+          result = await KonnectService.initPayment(paymentData);
+        }
       } catch (e) {
         // Ne pas utiliser buildPaymentUrl car elle construit une URL incorrecte
         // L'URL de paiement doit toujours venir du backend depuis l'API Konnect
