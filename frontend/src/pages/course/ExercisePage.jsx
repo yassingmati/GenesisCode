@@ -102,6 +102,15 @@ export default function ExercisePage() {
       setIsSubmitting(true);
       setError(null);
 
+      // Validation des paramètres
+      if (!exerciseId) {
+        throw new Error('ID d\'exercice requis');
+      }
+
+      if (!answer && activeExercise?.type !== 'Code') {
+        throw new Error('Veuillez fournir une réponse avant de soumettre');
+      }
+
       const payload = {
         answer,
         userId: getUserId(),
@@ -113,32 +122,47 @@ export default function ExercisePage() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': token ? `Bearer ${token}` : undefined
         },
         body: JSON.stringify(payload)
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur de soumission');
+        // Extraire le message d'erreur du backend
+        const errorMessage = result.error || result.message || `Erreur HTTP: ${response.status}`;
+        console.error('Erreur de soumission:', errorMessage, result);
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      // Vérifier que la réponse contient les données attendues
+      if (!result.success && result.error) {
+        throw new Error(result.error);
+      }
+
       setSubmissionResult(result);
       
       // Marquer comme complété localement
       const updated = markExerciseCompleted(exerciseId, result);
       setCompletedExercises(updated);
 
+      console.log('✅ Exercice soumis avec succès', { 
+        exerciseId, 
+        correct: result.correct,
+        pointsEarned: result.pointsEarned 
+      });
+
       return result;
     } catch (e) {
       console.error('Erreur de soumission:', e);
-      setError(e.message);
+      const errorMessage = e.message || 'Erreur lors de la soumission de l\'exercice. Veuillez réessayer.';
+      setError(errorMessage);
       throw e;
     } finally {
       setIsSubmitting(false);
     }
-  }, []);
+  }, [activeExercise]);
 
   // Gestionnaires d'événements
   const handleExerciseClick = useCallback((exercise) => {

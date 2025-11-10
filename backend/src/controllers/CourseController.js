@@ -961,11 +961,26 @@ class CourseController {
 
   // important: here we mark user progress + when level completed mark UserLevelProgress
   static submitExercise = catchErrors(async (req, res) => {
-    if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: 'ID invalide' });
+    const exerciseId = req.params.id;
+    
+    // Validation de l'ID de l'exercice
+    if (!isValidObjectId(exerciseId)) {
+      console.warn('submitExercise: ID invalide', { exerciseId });
+      return res.status(400).json({ 
+        success: false,
+        error: 'ID d\'exercice invalide' 
+      });
+    }
 
     // Pour submitExercise, nous avons besoin des solutions, donc pas de select pour les exclure
-    const exercise = await Exercise.findById(req.params.id);
-    if (!exercise) return res.status(404).json({ error: 'Exercice non trouvé' });
+    const exercise = await Exercise.findById(exerciseId);
+    if (!exercise) {
+      console.warn('submitExercise: Exercice non trouvé', { exerciseId });
+      return res.status(404).json({ 
+        success: false,
+        error: 'Exercice non trouvé' 
+      });
+    }
 
     let isCorrect = false;
     let pointsEarned = 0;
@@ -974,19 +989,58 @@ class CourseController {
     const { answer, userId } = req.body;
     const type = exercise.type;
 
-    if (!userId) return res.status(400).json({ error: 'userId requis' });
-    if (!answer && type !== 'Code') return res.status(400).json({ error: 'Réponse requise' });
-    
-    // Valider que userId est un ObjectId valide ou au moins une chaîne
+    // Validation de userId
+    if (!userId) {
+      console.warn('submitExercise: userId manquant', { exerciseId, type });
+      return res.status(400).json({ 
+        success: false,
+        error: 'userId requis' 
+      });
+    }
+
+    // Valider que userId est une chaîne non vide (peut être un ObjectId MongoDB ou une string)
     if (typeof userId !== 'string' || userId.trim().length === 0) {
-      return res.status(400).json({ error: 'userId doit être une chaîne non vide' });
+      console.warn('submitExercise: userId invalide', { exerciseId, userId, type: typeof userId });
+      return res.status(400).json({ 
+        success: false,
+        error: 'userId doit être une chaîne non vide' 
+      });
+    }
+
+    // Validation de la réponse selon le type d'exercice
+    if (!answer && type !== 'Code') {
+      console.warn('submitExercise: Réponse manquante', { exerciseId, type, userId });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Réponse requise pour ce type d\'exercice' 
+      });
     }
 
     // Validation des solutions selon le type d'exercice
+    // Note: Certains types d'exercices peuvent ne pas avoir de solutions (ex: Code avec test cases)
     const solutions = exercise.solutions || [];
-    if (!Array.isArray(solutions) || solutions.length === 0) {
-      return res.status(400).json({ error: 'Exercice mal configuré: pas de solutions' });
+    const requiresSolutions = !['Code'].includes(type);
+    
+    if (requiresSolutions && (!Array.isArray(solutions) || solutions.length === 0)) {
+      console.error('submitExercise: Exercice mal configuré - pas de solutions', { 
+        exerciseId, 
+        type, 
+        hasSolutions: !!exercise.solutions,
+        solutionsLength: solutions.length 
+      });
+      return res.status(400).json({ 
+        success: false,
+        error: 'Exercice mal configuré: pas de solutions disponibles' 
+      });
     }
+
+    console.log('submitExercise: Soumission d\'exercice', { 
+      exerciseId, 
+      type, 
+      userId,
+      hasAnswer: !!answer,
+      hasSolutions: solutions.length > 0
+    });
 
     switch (type) {
       case 'QCM': {
@@ -1402,7 +1456,11 @@ class CourseController {
       }
 
       default:
-        return res.status(400).json({ error: 'Type d\'exercice non supporté' });
+        console.error('submitExercise: Type d\'exercice non supporté', { exerciseId, type, userId });
+        return res.status(400).json({ 
+          success: false,
+          error: `Type d'exercice non supporté: ${type}` 
+        });
     }
 
     // Enregistrer ou mettre à jour UserProgress avec la nouvelle méthode
@@ -1414,9 +1472,21 @@ class CourseController {
         completed: isCorrect,
         details
       });
+      console.log('submitExercise: Progrès enregistré', { 
+        exerciseId, 
+        userId, 
+        pointsEarned, 
+        isCorrect 
+      });
     } catch (e) {
-      console.error('UserProgress update error:', e);
-      return res.status(500).json({ error: 'Erreur lors de la sauvegarde du progrès' });
+      console.error('submitExercise: Erreur sauvegarde progrès', { 
+        error: e.message,
+        stack: e.stack,
+        exerciseId,
+        userId 
+      });
+      // Ne pas retourner d'erreur ici, on continue quand même pour retourner le résultat
+      // mais on log l'erreur pour debugging
     }
 
     // Si l'utilisateur a complété cet exercice, vérifier si tous les exercices du niveau sont complétés
@@ -1472,13 +1542,23 @@ class CourseController {
 
     const explanation = (getTranslation(exercise, getLang(req)) || getTranslation(exercise, 'fr'))?.explanation || null;
 
+    console.log('submitExercise: Résultat de soumission', { 
+      exerciseId, 
+      userId, 
+      isCorrect, 
+      pointsEarned, 
+      pointsMax: exercise.points || 10 
+    });
+
     res.json({
+      success: true,
       correct: isCorrect,
       pointsEarned,
       pointsMax: exercise.points || 10,
       xpEarned: xp,
       explanation,
       details,
+      message: isCorrect ? 'Exercice complété avec succès!' : 'Exercice soumis, mais la réponse n\'est pas correcte.',
       ...( !isCorrect && { revealSolutions: false } ) // contrôlable selon policy
     });
   });

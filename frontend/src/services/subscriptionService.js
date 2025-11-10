@@ -15,11 +15,14 @@ class SubscriptionService {
         headers: API_CONFIG.getPublicHeaders()
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorMessage = data.message || data.error || `Erreur HTTP: ${response.status}`;
+        console.error('❌ Erreur récupération plans:', errorMessage);
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
       console.log('✅ Plans récupérés:', data.plans?.length || 0);
 
       return data.plans || [];
@@ -70,11 +73,14 @@ class SubscriptionService {
         headers: API_CONFIG.getDefaultHeaders()
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorMessage = data.message || data.error || `Erreur HTTP: ${response.status}`;
+        console.error('❌ Erreur récupération abonnement:', errorMessage);
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
       console.log('✅ Abonnement utilisateur récupéré:', data.subscription);
 
       return data.subscription || null;
@@ -92,6 +98,11 @@ class SubscriptionService {
    */
   static async subscribe(planId, options = {}) {
     try {
+      // Validation des paramètres
+      if (!planId) {
+        throw new Error('ID du plan requis');
+      }
+
       console.log('💳 Abonnement au plan:', planId);
 
       const response = await fetch(API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.SUBSCRIPTION_SUBSCRIBE), {
@@ -105,17 +116,25 @@ class SubscriptionService {
         })
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        // Extraire le message d'erreur du backend
+        const errorMessage = data.message || data.error || `Erreur HTTP: ${response.status}`;
+        console.error('❌ Erreur abonnement:', errorMessage, data);
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
       console.log('✅ Abonnement initialisé:', data);
 
       return data;
     } catch (error) {
       console.error('❌ Erreur abonnement:', error);
-      throw error;
+      // Re-throw avec un message plus clair si nécessaire
+      if (error.message) {
+        throw error;
+      }
+      throw new Error('Erreur lors de l\'abonnement. Veuillez réessayer.');
     }
   }
 
@@ -132,11 +151,14 @@ class SubscriptionService {
         headers: API_CONFIG.getDefaultHeaders()
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorMessage = data.message || data.error || `Erreur HTTP: ${response.status}`;
+        console.error('❌ Erreur annulation abonnement:', errorMessage);
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
       console.log('✅ Abonnement annulé:', data);
 
       return data;
@@ -159,11 +181,14 @@ class SubscriptionService {
         headers: API_CONFIG.getDefaultHeaders()
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(`Erreur HTTP: ${response.status}`);
+        const errorMessage = data.message || data.error || `Erreur HTTP: ${response.status}`;
+        console.error('❌ Erreur reprise abonnement:', errorMessage);
+        throw new Error(errorMessage);
       }
 
-      const data = await response.json();
       console.log('✅ Abonnement repris:', data);
 
       return data;

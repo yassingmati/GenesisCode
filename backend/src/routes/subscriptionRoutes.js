@@ -5,6 +5,7 @@ const Subscription = require('../models/Subscription');
 const Plan = require('../models/Plan');
 const { protect } = require('../middlewares/authMiddleware');
 const { requireActiveSubscription, optionalSubscription } = require('../middlewares/subscriptionMiddleware');
+const subscriptionController = require('../controllers/subscriptionController');
 
 // Helper pour gérer les erreurs async
 const catchErrors = (fn) => (req, res, next) => {
@@ -99,54 +100,9 @@ router.get('/me', catchErrors(async (req, res) => {
 
 /**
  * S'abonner à un plan
+ * Utilise le contrôleur subscriptionController qui gère correctement les plans gratuits et payants
  */
-router.post('/subscribe', catchErrors(async (req, res) => {
-  try {
-    const { planId } = req.body;
-    const userId = req.user.id;
-
-    if (!planId) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID du plan requis'
-      });
-    }
-
-    // Vérifier que le plan existe
-    const plan = await Plan.findById(planId);
-    if (!plan || !plan.active) {
-      return res.status(404).json({
-        success: false,
-        message: 'Plan introuvable ou inactif'
-      });
-    }
-
-    // Vérifier qu'il n'y a pas déjà un abonnement actif
-    const existingSubscription = await Subscription.findActiveByUser(userId);
-    if (existingSubscription) {
-      return res.status(400).json({
-        success: false,
-        message: 'Un abonnement actif existe déjà',
-        currentSubscription: existingSubscription._id
-      });
-    }
-
-    // Rediriger vers le paiement
-    return res.json({
-      success: true,
-      message: 'Redirection vers le paiement',
-      paymentUrl: `/api/payment/init`,
-      planId: planId
-    });
-
-  } catch (error) {
-    console.error('Erreur souscription:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Erreur lors de la souscription'
-    });
-  }
-}));
+router.post('/subscribe', catchErrors(subscriptionController.subscribe));
 
 /**
  * Changer de plan
