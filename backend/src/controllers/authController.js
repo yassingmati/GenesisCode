@@ -360,19 +360,35 @@ exports.loginWithGoogle = async (req, res) => {
             // ⚠️ En production, il faudrait vérifier le token avec Google directement
             console.warn('⚠️ Firebase Admin non disponible - décodage token Google sans vérification');
             try {
+                // Vérifier que le token a le bon format (3 parties séparées par des points)
+                const tokenParts = idToken.split('.');
+                if (tokenParts.length !== 3) {
+                    throw new Error('Token invalide: format incorrect (doit avoir 3 parties)');
+                }
+                
                 // Décoder le token JWT (sans vérification de signature)
-                const base64Url = idToken.split('.')[1];
+                const base64Url = tokenParts[1];
                 const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(Buffer.from(base64, 'base64').toString().split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
+                const jsonPayload = Buffer.from(base64, 'base64').toString('utf-8');
                 const decoded = JSON.parse(jsonPayload);
-                uid = decoded.sub || decoded.user_id || `google-${Date.now()}`;
-                email = decoded.email;
-                name = decoded.name;
+                
+                console.log('✅ Token Google décodé:', {
+                    hasSub: !!decoded.sub,
+                    hasEmail: !!decoded.email,
+                    hasName: !!decoded.name,
+                    email: decoded.email
+                });
+                
+                uid = decoded.sub || decoded.user_id || decoded.uid || `google-${Date.now()}`;
+                email = decoded.email || decoded.email_address;
+                name = decoded.name || decoded.display_name || decoded.full_name;
             } catch (decodeError) {
-                console.error('Erreur décodage token Google:', decodeError);
-                return res.status(401).json({ message: 'Google token is invalid or malformed.' });
+                console.error('❌ Erreur décodage token Google:', decodeError);
+                console.error('   Token reçu:', idToken.substring(0, 50) + '...');
+                return res.status(401).json({ 
+                    message: 'Google token is invalid or malformed.',
+                    error: decodeError.message 
+                });
             }
         }
 

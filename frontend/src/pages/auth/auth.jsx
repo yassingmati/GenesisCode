@@ -139,15 +139,60 @@ const Auth = ({ type }) => {
 
   const handleGoogleLogin = async () => {
     try {
+      setIsSubmitting(true);
+      setErrors({});
+      setSuccessMessage('');
+      
+      console.log('🔵 Début authentification Google...');
+      
+      // Configurer le provider Google
       const provider = new GoogleAuthProvider();
+      provider.addScope('email');
+      provider.addScope('profile');
+      
+      // Authentifier avec Google via Firebase
+      console.log('🔵 Ouverture popup Google...');
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      
+      console.log('✅ Authentification Firebase réussie:', {
+        email: user.email,
+        uid: user.uid,
+        displayName: user.displayName
+      });
+      
+      // Obtenir le token ID
+      console.log('🔵 Récupération du token ID...');
       const idToken = await user.getIdToken();
-
+      
+      if (!idToken) {
+        throw new Error('Token ID non disponible');
+      }
+      
+      console.log('✅ Token ID obtenu:', idToken.substring(0, 50) + '...');
+      
+      // Envoyer le token au backend
+      console.log('🔵 Envoi du token au backend...');
       const response = await axios.post(`${API_BASE_URL}/api/auth/login/google`, {
         idToken
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
       });
 
+      if (!response.data || !response.data.token) {
+        throw new Error('Réponse invalide du serveur');
+      }
+
+      console.log('✅ Réponse backend reçue:', {
+        hasToken: !!response.data.token,
+        hasUser: !!response.data.user,
+        userEmail: response.data.user?.email
+      });
+
+      // Stocker le token et les données utilisateur
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
@@ -175,22 +220,50 @@ const Auth = ({ type }) => {
       }, 1500);
       
     } catch (error) {
-      console.error('Erreur Google Login:', error);
+      console.error('❌ Erreur Google Login:', error);
+      
       let errorMessage = 'Échec de la connexion Google';
       
-      if (error.response) {
+      // Gestion des erreurs Firebase Auth
+      if (error.code) {
+        switch (error.code) {
+          case 'auth/popup-closed-by-user':
+            errorMessage = 'La fenêtre de connexion a été fermée. Veuillez réessayer.';
+            break;
+          case 'auth/popup-blocked':
+            errorMessage = 'La fenêtre popup a été bloquée. Veuillez autoriser les popups pour ce site.';
+            break;
+          case 'auth/cancelled-popup-request':
+            errorMessage = 'Une autre fenêtre de connexion est déjà ouverte.';
+            break;
+          case 'auth/network-request-failed':
+            errorMessage = 'Erreur de connexion réseau. Vérifiez votre connexion internet.';
+            break;
+          default:
+            errorMessage = `Erreur d'authentification: ${error.message || error.code}`;
+        }
+      } else if (error.response) {
+        // Erreur du backend
         if (error.response.data && error.response.data.message) {
           errorMessage = error.response.data.message;
         } else if (error.response.data && error.response.data.error) {
-          errorMessage = error.response.data.error.message || error.response.data.error;
+          errorMessage = typeof error.response.data.error === 'string' 
+            ? error.response.data.error 
+            : error.response.data.error.message || 'Erreur serveur';
+        } else {
+          errorMessage = `Erreur serveur: ${error.response.status} ${error.response.statusText}`;
         }
+        console.error('❌ Erreur backend:', error.response.data);
       } else if (error.request) {
-        errorMessage = 'Aucune réponse du serveur';
+        errorMessage = 'Aucune réponse du serveur. Vérifiez que le backend est démarré.';
+        console.error('❌ Pas de réponse serveur:', error.request);
       } else {
-        errorMessage = error.message;
+        errorMessage = error.message || 'Erreur inconnue';
       }
       
       setErrors({ general: errorMessage });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
