@@ -172,23 +172,18 @@ class KonnectService {
 
   /**
    * Construire l'URL de paiement Konnect directement
+   * ⚠️ DEPRECATED: Cette méthode ne devrait PAS être utilisée
+   * ⚠️ Elle construit une URL incorrecte avec receiver_wallet_id et token au lieu de payment_ref
+   * ⚠️ Utilisez toujours l'URL retournée par le backend depuis l'API Konnect
    * @param {Object} paymentData - Données du paiement
    * @returns {string} - URL de paiement Konnect
+   * @deprecated Utilisez toujours l'URL retournée par le backend depuis l'API Konnect
    */
   static buildPaymentUrl(paymentData) {
-    const params = new URLSearchParams({
-      receiver_wallet_id: API_CONFIG.KONNECT.RECEIVER_WALLET_ID,
-      token: API_CONFIG.KONNECT.API_KEY,
-      amount: Math.round(paymentData.amount * 100), // Convertir en centimes
-      currency: paymentData.currency || 'TND',
-      description: paymentData.description || 'Paiement GenesisCode',
-      return_url: paymentData.returnUrl || `${window.location.origin}/payment/success`,
-      cancel_url: paymentData.cancelUrl || `${window.location.origin}/payment/cancel`,
-      merchant_order_id: paymentData.merchantOrderId || `order_${Date.now()}`,
-      customer_email: paymentData.customerEmail
-    });
-
-    return `${API_CONFIG.KONNECT.GATEWAY_URL}/pay?${params.toString()}`;
+    console.error('❌ buildPaymentUrl est DEPRECATED et ne doit pas être utilisée.');
+    console.error('❌ Cette méthode construit une URL incorrecte qui ne fonctionne pas avec Konnect.');
+    console.error('❌ Utilisez toujours l\'URL retournée par le backend depuis l\'API Konnect.');
+    throw new Error('buildPaymentUrl est DEPRECATED. Utilisez toujours l\'URL retournée par le backend depuis l\'API Konnect.');
   }
 }
 

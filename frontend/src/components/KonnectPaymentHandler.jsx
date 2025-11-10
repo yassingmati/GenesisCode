@@ -54,30 +54,10 @@ const KonnectPaymentHandler = ({
       try {
         result = await KonnectService.initPayment(paymentData);
       } catch (e) {
-        // Fallback: le backend attend un ancien Plan. Construire une URL Konnect directe avec le plan catégorie
-        const isPlanNotFound = /Plan introuvable|404/.test(e?.message || '');
-        if (isPlanNotFound && plan) {
-          const amount = plan.raw?.price || (plan.priceMonthly ? plan.priceMonthly / 100 : 0);
-          const currency = plan.currency || plan.raw?.currency || 'TND';
-          const description = plan.name || 'Accès catégorie';
-          const merchantOrderId = `cat_${Date.now()}`;
-
-          const paymentUrl = KonnectService.buildPaymentUrl({
-            amount,
-            currency,
-            description,
-            returnUrl: paymentData.returnUrl,
-            cancelUrl: paymentData.cancelUrl,
-            merchantOrderId,
-            customerEmail
-          });
-
-          setPaymentUrl(paymentUrl);
-          setPaymentId(null);
-          setPaymentStatus('ready');
-          return;
-        }
-        throw e;
+        // Ne pas utiliser buildPaymentUrl car elle construit une URL incorrecte
+        // L'URL de paiement doit toujours venir du backend depuis l'API Konnect
+        console.error('❌ Erreur initialisation paiement:', e);
+        throw new Error(`Erreur lors de l'initialisation du paiement: ${e.message || 'Erreur inconnue'}`);
       }
 
       if (result.success) {
