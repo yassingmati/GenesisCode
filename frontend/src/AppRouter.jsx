@@ -251,7 +251,7 @@ export default function AppRouter() {
 
           <Routes>
             {/* CLIENT PUBLIC */}
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
