@@ -260,20 +260,22 @@ exports.loginWithEmail = async (req, res) => {
                     dbUser = new User({
                         firebaseUid: uid,
                         email: firebaseUser.email || email,
-                        userType: 'student', // Default role
+                        firstName: firebaseUser.displayName?.split(' ')[0] || '',
+                        lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+                        userType: 'student',
                     });
                     await dbUser.save();
                 } catch (createError) {
-                    // If user creation fails due to duplicate key, try to find by email again
-                    if (createError.code === 11000) {
-                        console.warn('Duplicate key error during user creation, retrying find by email');
-                        dbUser = await User.findOne({ email });
-                        if (!dbUser) {
-                            throw createError; // Re-throw if still not found
-                        }
-                    } else {
-                        throw createError; // Re-throw other errors
-                    }
+                    console.error('Error creating user from Firebase:', createError);
+                    // Create user with minimal info
+                    dbUser = new User({
+                        firebaseUid: uid,
+                        email,
+                        firstName: '',
+                        lastName: '',
+                        userType: 'student',
+                    });
+                    await dbUser.save();
                 }
             }
         }
@@ -321,7 +323,7 @@ exports.loginWithEmail = async (req, res) => {
         }
         res.status(500).json({ message: 'Failed to log in.', error: error.message });
     }
-};
+}
 
 /**
  * @route   POST /api/auth/login/google
@@ -334,179 +336,148 @@ exports.loginWithGoogle = async (req, res) => {
 
         console.log('🔵 Authentification Google - Token reçu:', idToken ? idToken.substring(0, 50) + '...' : 'AUCUN');
 
-        if (!idToken) {
-            return res.status(400).json({ message: 'Google ID token is missing.' });
+        if (!idToken || typeof idToken !== 'string') {
+            return res.status(400).json({ 
+                success: false,
+                message: 'Google ID token is missing or invalid.' 
+            });
         }
 
         let uid, email, name;
 
-        // Si Firebase Admin est disponible, vérifier le token
+        // Essayer d'abord avec Firebase Admin si disponible
         if (isFirebaseAvailable()) {
             try {
-                console.log('🔵 Vérification token avec Firebase Admin...');
+                console.log('🔵 Tentative de vérification avec Firebase Admin...');
                 const decodedToken = await admin.auth().verifyIdToken(idToken);
                 uid = decodedToken.uid;
                 email = decodedToken.email;
                 name = decodedToken.name;
                 console.log('✅ Token vérifié avec Firebase Admin:', { uid, email, name });
             } catch (verifyError) {
-                console.error('❌ Erreur vérification token Google:', verifyError);
-                console.error('   Code:', verifyError.code);
-                console.error('   Message:', verifyError.message);
-                // Si c'est une erreur spécifique de token expiré/invalide, retourner l'erreur
-                if (verifyError.code === 'auth/id-token-expired') {
-                    return res.status(401).json({ message: 'Google token has expired.' });
-                }
-                if (verifyError.code === 'auth/id-token-invalid') {
-                    return res.status(401).json({ message: 'Google token is invalid.' });
-                }
-                // Pour les autres erreurs (ex: Firebase non initialisé), utiliser le fallback
-                console.warn('⚠️ Vérification Firebase échouée, utilisation du fallback...');
-                // Ne pas throw, continuer avec le fallback
+                console.warn('⚠️ Vérification Firebase Admin échouée:', verifyError.message);
+                // Continuer avec le fallback
             }
         }
-        
-        // Fallback: décoder le token JWT sans vérification Firebase
+
+        // Fallback: décoder le token JWT manuellement
         // Utilisé si Firebase Admin n'est pas disponible ou si la vérification échoue
         if (!uid || !email) {
-            console.warn('⚠️ Firebase Admin non disponible ou vérification échouée - décodage token Google sans vérification');
+            console.log('🔵 Décodage manuel du token JWT...');
+            
             try {
-                // Vérifier que le token a le bon format (3 parties séparées par des points)
-                const tokenParts = idToken.split('.');
-                if (tokenParts.length !== 3) {
-                    throw new Error('Token invalide: format incorrect (doit avoir 3 parties)');
+                // Vérifier le format du token (JWT = 3 parties séparées par des points)
+                const parts = idToken.split('.');
+                if (parts.length !== 3) {
+                    throw new Error(`Token invalide: format incorrect. Attendu 3 parties, reçu ${parts.length}`);
                 }
+
+                // Décoder la partie payload (partie 2)
+                let payload;
+                try {
+                    // Remplacer les caractères base64url par base64
+                    const base64Url = parts[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    
+                    // Ajouter le padding si nécessaire
+                    const padding = base64.length % 4;
+                    const paddedBase64 = padding ? base64 + '='.repeat(4 - padding) : base64;
+                    
+                    // Décoder en UTF-8
+                    const jsonPayload = Buffer.from(paddedBase64, 'base64').toString('utf-8');
+                    payload = JSON.parse(jsonPayload);
+                } catch (parseError) {
+                    throw new Error(`Erreur décodage payload: ${parseError.message}`);
+                }
+
+                console.log('✅ Token décodé avec succès');
+                console.log('   Clés disponibles:', Object.keys(payload));
+                console.log('   sub:', payload.sub);
+                console.log('   email:', payload.email);
+                console.log('   name:', payload.name);
+
+                // Extraire les données du payload
+                // Le champ 'sub' contient l'UID Firebase
+                uid = payload.sub;
                 
-                // Décoder le token JWT (sans vérification de signature)
-                const base64Url = tokenParts[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = Buffer.from(base64, 'base64').toString('utf-8');
-                const decoded = JSON.parse(jsonPayload);
-                
-                console.log('✅ Token Google décodé (fallback):', {
-                    hasSub: !!decoded.sub,
-                    hasEmail: !!decoded.email,
-                    hasName: !!decoded.name,
-                    email: decoded.email,
-                    allKeys: Object.keys(decoded),
-                    decodedSample: {
-                        sub: decoded.sub,
-                        email: decoded.email,
-                        name: decoded.name,
-                        firebase: decoded.firebase ? Object.keys(decoded.firebase) : null
-                    }
-                });
-                
-                // Firebase Auth token contient généralement:
-                // - sub: L'ID utilisateur Firebase (uid)
-                // - email: L'email de l'utilisateur
-                // - name: Le nom complet
-                // - firebase: Objet avec des informations supplémentaires
-                //   - identities: { email: ['email@example.com'] }
-                //   - sign_in_provider: 'google.com'
-                
-                // Extraire l'uid (sub est l'ID utilisateur Firebase)
-                uid = decoded.sub || decoded.user_id || decoded.uid;
-                
-                // Extraire l'email
-                email = decoded.email;
-                
-                // Si pas d'email direct, chercher dans firebase.identities
-                if (!email && decoded.firebase && decoded.firebase.identities) {
-                    if (decoded.firebase.identities.email && Array.isArray(decoded.firebase.identities.email)) {
-                        email = decoded.firebase.identities.email[0];
+                // L'email peut être dans plusieurs endroits
+                email = payload.email;
+                if (!email && payload.firebase && payload.firebase.identities) {
+                    if (payload.firebase.identities.email && Array.isArray(payload.firebase.identities.email) && payload.firebase.identities.email.length > 0) {
+                        email = payload.firebase.identities.email[0];
                     }
                 }
-                
-                // Extraire le nom
-                name = decoded.name || decoded.display_name || decoded.full_name;
-                
-                // Si pas de nom direct, chercher dans firebase
-                if (!name && decoded.firebase && decoded.firebase.displayName) {
-                    name = decoded.firebase.displayName;
+
+                // Le nom peut être dans plusieurs endroits
+                name = payload.name || payload.display_name || payload.full_name;
+                if (!name && payload.firebase && payload.firebase.displayName) {
+                    name = payload.firebase.displayName;
                 }
-                
-                // Si toujours pas d'uid, générer un uid temporaire
-                if (!uid) {
-                    uid = email ? `google-${email.replace('@', '-at-')}-${Date.now()}` : `google-${Date.now()}`;
-                    console.warn('⚠️ UID non trouvé dans le token, génération d\'un UID temporaire:', uid);
-                }
+
+                console.log('✅ Données extraites:', { uid, email, name });
+
             } catch (decodeError) {
-                console.error('❌ Erreur décodage token Google:', decodeError);
+                console.error('❌ Erreur décodage token:', decodeError);
                 console.error('   Message:', decodeError.message);
-                console.error('   Token reçu:', idToken.substring(0, 50) + '...');
+                console.error('   Token length:', idToken.length);
                 console.error('   Token parts:', idToken.split('.').length);
-                if (decodeError.stack) {
-                    console.error('   Stack:', decodeError.stack);
-                }
                 return res.status(401).json({ 
+                    success: false,
                     message: 'Google token is invalid or malformed.',
-                    error: decodeError.message,
-                    debug: {
-                        tokenLength: idToken.length,
-                        tokenParts: idToken.split('.').length,
-                        firstChars: idToken.substring(0, 50)
-                    }
+                    error: decodeError.message
                 });
             }
         }
 
-        // Vérifier que l'email est présent
+        // Vérifications finales
         if (!email) {
-            console.error('❌ Email non trouvé dans le token décodé');
-            console.error('   UID:', uid);
-            console.error('   Name:', name);
+            console.error('❌ Email non trouvé dans le token');
             return res.status(400).json({ 
+                success: false,
                 message: 'Email not found in Google token.',
-                debug: {
-                    hasUid: !!uid,
-                    hasName: !!name,
-                    uid: uid
-                }
+                debug: { hasUid: !!uid, hasName: !!name }
             });
         }
-        
-        // Vérifier que l'uid est présent
-        if (!uid) {
-            console.error('❌ UID non trouvé dans le token décodé');
-            console.error('   Email:', email);
-            return res.status(400).json({ 
-                message: 'User ID not found in Google token.',
-                debug: {
-                    hasEmail: !!email,
-                    email: email
-                }
-            });
-        }
-        
-        console.log('✅ Données extraites du token:', { uid, email, name });
 
-        // Find or create user in MongoDB
+        if (!uid) {
+            console.error('❌ UID non trouvé dans le token');
+            // Générer un UID basé sur l'email si nécessaire
+            uid = `google-${email.replace(/[@.]/g, '-')}-${Date.now()}`;
+            console.warn('⚠️ UID généré automatiquement:', uid);
+        }
+
+        console.log('✅ Données finales:', { uid, email, name });
+
+        // Rechercher ou créer l'utilisateur dans MongoDB
         let dbUser = await User.findOne({ firebaseUid: uid });
         
-        // Si pas trouvé par firebaseUid, chercher par email
         if (!dbUser) {
+            // Chercher par email si pas trouvé par firebaseUid
             dbUser = await User.findOne({ email });
         }
 
         if (!dbUser) {
             // Créer un nouvel utilisateur
+            console.log('📝 Création d\'un nouvel utilisateur...');
             dbUser = new User({
                 firebaseUid: uid,
                 email,
-                firstName: name?.split(' ')[0] || '',
-                lastName: name?.split(' ').slice(1).join(' ') || '',
+                firstName: name ? (name.split(' ')[0] || '') : '',
+                lastName: name ? (name.split(' ').slice(1).join(' ') || '') : '',
                 userType: 'student',
-                isProfileComplete: !!name, // Profile is complete if Google provided a name
-                isVerified: true, // Email is verified by Google
+                isProfileComplete: !!name,
+                isVerified: true,
             });
             await dbUser.save();
+            console.log('✅ Nouvel utilisateur créé:', dbUser._id.toString());
         } else {
             // Mettre à jour firebaseUid si différent
             if (dbUser.firebaseUid !== uid) {
+                console.log('🔄 Mise à jour firebaseUid...');
                 dbUser.firebaseUid = uid;
                 await dbUser.save();
             }
+            console.log('✅ Utilisateur existant trouvé:', dbUser._id.toString());
         }
 
         // Update Firestore (optional - MongoDB is primary DB)
@@ -520,19 +491,23 @@ exports.loginWithGoogle = async (req, res) => {
                     authProvider: 'google',
                 }, { merge: true });
             } catch (firestoreError) {
-                // Firestore update is optional - log but don't fail
-                console.warn('Firestore update failed (non-critical):', firestoreError.message);
+                console.warn('⚠️ Firestore update failed (non-critical):', firestoreError.message);
             }
         }
 
-        // Generate JWT
+        // Générer le token JWT
         const token = jwt.sign(
-            { id: dbUser._id, uid },
+            { id: dbUser._id.toString(), uid },
             process.env.JWT_SECRET || 'devsecret',
             { expiresIn: '1d' }
         );
 
-        res.json({
+        console.log('✅ Authentification Google réussie');
+        console.log('   User ID:', dbUser._id.toString());
+        console.log('   Email:', email);
+
+        return res.json({
+            success: true,
             token,
             user: formatUserResponse(dbUser),
             message: 'Google login successful.',
@@ -543,12 +518,12 @@ exports.loginWithGoogle = async (req, res) => {
         console.error('   Message:', error.message);
         console.error('   Code:', error.code);
         if (error.stack) {
-            console.error('   Stack:', error.stack);
+            console.error('   Stack:', error.stack.substring(0, 500));
         }
-        res.status(401).json({ 
+        return res.status(401).json({ 
+            success: false,
             message: 'Google authentication failed.', 
-            error: error.message,
-            code: error.code
+            error: error.message
         });
     }
 };
@@ -558,22 +533,33 @@ exports.loginWithGoogle = async (req, res) => {
  * @desc    Send verification email
  * @access  Private
  */
-exports.sendVerificationEmail = async (req, res) => {
+exports.sendVerification = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id);
+        const userId = req.user && req.user.id;
+        if (!userId) {
+            return res.status(401).json({ message: 'User not authenticated.' });
+        }
+
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
+
         if (user.isVerified) {
-            return res.status(400).json({ message: 'Email is already verified.' });
+            return res.status(400).json({ message: 'Email already verified.' });
         }
 
-        // Generate a verification token
-        const verificationToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET || 'devsecret', { expiresIn: '1h' });
-        
-        // Send the email
-        await sendVerificationEmail(user.email, verificationToken);
-        
+        // Generate verification token
+        const verificationToken = jwt.sign(
+            { userId: user._id, email: user.email },
+            process.env.JWT_SECRET || 'devsecret',
+            { expiresIn: '24h' }
+        );
+
+        const verificationUrl = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${verificationToken}`;
+
+        await sendVerificationEmail(user.email, verificationUrl);
+
         res.json({ message: 'Verification email sent.' });
 
     } catch (error) {
@@ -584,23 +570,33 @@ exports.sendVerificationEmail = async (req, res) => {
 
 /**
  * @route   GET /api/auth/verify-email
- * @desc    Verify email via token
+ * @desc    Verify user email
  * @access  Public
  */
 exports.verifyEmail = async (req, res) => {
     try {
         const { token } = req.query;
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
-        const user = await User.findById(decoded.id);
 
-        if (!user) return res.status(404).json({ message: 'User not found.' });
-        if (user.isVerified) return res.status(400).json({ message: 'Email already verified.' });
+        if (!token) {
+            return res.status(400).send('Verification token is missing.');
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'devsecret');
+        const user = await User.findById(decoded.userId);
+
+        if (!user) {
+            return res.status(404).send('User not found.');
+        }
+
+        if (user.isVerified) {
+            return res.send('Email already verified.');
+        }
 
         user.isVerified = true;
         await user.save();
 
-        // Redirect to a success page on the front-end
-        return res.redirect(`${process.env.CLIENT_URL}/verified-success`);
+        res.send('Email verified successfully.');
+
     } catch (error) {
         console.error('Email Verification Error:', error);
         if (error.name === 'TokenExpiredError') return res.status(401).send('Verification link has expired.');
@@ -610,39 +606,34 @@ exports.verifyEmail = async (req, res) => {
 };
 
 /**
- * @route   PUT /api/profile/complete
+ * @route   PUT /api/auth/complete-profile
  * @desc    Complete user profile
  * @access  Private
  */
 exports.completeProfile = async (req, res) => {
     try {
-        const { firstName, lastName, phone, userType } = req.body;
-        const userId = req.user.id;
+        const userId = req.user && req.user.id;
+        if (!userId) {
+            return res.status(401).json({ message: 'User not authenticated.' });
+        }
 
-        // Validate fields
-        if (!firstName || !lastName || !userType) {
-            return res.status(400).json({ message: 'First name, last name, and user type are required.' });
-        }
-        if (!['student', 'parent'].includes(userType)) {
-            return res.status(400).json({ message: 'Invalid user type.' });
-        }
+        const { firstName, lastName, userType } = req.body;
 
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
 
-        // Update profile
-        user.firstName = firstName;
-        user.lastName = lastName;
-        user.phone = phone;
-        user.userType = userType;
+        if (firstName) user.firstName = firstName;
+        if (lastName) user.lastName = lastName;
+        if (userType) user.userType = userType;
         user.isProfileComplete = true;
+
         await user.save();
 
         res.json({
+            user: formatUserResponse(user),
             message: 'Profile completed successfully.',
-            user: formatUserResponse(user)
         });
 
     } catch (error) {
@@ -652,17 +643,25 @@ exports.completeProfile = async (req, res) => {
 };
 
 /**
- * @route   GET /api/profile
+ * @route   GET /api/auth/profile
  * @desc    Get user profile
  * @access  Private
  */
 exports.getProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id).select('-firebaseUid -__v');
+        const userId = req.user && req.user.id;
+        if (!userId) {
+            return res.status(401).json({ message: 'User not authenticated.' });
+        }
+
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
-        res.json(formatUserResponse(user));
+
+        res.json({
+            user: formatUserResponse(user),
+        });
 
     } catch (error) {
         console.error('Get Profile Error:', error);
