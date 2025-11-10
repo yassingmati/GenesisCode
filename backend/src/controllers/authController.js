@@ -385,13 +385,49 @@ exports.loginWithGoogle = async (req, res) => {
                     hasEmail: !!decoded.email,
                     hasName: !!decoded.name,
                     email: decoded.email,
-                    allKeys: Object.keys(decoded)
+                    allKeys: Object.keys(decoded),
+                    decodedSample: {
+                        sub: decoded.sub,
+                        email: decoded.email,
+                        name: decoded.name,
+                        firebase: decoded.firebase ? Object.keys(decoded.firebase) : null
+                    }
                 });
                 
-                // Firebase Auth token contient généralement: sub, email, name, picture, etc.
-                uid = decoded.sub || decoded.user_id || decoded.uid || decoded.firebase?.identities?.email?.[0] || `google-${Date.now()}`;
-                email = decoded.email || decoded.email_address || decoded.firebase?.email;
-                name = decoded.name || decoded.display_name || decoded.full_name || decoded.firebase?.displayName;
+                // Firebase Auth token contient généralement:
+                // - sub: L'ID utilisateur Firebase (uid)
+                // - email: L'email de l'utilisateur
+                // - name: Le nom complet
+                // - firebase: Objet avec des informations supplémentaires
+                //   - identities: { email: ['email@example.com'] }
+                //   - sign_in_provider: 'google.com'
+                
+                // Extraire l'uid (sub est l'ID utilisateur Firebase)
+                uid = decoded.sub || decoded.user_id || decoded.uid;
+                
+                // Extraire l'email
+                email = decoded.email;
+                
+                // Si pas d'email direct, chercher dans firebase.identities
+                if (!email && decoded.firebase && decoded.firebase.identities) {
+                    if (decoded.firebase.identities.email && Array.isArray(decoded.firebase.identities.email)) {
+                        email = decoded.firebase.identities.email[0];
+                    }
+                }
+                
+                // Extraire le nom
+                name = decoded.name || decoded.display_name || decoded.full_name;
+                
+                // Si pas de nom direct, chercher dans firebase
+                if (!name && decoded.firebase && decoded.firebase.displayName) {
+                    name = decoded.firebase.displayName;
+                }
+                
+                // Si toujours pas d'uid, générer un uid temporaire
+                if (!uid) {
+                    uid = email ? `google-${email.replace('@', '-at-')}-${Date.now()}` : `google-${Date.now()}`;
+                    console.warn('⚠️ UID non trouvé dans le token, génération d\'un UID temporaire:', uid);
+                }
             } catch (decodeError) {
                 console.error('❌ Erreur décodage token Google:', decodeError);
                 console.error('   Token reçu:', idToken.substring(0, 50) + '...');
