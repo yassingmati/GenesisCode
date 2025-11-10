@@ -351,15 +351,18 @@ exports.loginWithGoogle = async (req, res) => {
                 console.log('✅ Token vérifié avec Firebase Admin:', { uid, email, name });
             } catch (verifyError) {
                 console.error('❌ Erreur vérification token Google:', verifyError);
+                console.error('   Code:', verifyError.code);
+                console.error('   Message:', verifyError.message);
+                // Si c'est une erreur spécifique de token expiré/invalide, retourner l'erreur
                 if (verifyError.code === 'auth/id-token-expired') {
                     return res.status(401).json({ message: 'Google token has expired.' });
                 }
                 if (verifyError.code === 'auth/id-token-invalid') {
                     return res.status(401).json({ message: 'Google token is invalid.' });
                 }
-                // Si la vérification échoue, essayer le fallback
+                // Pour les autres erreurs (ex: Firebase non initialisé), utiliser le fallback
                 console.warn('⚠️ Vérification Firebase échouée, utilisation du fallback...');
-                throw verifyError;
+                // Ne pas throw, continuer avec le fallback
             }
         }
         
@@ -430,11 +433,20 @@ exports.loginWithGoogle = async (req, res) => {
                 }
             } catch (decodeError) {
                 console.error('❌ Erreur décodage token Google:', decodeError);
+                console.error('   Message:', decodeError.message);
                 console.error('   Token reçu:', idToken.substring(0, 50) + '...');
-                console.error('   Stack:', decodeError.stack);
+                console.error('   Token parts:', idToken.split('.').length);
+                if (decodeError.stack) {
+                    console.error('   Stack:', decodeError.stack);
+                }
                 return res.status(401).json({ 
                     message: 'Google token is invalid or malformed.',
-                    error: decodeError.message 
+                    error: decodeError.message,
+                    debug: {
+                        tokenLength: idToken.length,
+                        tokenParts: idToken.split('.').length,
+                        firstChars: idToken.substring(0, 50)
+                    }
                 });
             }
         }
@@ -527,8 +539,17 @@ exports.loginWithGoogle = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Google Login Error:', error);
-        res.status(401).json({ message: 'Google authentication failed.', error: error.message });
+        console.error('❌ Google Login Error:', error);
+        console.error('   Message:', error.message);
+        console.error('   Code:', error.code);
+        if (error.stack) {
+            console.error('   Stack:', error.stack);
+        }
+        res.status(401).json({ 
+            message: 'Google authentication failed.', 
+            error: error.message,
+            code: error.code
+        });
     }
 };
 

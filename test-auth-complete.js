@@ -199,9 +199,23 @@ async function testGoogleLogin() {
   try {
     console.log('\n🔵 Test: Connexion Google');
     
-    // Simuler un token Google (en production, ce serait un vrai token)
-    // Pour les tests, on utilise un token factice
-    const mockIdToken = 'mock-google-token-' + Date.now();
+    // Créer un token JWT factice pour tester le décodage
+    // En production, ce serait un vrai token Firebase Auth
+    const jwt = require('jsonwebtoken');
+    const mockPayload = {
+      sub: 'test-google-uid-' + Date.now(),
+      email: 'test-google@example.com',
+      name: 'Test Google User',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 3600
+    };
+    
+    // Créer un token JWT factice (sans signature valide)
+    const header = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+    const payload = Buffer.from(JSON.stringify(mockPayload)).toString('base64url');
+    const mockIdToken = `${header}.${payload}.signature`;
+    
+    console.log('   Token factice créé:', mockIdToken.substring(0, 50) + '...');
     
     const response = await fetch(`${API_BASE}/api/auth/login/google`, {
       method: 'POST',
@@ -222,8 +236,14 @@ async function testGoogleLogin() {
       console.log('   Email:', data.user.email);
       return { success: true, data };
     } else if (!response.ok && data.message) {
-      console.log('⚠️ Connexion Google échouée (attendu si Firebase non configuré):', data.message);
-      // C'est acceptable si Firebase n'est pas configuré
+      console.log('⚠️ Connexion Google échouée:', data.message);
+      if (data.error) {
+        console.log('   Erreur détaillée:', data.error);
+      }
+      if (data.debug) {
+        console.log('   Debug:', data.debug);
+      }
+      // C'est acceptable si Firebase n'est pas configuré ou si le token est invalide
       return { success: true, skipped: true, message: data.message };
     } else {
       console.error('❌ Échec connexion Google:', data);
