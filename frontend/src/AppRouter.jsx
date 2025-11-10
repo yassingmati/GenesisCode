@@ -205,88 +205,6 @@ function PrivateRoute({ children, role }) {
 }
 
 /**
- * RootRedirect - Redirige la route root selon l'état d'authentification
- */
-function RootRedirect() {
-  const { currentUser, loading } = useAuth();
-  const [isChecking, setIsChecking] = React.useState(true);
-
-  React.useEffect(() => {
-    // Vérifier le localStorage en premier (plus rapide)
-    const backendToken = localStorage.getItem('token');
-    const backendUser = localStorage.getItem('user');
-    const hasBackendAuth = backendToken && backendUser;
-
-    // Si on a un token backend mais pas d'utilisateur dans le contexte, attendre un peu
-    if (hasBackendAuth && !currentUser && loading) {
-      const timeout = setTimeout(() => {
-        setIsChecking(false);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
-
-    setIsChecking(false);
-  }, [currentUser, loading]);
-
-  // Afficher un loader pendant la vérification
-  if (isChecking || loading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        flexDirection: 'column',
-        gap: '1rem',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        color: 'white',
-        fontFamily: 'Inter, system-ui'
-      }}>
-        <div style={{
-          width: '50px',
-          height: '50px',
-          border: '4px solid rgba(255,255,255,0.3)',
-          borderTop: '4px solid white',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite',
-        }}></div>
-        <p>Chargement...</p>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
-      </div>
-    );
-  }
-
-  // Vérifier l'authentification
-  const backendToken = localStorage.getItem('token');
-  const backendUser = localStorage.getItem('user');
-  const hasBackendAuth = backendToken && backendUser;
-  const isAuthenticated = currentUser !== null || hasBackendAuth;
-
-  if (isAuthenticated) {
-    // Si l'utilisateur est connecté, rediriger vers le dashboard
-    try {
-      const userData = backendUser ? JSON.parse(backendUser) : null;
-      if (userData?.userType === 'parent') {
-        return <Navigate to="/parent/dashboard" replace />;
-      } else {
-        return <Navigate to="/dashboard" replace />;
-      }
-    } catch (error) {
-      // En cas d'erreur de parsing, rediriger vers le dashboard par défaut
-      return <Navigate to="/dashboard" replace />;
-    }
-  } else {
-    // Si l'utilisateur n'est pas connecté, afficher la page d'accueil
-    return <Home />;
-  }
-}
-
-/**
  * PageTitleUpdater - met à jour document.title avec prise en charge des routes paramétrées
  */
 function PageTitleUpdater() {
@@ -333,11 +251,12 @@ export default function AppRouter() {
 
           <Routes>
             {/* CLIENT PUBLIC */}
-            <Route path="/" element={<RootRedirect />} />
+            <Route path="/" element={<Home />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
             <Route path="/verify-email-reminder" element={<VerifyEmailReminder />} />
             <Route path="/verified-success" element={<VerifiedSuccess />} />

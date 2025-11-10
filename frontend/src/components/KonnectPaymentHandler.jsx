@@ -80,14 +80,14 @@ const KonnectPaymentHandler = ({
         } else {
           // Plan de catégorie - utiliser KonnectService.initPayment
           console.log('💳 Utilisation KonnectService pour plan catégorie:', planId);
-          const paymentData = {
-            planId: undefined,
-            categoryPlanId: plan.raw?._id || planId,
-            customerEmail: customerEmail,
-            returnUrl: `${window.location.origin}/payment/success`,
-            cancelUrl: `${window.location.origin}/payment/cancel`
-          };
-          result = await KonnectService.initPayment(paymentData);
+      const paymentData = {
+        planId: undefined,
+        categoryPlanId: plan.raw?._id || planId,
+        customerEmail: customerEmail,
+        returnUrl: `${window.location.origin}/payment/success`,
+        cancelUrl: `${window.location.origin}/payment/cancel`
+      };
+        result = await KonnectService.initPayment(paymentData);
         }
       } catch (e) {
         // Ne pas utiliser buildPaymentUrl car elle construit une URL incorrecte

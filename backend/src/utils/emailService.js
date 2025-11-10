@@ -74,7 +74,8 @@ const sendPasswordResetEmail = async (email, token) => {
     return;
   }
 
-  const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password?token=${token}`;
+  // Utiliser le format avec paramètre de route pour une meilleure URL
+  const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password/${token}`;
   
   const mailOptions = {
     from: process.env.EMAIL_USER,

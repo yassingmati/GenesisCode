@@ -1,6 +1,6 @@
 // src/pages/auth/ResetPassword.jsx
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useParams } from 'react-router-dom';
 import { FaLock, FaEye, FaEyeSlash, FaCheckCircle } from 'react-icons/fa';
 import axios from 'axios';
 import { getApiUrl } from '../../utils/apiConfig';
@@ -10,8 +10,10 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
 const ResetPassword = () => {
+  const { token: tokenParam } = useParams(); // Token depuis l'URL path
   const [searchParams] = useSearchParams();
-  const token = searchParams.get('token');
+  const tokenQuery = searchParams.get('token'); // Token depuis query string
+  const token = tokenParam || tokenQuery; // Priorité au paramètre de route
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
