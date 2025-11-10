@@ -9,7 +9,7 @@ const KONNECT_CONFIG = {
   KONNECT_RECEIVER_WALLET_ID: '689f41076a8310ca27901216',
   // Note: L'API Konnect utilise api.sandbox.konnect.network, pas dashboard
   KONNECT_BASE_URL: 'https://api.sandbox.konnect.network',
-  KONNECT_API_KEY: '689f41026a8310ca2790119a:tyoTF3caVuyYo09BxMIViXOXRdVz5wHA'
+  KONNECT_API_KEY: '689f41026a8310ca2790119a:MgBoO199H0zS99ndQ92HvILLm4'
 };
 
 const envPath = path.resolve(__dirname, 'backend', '.env');
