@@ -336,24 +336,77 @@ exports.loginWithGoogle = async (req, res) => {
             return res.status(400).json({ message: 'Google ID token is missing.' });
         }
 
-        // Verify Google ID token
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
-        const { uid, email, name } = decodedToken;
+        let uid, email, name;
+
+        // Si Firebase Admin est disponible, vérifier le token
+        if (isFirebaseAvailable()) {
+            try {
+                const decodedToken = await admin.auth().verifyIdToken(idToken);
+                uid = decodedToken.uid;
+                email = decodedToken.email;
+                name = decodedToken.name;
+            } catch (verifyError) {
+                console.error('Erreur vérification token Google:', verifyError);
+                if (verifyError.code === 'auth/id-token-expired') {
+                    return res.status(401).json({ message: 'Google token has expired.' });
+                }
+                if (verifyError.code === 'auth/id-token-invalid') {
+                    return res.status(401).json({ message: 'Google token is invalid.' });
+                }
+                throw verifyError;
+            }
+        } else {
+            // Fallback: décoder le token JWT sans vérification Firebase
+            // ⚠️ En production, il faudrait vérifier le token avec Google directement
+            console.warn('⚠️ Firebase Admin non disponible - décodage token Google sans vérification');
+            try {
+                // Décoder le token JWT (sans vérification de signature)
+                const base64Url = idToken.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(Buffer.from(base64, 'base64').toString().split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                const decoded = JSON.parse(jsonPayload);
+                uid = decoded.sub || decoded.user_id || `google-${Date.now()}`;
+                email = decoded.email;
+                name = decoded.name;
+            } catch (decodeError) {
+                console.error('Erreur décodage token Google:', decodeError);
+                return res.status(401).json({ message: 'Google token is invalid or malformed.' });
+            }
+        }
+
+        // Vérifier que l'email est présent
+        if (!email) {
+            return res.status(400).json({ message: 'Email not found in Google token.' });
+        }
 
         // Find or create user in MongoDB
         let dbUser = await User.findOne({ firebaseUid: uid });
+        
+        // Si pas trouvé par firebaseUid, chercher par email
+        if (!dbUser) {
+            dbUser = await User.findOne({ email });
+        }
 
         if (!dbUser) {
+            // Créer un nouvel utilisateur
             dbUser = new User({
                 firebaseUid: uid,
                 email,
                 firstName: name?.split(' ')[0] || '',
-                lastName: name?.split(' ')[1] || '',
+                lastName: name?.split(' ').slice(1).join(' ') || '',
                 userType: 'student',
                 isProfileComplete: !!name, // Profile is complete if Google provided a name
                 isVerified: true, // Email is verified by Google
             });
             await dbUser.save();
+        } else {
+            // Mettre à jour firebaseUid si différent
+            if (dbUser.firebaseUid !== uid) {
+                dbUser.firebaseUid = uid;
+                await dbUser.save();
+            }
         }
 
         // Update Firestore (optional - MongoDB is primary DB)
@@ -387,12 +440,6 @@ exports.loginWithGoogle = async (req, res) => {
 
     } catch (error) {
         console.error('Google Login Error:', error);
-        if (error.code === 'auth/id-token-expired') {
-            return res.status(401).json({ message: 'Google token has expired.' });
-        }
-        if (error.code === 'auth/id-token-invalid') {
-            return res.status(401).json({ message: 'Google token is invalid.' });
-        }
         res.status(401).json({ message: 'Google authentication failed.', error: error.message });
     }
 };
