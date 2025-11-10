@@ -8,9 +8,10 @@ class SubscriptionService {
    */
   static async getPlans() {
     try {
-      console.log('📋 Récupération des plans...');
+      console.log('📋 Récupération des plans depuis MongoDB Atlas...');
 
-      const response = await fetch(API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.PLANS), {
+      // Utiliser l'endpoint /api/subscriptions/plans qui récupère les plans depuis MongoDB Atlas
+      const response = await fetch(API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.SUBSCRIPTION_PLANS), {
         method: 'GET',
         headers: API_CONFIG.getPublicHeaders()
       });
@@ -23,9 +24,22 @@ class SubscriptionService {
         throw new Error(errorMessage);
       }
 
-      console.log('✅ Plans récupérés:', data.plans?.length || 0);
+      console.log('✅ Plans récupérés depuis MongoDB Atlas:', data.plans?.length || 0);
 
-      return data.plans || [];
+      // Normaliser les plans pour gérer les différents formats
+      const normalizedPlans = (data.plans || []).map(plan => ({
+        ...plan,
+        _id: plan._id || plan.id,
+        id: plan.id || plan._id,
+        name: plan.name || 'Plan',
+        description: plan.description || '',
+        priceMonthly: plan.priceMonthly || null,
+        currency: plan.currency || 'TND',
+        interval: plan.interval || null,
+        features: Array.isArray(plan.features) ? plan.features : []
+      }));
+
+      return normalizedPlans;
     } catch (error) {
       console.error('❌ Erreur récupération plans:', error);
       throw error;

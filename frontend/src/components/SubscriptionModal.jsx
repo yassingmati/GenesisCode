@@ -70,56 +70,48 @@ const SubscriptionModal = ({
       ];
       
       try {
-        // Essayer de charger les nouveaux plans par catégorie (comme l'admin)
-        const url = API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.CATEGORY_PLANS);
+        // Utiliser l'endpoint /api/subscriptions/plans qui récupère les plans depuis MongoDB Atlas
+        const url = API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.SUBSCRIPTION_PLANS);
         const response = await fetch(url, { headers: API_CONFIG.getPublicHeaders() });
         const data = await response.json();
 
-        // Adapter les plans côté client pour l'affichage (name/description/pricing)
+        // Adapter les plans côté client pour l'affichage
         if (data?.success && Array.isArray(data?.plans) && data.plans.length > 0) {
-          console.log('📋 Plans reçus du backend:', data.plans);
+          console.log('📋 Plans récupérés depuis MongoDB Atlas:', data.plans.length);
           
-          // Filtrer les plans actifs (active peut être undefined, true, ou false)
-          const activePlans = data.plans.filter(p => p.active !== false && p.active !== undefined);
+          // Filtrer les plans actifs
+          const activePlans = data.plans.filter(p => p.active !== false);
           console.log(`✅ ${activePlans.length} plans actifs trouvés sur ${data.plans.length}`);
           
           const adapted = activePlans.map(p => {
-            // Utiliser name/description du plan si disponible, sinon depuis translations
-            const name = p.name || p.translations?.fr?.name || p.translations?.en?.name || 'Plan';
-            const description = p.description || p.translations?.fr?.description || p.translations?.en?.description || '';
-            
             return {
               _id: p._id || p.id,
               id: p.id || p._id,
-              name: name,
-              description: description,
-              priceMonthly: p.paymentType === 'monthly' ? Math.round((p.price || 0) * 100) : null,
+              name: p.name || 'Plan',
+              description: p.description || '',
+              priceMonthly: p.priceMonthly || null,
               currency: p.currency || 'TND',
-              interval: p.paymentType === 'monthly' ? 'month' : (p.paymentType === 'yearly' ? 'year' : null),
+              interval: p.interval || null,
               features: Array.isArray(p.features) ? p.features : [],
-              type: 'category',
+              type: 'global',
               isPopular: false,
-              category: p.category,
-              raw: p,
-              price: p.price || 0,
-              paymentType: p.paymentType || 'one_time',
-              accessDuration: p.accessDuration || 365
+              active: p.active !== false
             };
           });
 
           if (adapted.length > 0) {
             setPlans(adapted);
-            console.log('✅ Plans catégorie chargés et adaptés:', adapted);
+            console.log('✅ Plans chargés depuis MongoDB Atlas:', adapted);
           } else {
             console.warn('⚠️ Aucun plan actif après filtrage');
             throw new Error('Aucun plan actif retourné');
           }
         } else {
-          console.warn('⚠️ Réponse invalide:', data);
-          throw new Error('Réponse invalide des plans de catégories');
+          console.warn('⚠️ Réponse invalide ou aucun plan:', data);
+          throw new Error('Réponse invalide des plans');
         }
       } catch (apiError) {
-        console.warn('Erreur API catégorie, fallback plans par défaut:', apiError.message);
+        console.warn('⚠️ Erreur API plans, fallback plans par défaut:', apiError.message);
         setPlans(defaultPlans);
         console.log('Plans par défaut chargés:', defaultPlans);
       }
@@ -276,10 +268,14 @@ const SubscriptionModal = ({
                       <h3 className="plan-title">{plan.name}</h3>
                       <div className="plan-price-container">
                         <div className="plan-price">
-                          {formatPrice(plan.priceMonthly)}
+                          {plan.priceMonthly && plan.priceMonthly > 0 
+                            ? `${(plan.priceMonthly/100).toFixed(2)} ${plan.currency || 'TND'}`
+                            : 'Gratuit'}
                         </div>
-                        {plan.priceMonthly && (
-                          <span className="plan-interval">/mois</span>
+                        {plan.priceMonthly && plan.priceMonthly > 0 && plan.interval && (
+                          <span className="plan-interval">
+                            / {plan.interval === 'month' ? 'mois' : plan.interval === 'year' ? 'an' : ''}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -318,7 +314,11 @@ const SubscriptionModal = ({
                         ) : (
                           <>
                             <span className="button-icon">💎</span>
-                            <span className="button-text">S'abonner - {formatPrice(plan.priceMonthly)}</span>
+                            <span className="button-text">
+                              S'abonner - {plan.priceMonthly && plan.priceMonthly > 0 
+                                ? `${(plan.priceMonthly/100).toFixed(2)} ${plan.currency || 'TND'}`
+                                : 'Gratuit'}
+                            </span>
                           </>
                         )}
                       </button>

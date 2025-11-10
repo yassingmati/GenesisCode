@@ -15,29 +15,32 @@ const SubscriptionButton = ({
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // Charger les plans de catégorie (nouveau système)
+  // Charger les plans depuis MongoDB Atlas
   useEffect(() => {
-    const loadCategoryPlans = async () => {
+    const loadPlans = async () => {
       try {
         setLoading(true);
-        // Utiliser l'endpoint public pour les plans de catégories
-        const res = await fetch(getApiUrl('/api/category-payments/plans'));
+        // Utiliser l'endpoint /api/subscriptions/plans qui récupère les plans depuis MongoDB Atlas
+        const res = await fetch(getApiUrl('/api/subscriptions/plans'));
         const data = await res.json();
+        
         if (data?.success && Array.isArray(data?.plans)) {
+          console.log('📋 Plans récupérés depuis MongoDB Atlas:', data.plans.length);
           const adapted = data.plans
             .filter(p => p.active !== false) // Filtrer les plans actifs
             .map(p => ({
               _id: p._id || p.id,
               id: p.id || p._id,
-              name: p.translations?.fr?.name || p.name || 'Plan',
-              description: p.translations?.fr?.description || p.description || '',
-              price: p.price || 0,
+              name: p.name || 'Plan',
+              description: p.description || '',
+              priceMonthly: p.priceMonthly || null,
               currency: p.currency || 'TND',
-              paymentType: p.paymentType || 'one_time',
-              category: p.category,
-              features: Array.isArray(p.features) ? p.features : []
+              interval: p.interval || null,
+              features: Array.isArray(p.features) ? p.features : [],
+              active: p.active !== false
             }));
           setPlans(adapted);
+          console.log('✅ Plans normalisés:', adapted.length);
         } else if (Array.isArray(data)) {
           // Gérer le cas où la réponse est directement un tableau
           const adapted = data
@@ -45,24 +48,23 @@ const SubscriptionButton = ({
             .map(p => ({
               _id: p._id || p.id,
               id: p.id || p._id,
-              name: p.translations?.fr?.name || p.name || 'Plan',
-              description: p.translations?.fr?.description || p.description || '',
-              price: p.price || 0,
+              name: p.name || 'Plan',
+              description: p.description || '',
+              priceMonthly: p.priceMonthly || null,
               currency: p.currency || 'TND',
-              paymentType: p.paymentType || 'one_time',
-              category: p.category,
+              interval: p.interval || null,
               features: Array.isArray(p.features) ? p.features : []
             }));
           setPlans(adapted);
         }
       } catch (e) {
-        console.error('Error loading category plans:', e);
+        console.error('❌ Erreur chargement plans:', e);
         setPlans([]);
       } finally {
         setLoading(false);
       }
     };
-    loadCategoryPlans();
+    loadPlans();
   }, [categoryId]);
 
   const handleSubscribe = () => {
