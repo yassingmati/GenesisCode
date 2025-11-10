@@ -102,24 +102,12 @@ async function setupTestUser() {
 async function setupTestExercises() {
   try {
     // Créer ou récupérer une catégorie de test d'abord
-    let testCategory = await Category.findOne({ 'translations.fr.name': 'Catégorie Test Exercices' });
+    let testCategory = await Category.findOne({ name: 'Catégorie Test Exercices' });
     
     if (!testCategory) {
       testCategory = new Category({
-        translations: {
-          fr: {
-            name: 'Catégorie Test Exercices',
-            description: 'Catégorie pour tester les exercices'
-          },
-          en: {
-            name: 'Test Exercises Category',
-            description: 'Category for testing exercises'
-          },
-          ar: {
-            name: 'فئة اختبار التمارين',
-            description: 'فئة لاختبار التمارين'
-          }
-        },
+        name: 'Catégorie Test Exercices',
+        description: 'Catégorie pour tester les exercices',
         active: true
       });
       await testCategory.save();
