@@ -723,11 +723,24 @@ exports.forgotPassword = async (req, res) => {
             console.log('✅ Email de réinitialisation envoyé à:', user.email);
         } catch (emailError) {
             console.error('❌ Erreur envoi email de réinitialisation:', emailError);
+            console.error('   Message:', emailError.message);
+            console.error('   Stack:', emailError.stack);
             // Supprimer le token si l'email n'a pas pu être envoyé
             await PasswordResetToken.deleteOne({ _id: resetTokenDoc._id });
+            
+            // Si l'email n'est pas configuré, retourner un message plus clair
+            if (emailError.message && emailError.message.includes('Email service not configured')) {
+                return res.status(500).json({ 
+                    success: false,
+                    message: 'Le service email n\'est pas configuré. Veuillez contacter le support.',
+                    error: 'EMAIL_SERVICE_NOT_CONFIGURED'
+                });
+            }
+            
             return res.status(500).json({ 
                 success: false,
-                message: 'Failed to send reset email. Please try again later.' 
+                message: 'Failed to send reset email. Please try again later.',
+                error: emailError.message
             });
         }
 

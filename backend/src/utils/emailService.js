@@ -21,8 +21,10 @@ const isEmailConfigured = () => {
  */
 const sendVerificationEmail = async (email, token) => {
   if (!isEmailConfigured()) {
-    console.warn('⚠️ Email non configuré - EMAIL_USER et EMAIL_PASS requis');
-    return;
+    console.error('❌ Email non configuré - EMAIL_USER et EMAIL_PASS requis');
+    console.error('   EMAIL_USER:', process.env.EMAIL_USER ? 'DÉFINI' : 'NON DÉFINI');
+    console.error('   EMAIL_PASS:', process.env.EMAIL_PASS ? 'DÉFINI' : 'NON DÉFINI');
+    throw new Error('Email service not configured. EMAIL_USER and EMAIL_PASS environment variables are required.');
   }
 
   const verificationLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${token}`;
@@ -70,8 +72,10 @@ const sendVerificationEmail = async (email, token) => {
  */
 const sendPasswordResetEmail = async (email, token) => {
   if (!isEmailConfigured()) {
-    console.warn('⚠️ Email non configuré - EMAIL_USER et EMAIL_PASS requis');
-    return;
+    console.error('❌ Email non configuré - EMAIL_USER et EMAIL_PASS requis');
+    console.error('   EMAIL_USER:', process.env.EMAIL_USER ? 'DÉFINI' : 'NON DÉFINI');
+    console.error('   EMAIL_PASS:', process.env.EMAIL_PASS ? 'DÉFINI' : 'NON DÉFINI');
+    throw new Error('Email service not configured. EMAIL_USER and EMAIL_PASS environment variables are required.');
   }
 
   const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password?token=${token}`;
