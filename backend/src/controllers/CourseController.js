@@ -1922,13 +1922,31 @@ class CourseController {
     // Log pour debug
     console.log('[streamPDF] PDF rel:', pdfRel);
     console.log('[streamPDF] PDF abs:', pdfPath);
-    console.log('[streamPDF] File exists:', await fsp.access(pdfPath).then(() => true).catch(() => false));
+    console.log('[streamPDF] __dirname:', __dirname);
+    console.log('[streamPDF] uploadsBaseDir:', uploadsBaseDir);
     
     try {
       await fsp.access(pdfPath);
     } catch (err) {
       console.error('[streamPDF] File access error:', err.message);
-      return res.status(404).json({ error: 'Fichier PDF manquant', path: pdfPath, relPath: pdfRel });
+      console.error('[streamPDF] Attempted path:', pdfPath);
+      // Vérifier si le dossier uploads existe
+      try {
+        const uploadsExists = await fsp.access(uploadsBaseDir).then(() => true).catch(() => false);
+        console.error('[streamPDF] Uploads directory exists:', uploadsExists);
+        if (uploadsExists) {
+          const files = await fsp.readdir(path.join(uploadsBaseDir, 'pdfs')).catch(() => []);
+          console.error('[streamPDF] Files in pdfs directory:', files.slice(0, 5));
+        }
+      } catch (checkErr) {
+        console.error('[streamPDF] Error checking uploads dir:', checkErr.message);
+      }
+      return res.status(404).json({ 
+        error: 'Fichier PDF manquant', 
+        path: pdfPath, 
+        relPath: pdfRel,
+        message: 'Le fichier n\'existe pas sur le serveur. Veuillez le ré-uploader via l\'interface admin.'
+      });
     }
 
     res.setHeader('Content-Type', 'application/pdf');
