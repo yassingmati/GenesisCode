@@ -7,6 +7,38 @@ import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
 import './CourseStyles.css';
 import './ExerciseEnhancements.css';
 
+// Mantine UI Components
+import { 
+  Container, 
+  Paper, 
+  Title, 
+  Text, 
+  Button, 
+  Group, 
+  Badge, 
+  Progress, 
+  Card, 
+  Stack, 
+  Grid, 
+  Loader, 
+  Alert,
+  Modal,
+  Box,
+  Divider,
+  ActionIcon,
+  Tooltip
+} from '@mantine/core';
+import { 
+  IconArrowLeft, 
+  IconCheck, 
+  IconX, 
+  IconPlay, 
+  IconTrophy,
+  IconAlertCircle,
+  IconFileText
+} from '@tabler/icons-react';
+import { notifications } from '@mantine/notifications';
+
 import { getApiUrl } from '../../utils/apiConfig';
 const API_BASE = getApiUrl('/api/courses');
 
@@ -211,114 +243,141 @@ export default function ExercisePage() {
   // États de chargement
   if (loading) {
     return (
-      <div className="exercise-page">
-        <div className="loading-container">
-          <div className="loading-spinner"></div>
-          <p>Chargement des exercices...</p>
-        </div>
-      </div>
+      <Container size="xl" py="xl">
+        <Paper p="xl" radius="md" withBorder>
+          <Stack align="center" gap="md">
+            <Loader size="lg" />
+            <Text size="lg" c="dimmed">Chargement des exercices...</Text>
+          </Stack>
+        </Paper>
+      </Container>
     );
   }
 
   if (error && !level) {
     return (
-      <div className="exercise-page">
-        <div className="error-container">
-          <div className="error-icon">⚠️</div>
-          <h2>Erreur de chargement</h2>
-          <p>{error}</p>
-          <button className="btn-primary" onClick={fetchLevelData}>
+      <Container size="xl" py="xl">
+        <Alert 
+          icon={<IconAlertCircle size={24} />} 
+          title="Erreur de chargement" 
+          color="red"
+          radius="md"
+        >
+          <Text mb="md">{error}</Text>
+          <Button onClick={fetchLevelData} leftSection={<IconPlay size={16} />}>
             Réessayer
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Alert>
+      </Container>
     );
   }
 
   if (!level) {
     return (
-      <div className="exercise-page">
-        <div className="error-container">
-          <div className="error-icon">❌</div>
-          <h2>Niveau non trouvé</h2>
-          <button className="btn-primary" onClick={() => navigate('/courses')}>
+      <Container size="xl" py="xl">
+        <Alert 
+          icon={<IconX size={24} />} 
+          title="Niveau non trouvé" 
+          color="red"
+          radius="md"
+        >
+          <Button 
+            onClick={() => navigate('/courses')} 
+            leftSection={<IconArrowLeft size={16} />}
+            mt="md"
+          >
             Retour aux cours
-          </button>
-        </div>
-      </div>
+          </Button>
+        </Alert>
+      </Container>
     );
   }
 
   return (
-    <div className="exercise-page">
-      {/* Header du niveau */}
-      <header className="exercise-header">
-        <div className="header-left">
-          <button className="btn-back" onClick={() => navigate(`/courses/levels/${levelId}`)}>
-            <span className="icon">←</span>
-            <span className="text">Retour au niveau</span>
-          </button>
+    <Container size="xl" py="xl">
+      {/* Header du niveau avec Mantine */}
+      <Paper p="lg" radius="md" mb="xl" withBorder style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+        <Group justify="space-between" align="flex-start" wrap="wrap">
+          <Group gap="md">
+            <Button
+              variant="white"
+              color="dark"
+              leftSection={<IconArrowLeft size={18} />}
+              onClick={() => navigate(`/courses/levels/${levelId}`)}
+            >
+              Retour au niveau
+            </Button>
+            <Box>
+              <Title order={1} c="white" mb="xs">
+                {level.title || 'Niveau sans nom'}
+              </Title>
+              <Group gap="xs">
+                <Badge variant="light" color="white" size="lg">
+                  {levelStats.completed}/{levelStats.total} exercices
+                </Badge>
+              </Group>
+            </Box>
+          </Group>
           
-          <div className="level-info">
-            <h1 className="level-title">{level.title || 'Niveau sans nom'}</h1>
-            <div className="level-meta">
-              <span className="exercise-count">
-                {levelStats.completed}/{levelStats.total} exercices
-              </span>
-            </div>
-          </div>
-        </div>
-        
-        <div className="header-right">
-          <div className="progress-container">
-            <span className="progress-text">Progression: {levelStats.progress}%</span>
-            <div className="progress-bar">
-              <div 
-                className="progress-fill" 
-                style={{ width: `${levelStats.progress}%` }}
-              ></div>
-            </div>
-          </div>
-        </div>
-      </header>
+          <Box style={{ minWidth: 200 }}>
+            <Text size="sm" c="white" mb="xs" fw={500}>
+              Progression: {levelStats.progress}%
+            </Text>
+            <Progress 
+              value={levelStats.progress} 
+              color="white"
+              size="lg"
+              radius="xl"
+            />
+          </Box>
+        </Group>
+      </Paper>
 
       {/* Liste des exercices */}
-      <main className="exercise-main">
-        <div className="exercises-container">
-          <h2 className="exercises-title">Exercices</h2>
-          
-          {!level.exercises || level.exercises.length === 0 ? (
-            <div className="no-exercises">
-              <div className="no-exercises-icon">📝</div>
-              <h3>Aucun exercice disponible</h3>
-              <p>Ce niveau ne contient pas encore d'exercices.</p>
-            </div>
-          ) : (
-            <div className="exercises-grid">
-              {level.exercises.map((exercise, index) => {
-                const isCompleted = completedExercises[exercise._id]?.completed || false;
-                const exerciseProgress = completedExercises[exercise._id];
-                
-                return (
+      <Box>
+        <Title order={2} mb="lg">Exercices</Title>
+        
+        {!level.exercises || level.exercises.length === 0 ? (
+          <Paper p="xl" radius="md" withBorder>
+            <Stack align="center" gap="md">
+              <IconFileText size={64} stroke={1.5} color="var(--mantine-color-gray-5)" />
+              <Title order={3} c="dimmed">Aucun exercice disponible</Title>
+              <Text c="dimmed">Ce niveau ne contient pas encore d'exercices.</Text>
+            </Stack>
+          </Paper>
+        ) : (
+          <Grid>
+            {level.exercises.map((exercise, index) => {
+              const isCompleted = completedExercises[exercise._id]?.completed || false;
+              const exerciseProgress = completedExercises[exercise._id];
+              
+              return (
+                <Grid.Col key={exercise._id} span={{ base: 12, sm: 6, md: 4 }}>
                   <ExerciseCard
-                    key={exercise._id}
                     exercise={exercise}
                     index={index}
                     isCompleted={isCompleted}
                     progress={exerciseProgress}
                     onClick={() => handleExerciseClick(exercise)}
                   />
-                );
-              })}
-            </div>
-          )}
-        </div>
-      </main>
+                </Grid.Col>
+              );
+            })}
+          </Grid>
+        )}
+      </Box>
 
-      {/* Modal d'exercice */}
-      <AnimatePresence>
+      {/* Modal d'exercice avec Mantine */}
+      <Modal
+        opened={!!activeExercise}
+        onClose={handleCloseExercise}
+        title={activeExercise?.name || 'Exercice'}
+        size="xl"
+        centered
+        radius="md"
+      >
         {activeExercise && (
-          <ExerciseModal
+          <ExerciseModalContent
             exercise={activeExercise}
             userAnswer={userAnswer}
             setUserAnswer={setUserAnswer}
@@ -329,8 +388,8 @@ export default function ExercisePage() {
             onSubmit={handleSubmit}
           />
         )}
-      </AnimatePresence>
-    </div>
+      </Modal>
+    </Container>
   );
 }
 
@@ -344,89 +403,110 @@ function ExerciseCard({ exercise, index, isCompleted, progress, onClick }) {
   
   const getDifficultyInfo = (difficulty) => {
     switch (difficulty) {
-      case 'easy': return { color: '#4CAF50', label: '😊 Facile' };
-      case 'hard': return { color: '#f44336', label: '🔥 Difficile' };
-      default: return { color: '#ff9800', label: '🎯 Moyen' };
+      case 'easy': return { color: 'green', label: 'Facile' };
+      case 'hard': return { color: 'red', label: 'Difficile' };
+      default: return { color: 'orange', label: 'Moyen' };
     }
   };
 
   const difficultyInfo = getDifficultyInfo(exercise.difficulty);
   const points = exercise.points || 10;
 
-  const handleCardClick = (e) => {
-    // Empêcher la propagation si c'est le bouton "Commencer"
-    if (e.target.closest('.btn-start')) {
-      e.stopPropagation();
-      navigate(`/courses/levels/${levelId}/exercises/${exercise._id}`);
-    } else {
-      // Garder l'ancien comportement pour le modal si on clique ailleurs sur la carte
-      onClick();
-    }
+  const handleStartClick = (e) => {
+    e.stopPropagation();
+    navigate(`/courses/levels/${levelId}/exercises/${exercise._id}`);
   };
 
   return (
     <motion.div
-      className={`exercise-card ${isCompleted ? 'completed' : ''}`}
-      onClick={handleCardClick}
-      whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1 }}
     >
-      <div className="card-header">
-        <div className="exercise-number">{index + 1}</div>
-        <div className="exercise-type-badge">{exercise.type}</div>
-        <div 
-          className="points-badge" 
-          style={{ backgroundColor: difficultyInfo.color }}
-        >
-          {points} pts
-        </div>
-      </div>
-      
-      <div className="card-content">
-        <h3 className="exercise-title">{exercise.name}</h3>
-        <p className="exercise-question">
-          {exercise.question.length > 100 
-            ? `${exercise.question.substring(0, 100)}...` 
-            : exercise.question
-          }
-        </p>
-        
-        <div className="meta-info">
-          <span className="difficulty" style={{ backgroundColor: `${difficultyInfo.color}20`, color: difficultyInfo.color }}>
-            {difficultyInfo.label}
-          </span>
-        </div>
-      </div>
-      
-      <div className="card-footer">
-        {isCompleted ? (
-          <div className="completion-info">
-            <span className="completion-badge">✅ Terminé</span>
-            {progress && (
-              <div className="score-info">
-                <span className="score">{progress.pointsEarned}/{progress.pointsMax}</span>
-                <span className="xp">+{progress.xpEarned} XP</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <button className="btn-start">
-            📝 Commencer
-          </button>
-        )}
-      </div>
+      <Card 
+        shadow="sm" 
+        padding="lg" 
+        radius="md" 
+        withBorder
+        style={{ 
+          height: '100%',
+          cursor: 'pointer',
+          transition: 'transform 0.2s',
+        }}
+        onClick={onClick}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-4px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <Card.Section withBorder inheritPadding py="xs" bg={isCompleted ? 'green.0' : 'gray.0'}>
+          <Group justify="space-between">
+            <Badge size="lg" variant="filled" color="blue">
+              #{index + 1}
+            </Badge>
+            <Badge color={difficultyInfo.color} variant="light">
+              {difficultyInfo.label}
+            </Badge>
+            <Badge color="violet" variant="light">
+              {points} pts
+            </Badge>
+          </Group>
+        </Card.Section>
+
+        <Stack gap="md" mt="md">
+          <Box>
+            <Title order={4} mb="xs">{exercise.name}</Title>
+            <Text size="sm" c="dimmed" lineClamp={3}>
+              {exercise.question?.length > 100 
+                ? `${exercise.question.substring(0, 100)}...` 
+                : exercise.question || 'Aucune description'}
+            </Text>
+          </Box>
+          
+          <Badge variant="outline" color="gray">
+            {exercise.type}
+          </Badge>
+        </Stack>
+
+        <Divider my="md" />
+
+        <Group justify="space-between" mt="auto">
+          {isCompleted ? (
+            <Group gap="xs">
+              <Badge color="green" leftSection={<IconCheck size={14} />}>
+                Terminé
+              </Badge>
+              {progress && (
+                <Group gap={4}>
+                  <Text size="xs" c="dimmed">
+                    {progress.pointsEarned}/{progress.pointsMax}
+                  </Text>
+                  <Badge size="sm" color="yellow" variant="light" leftSection={<IconTrophy size={12} />}>
+                    +{progress.xpEarned} XP
+                  </Badge>
+                </Group>
+              )}
+            </Group>
+          ) : (
+            <Button
+              fullWidth
+              leftSection={<IconPlay size={16} />}
+              onClick={handleStartClick}
+              variant="gradient"
+              gradient={{ from: 'blue', to: 'violet', deg: 90 }}
+            >
+              Commencer
+            </Button>
+          )}
+        </Group>
+      </Card>
     </motion.div>
   );
 }
 
 // =========================
-// MODAL D'EXERCICE
+// MODAL D'EXERCICE CONTENT
 // =========================
 
-function ExerciseModal({ exercise, userAnswer, setUserAnswer, submissionResult, isSubmitting, error, onClose, onSubmit }) {
+function ExerciseModalContent({ exercise, userAnswer, setUserAnswer, submissionResult, isSubmitting, error, onClose, onSubmit }) {
   const [attempts, setAttempts] = useState(0);
 
   const handleAnswer = (answer) => {
@@ -447,56 +527,54 @@ function ExerciseModal({ exercise, userAnswer, setUserAnswer, submissionResult, 
   };
 
   return (
-    <motion.div 
-      className="modal-overlay"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-    >
-      <motion.div 
-        className="modal-content"
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <div className="exercise-info">
-            <h3 className="modal-title">{exercise.name}</h3>
-            <div className="exercise-meta">
-              <span className="type-badge">{exercise.type}</span>
-              <span className="points-info">{exercise.points || 10} points</span>
-            </div>
-          </div>
-          <button className="btn-close" onClick={onClose}>×</button>
-        </div>
-        
-        <div className="modal-body">
-          <ExerciseAnswerInterface
-            exercise={exercise}
-            onAnswer={handleAnswer}
-            onTest={handleTest}
-            attempts={attempts}
-            maxAttempts={exercise.attemptsAllowed || 3}
-            isSubmitting={isSubmitting}
-          />
-          
-          {/* Affichage des erreurs */}
-          {error && (
-            <div className="error-message">
-              <span className="error-icon">⚠️</span>
-              {error}
-            </div>
+    <Stack gap="md">
+      {/* Métadonnées de l'exercice */}
+      <Group justify="space-between">
+        <Group gap="xs">
+          <Badge color="blue" variant="light">{exercise.type}</Badge>
+          <Badge color="violet" variant="light">{exercise.points || 10} points</Badge>
+          {exercise.difficulty && (
+            <Badge 
+              color={exercise.difficulty === 'easy' ? 'green' : exercise.difficulty === 'hard' ? 'red' : 'orange'}
+              variant="light"
+            >
+              {exercise.difficulty === 'easy' ? 'Facile' : exercise.difficulty === 'hard' ? 'Difficile' : 'Moyen'}
+            </Badge>
           )}
-          
-          {/* Résultat de soumission */}
-          {submissionResult && (
-            <SubmissionResult result={submissionResult} />
-          )}
-        </div>
-      </motion.div>
-    </motion.div>
+        </Group>
+      </Group>
+
+      <Divider />
+
+      {/* Interface de réponse */}
+      <Box>
+        <ExerciseAnswerInterface
+          exercise={exercise}
+          onAnswer={handleAnswer}
+          onTest={handleTest}
+          attempts={attempts}
+          maxAttempts={exercise.attemptsAllowed || 3}
+          isSubmitting={isSubmitting}
+        />
+      </Box>
+      
+      {/* Affichage des erreurs */}
+      {error && (
+        <Alert 
+          icon={<IconAlertCircle size={20} />} 
+          title="Erreur" 
+          color="red"
+          radius="md"
+        >
+          {error}
+        </Alert>
+      )}
+      
+      {/* Résultat de soumission */}
+      {submissionResult && (
+        <SubmissionResult result={submissionResult} />
+      )}
+    </Stack>
   );
 }
 
@@ -512,54 +590,66 @@ function SubmissionResult({ result }) {
   const scorePercentage = result.pointsMax > 0 ? Math.round((result.pointsEarned / result.pointsMax) * 100) : 0;
   
   return (
-    <div className={`submission-result ${result.correct ? 'correct' : 'incorrect'}`}>
-      <div className="result-header">
-        <div className="status">
-          {result.correct ? '✅ Correct !' : '❌ Incorrect'}
-        </div>
-        <div className="score-display">
-          <span className="score">{result.pointsEarned}/{result.pointsMax}</span>
-          <span className="percentage">({scorePercentage}%)</span>
-        </div>
-      </div>
-      
-      {result.xpEarned > 0 && (
-        <div className="xp-earned">
-          🌟 +{result.xpEarned} XP gagné !
-        </div>
-      )}
-      
-      {result.explanation && (
-        <div className="explanation">
-          <h4>Explication :</h4>
-          <p>{result.explanation}</p>
-        </div>
-      )}
-      
-      {result.details && result.details.type === 'QCM' && (
-        <div className="qcm-details">
-          <h4>Détails QCM :</h4>
-          <div className="comparison">
-            <div>Vos réponses : {result.details.user?.join(', ') || 'Aucune'}</div>
-            <div>Bonnes réponses : {result.details.correct?.join(', ') || 'N/A'}</div>
-          </div>
-        </div>
-      )}
-      
-      {result.details && result.details.tests && (
-        <div className="tests-results">
-          <h4>Résultats des tests :</h4>
-          {result.details.tests.map((test, i) => (
-            <div key={i} className={`test-result ${test.passed ? 'passed' : 'failed'}`}>
-              <strong>{test.name || `Test ${i+1}`}</strong>
-              <span className="test-status">
-                {test.passed ? '✅ Réussi' : '❌ Échec'}
-                {test.points && ` (+${test.points} pts)`}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
+    <Alert 
+      icon={result.correct ? <IconCheck size={20} /> : <IconX size={20} />}
+      title={result.correct ? 'Correct !' : 'Incorrect'}
+      color={result.correct ? 'green' : 'red'}
+      radius="md"
+    >
+      <Stack gap="md">
+        <Group justify="space-between">
+          <Text fw={600}>
+            Score: {result.pointsEarned}/{result.pointsMax} ({scorePercentage}%)
+          </Text>
+          {result.xpEarned > 0 && (
+            <Badge color="yellow" variant="light" leftSection={<IconTrophy size={14} />}>
+              +{result.xpEarned} XP
+            </Badge>
+          )}
+        </Group>
+        
+        {result.explanation && (
+          <Box>
+            <Text fw={600} mb="xs">Explication :</Text>
+            <Text size="sm">{result.explanation}</Text>
+          </Box>
+        )}
+        
+        {result.details && result.details.type === 'QCM' && (
+          <Box>
+            <Text fw={600} mb="xs">Détails QCM :</Text>
+            <Stack gap="xs">
+              <Text size="sm">
+                <strong>Vos réponses :</strong> {result.details.user?.join(', ') || 'Aucune'}
+              </Text>
+              <Text size="sm">
+                <strong>Bonnes réponses :</strong> {result.details.correct?.join(', ') || 'N/A'}
+              </Text>
+            </Stack>
+          </Box>
+        )}
+        
+        {result.details && result.details.tests && (
+          <Box>
+            <Text fw={600} mb="xs">Résultats des tests :</Text>
+            <Stack gap="xs">
+              {result.details.tests.map((test, i) => (
+                <Group key={i} justify="space-between">
+                  <Text size="sm" fw={500}>{test.name || `Test ${i+1}`}</Text>
+                  <Badge 
+                    color={test.passed ? 'green' : 'red'} 
+                    variant="light"
+                    leftSection={test.passed ? <IconCheck size={12} /> : <IconX size={12} />}
+                  >
+                    {test.passed ? 'Réussi' : 'Échec'}
+                    {test.points && ` (+${test.points} pts)`}
+                  </Badge>
+                </Group>
+              ))}
+            </Stack>
+          </Box>
+        )}
+      </Stack>
+    </Alert>
   );
 }
