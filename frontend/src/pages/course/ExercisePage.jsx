@@ -1,11 +1,10 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
-import './CourseStyles.css';
-import './ExerciseEnhancements.css';
+import { getApiUrl } from '../../utils/apiConfig';
 
 // Mantine UI Components
 import { 
@@ -25,8 +24,7 @@ import {
   Modal,
   Box,
   Divider,
-  ActionIcon,
-  Tooltip
+  Center
 } from '@mantine/core';
 import { 
   IconArrowLeft, 
@@ -35,11 +33,11 @@ import {
   IconPlay, 
   IconTrophy,
   IconAlertCircle,
-  IconFileText
+  IconFileText,
+  IconRefresh
 } from '@tabler/icons-react';
 import { notifications } from '@mantine/notifications';
 
-import { getApiUrl } from '../../utils/apiConfig';
 const API_BASE = getApiUrl('/api/courses');
 
 // =========================
@@ -93,6 +91,7 @@ export default function ExercisePage() {
   const [userAnswer, setUserAnswer] = useState(null);
   const [submissionResult, setSubmissionResult] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [attempts, setAttempts] = useState(0);
 
   // Charger les données du niveau
   const fetchLevelData = useCallback(async () => {
@@ -107,14 +106,13 @@ export default function ExercisePage() {
         'Content-Type': 'application/json'
       };
       
-      // Toujours inclure le token s'il existe (comme dans LevelPage)
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
       const response = await fetch(`${API_BASE}/levels/${levelId}`, {
         headers,
-        credentials: 'include' // Inclure les cookies si nécessaire
+        credentials: 'include'
       });
       
       console.log('[ExercisePage] Response status:', response.status, response.statusText);
@@ -141,18 +139,25 @@ export default function ExercisePage() {
         exercisesCount: data.exercises?.length || 0 
       });
       
-      // Les données arrivent déjà normalisées du backend avec la langue appropriée
+      // Normaliser les exercices avec support multilingue
       const normalizedExercises = (data.exercises || []).map((ex, index) => ({
         ...ex,
-        name: ex.name || ex.translations?.[language]?.name || `Exercice ${index + 1}`,
-        question: ex.question || ex.translations?.[language]?.question || 'Question non disponible',
-        explanation: ex.explanation || ex.translations?.[language]?.explanation || ''
+        name: ex.name || ex.translations?.[language]?.name || ex.translations?.fr?.name || `Exercice ${index + 1}`,
+        question: ex.question || ex.translations?.[language]?.question || ex.translations?.fr?.question || 'Question non disponible',
+        explanation: ex.explanation || ex.translations?.[language]?.explanation || ex.translations?.fr?.explanation || ''
       }));
       
       setLevel({ ...data, exercises: normalizedExercises });
     } catch (e) {
       console.error('[ExercisePage] Erreur de chargement:', e);
       setError(e.message || 'Erreur lors du chargement du niveau');
+      
+      notifications.show({
+        title: 'Erreur de chargement',
+        message: e.message || 'Impossible de charger les exercices',
+        color: 'red',
+        icon: <IconAlertCircle size={18} />
+      });
     } finally {
       setLoading(false);
     }
@@ -168,7 +173,6 @@ export default function ExercisePage() {
       setIsSubmitting(true);
       setError(null);
 
-      // Validation des paramètres
       if (!exerciseId) {
         throw new Error('ID d\'exercice requis');
       }
@@ -188,7 +192,7 @@ export default function ExercisePage() {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : undefined
+          ...(token && { 'Authorization': `Bearer ${token}` })
         },
         body: JSON.stringify(payload)
       });
@@ -196,22 +200,31 @@ export default function ExercisePage() {
       const result = await response.json();
 
       if (!response.ok) {
-        // Extraire le message d'erreur du backend
         const errorMessage = result.error || result.message || `Erreur HTTP: ${response.status}`;
         console.error('Erreur de soumission:', errorMessage, result);
         throw new Error(errorMessage);
       }
 
-      // Vérifier que la réponse contient les données attendues
       if (!result.success && result.error) {
         throw new Error(result.error);
       }
 
       setSubmissionResult(result);
+      setAttempts(prev => prev + 1);
       
       // Marquer comme complété localement
       const updated = markExerciseCompleted(exerciseId, result);
       setCompletedExercises(updated);
+
+      // Notification de succès
+      notifications.show({
+        title: result.correct ? 'Correct !' : 'Incorrect',
+        message: result.correct 
+          ? `Vous avez gagné ${result.pointsEarned} points !` 
+          : 'Essayez encore !',
+        color: result.correct ? 'green' : 'orange',
+        icon: result.correct ? <IconCheck size={18} /> : <IconX size={18} />
+      });
 
       console.log('✅ Exercice soumis avec succès', { 
         exerciseId, 
@@ -224,6 +237,14 @@ export default function ExercisePage() {
       console.error('Erreur de soumission:', e);
       const errorMessage = e.message || 'Erreur lors de la soumission de l\'exercice. Veuillez réessayer.';
       setError(errorMessage);
+      
+      notifications.show({
+        title: 'Erreur de soumission',
+        message: errorMessage,
+        color: 'red',
+        icon: <IconAlertCircle size={18} />
+      });
+      
       throw e;
     } finally {
       setIsSubmitting(false);
@@ -236,6 +257,7 @@ export default function ExercisePage() {
     setUserAnswer(null);
     setSubmissionResult(null);
     setError(null);
+    setAttempts(0);
   }, []);
 
   const handleCloseExercise = useCallback(() => {
@@ -243,6 +265,7 @@ export default function ExercisePage() {
     setUserAnswer(null);
     setSubmissionResult(null);
     setError(null);
+    setAttempts(0);
   }, []);
 
   const handleSubmit = useCallback(async () => {
@@ -252,7 +275,6 @@ export default function ExercisePage() {
       let submissionData = userAnswer;
       let extraData = {};
 
-      // Gestion spéciale pour les exercices Code
       if (activeExercise.type === 'Code' && activeExercise._meta?.manualPass) {
         extraData.passed = true;
       }
@@ -263,12 +285,30 @@ export default function ExercisePage() {
     }
   }, [activeExercise, userAnswer, submitExercise]);
 
+  const handleAnswer = useCallback((answer) => {
+    setUserAnswer(answer);
+  }, []);
+
+  const handleTest = useCallback(async (userAnswer) => {
+    // Simulation d'un test de code
+    return {
+      success: true,
+      message: 'Code exécuté avec succès',
+      details: {
+        lines: userAnswer.split('\n').length,
+        language: activeExercise?.language || 'javascript'
+      }
+    };
+  }, [activeExercise]);
+
   // Statistiques du niveau
   const levelStats = useMemo(() => {
     if (!level?.exercises) return { total: 0, completed: 0, progress: 0 };
     
     const total = level.exercises.length;
-    const completed = Object.values(completedExercises).filter(ex => ex.completed).length;
+    const completed = level.exercises.filter(ex => 
+      completedExercises[ex._id]?.completed
+    ).length;
     const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
     
     return { total, completed, progress };
@@ -298,7 +338,10 @@ export default function ExercisePage() {
           radius="md"
         >
           <Text mb="md">{error}</Text>
-          <Button onClick={fetchLevelData} leftSection={<IconPlay size={16} />}>
+          <Button 
+            onClick={fetchLevelData} 
+            leftSection={<IconRefresh size={16} />}
+          >
             Réessayer
           </Button>
         </Alert>
@@ -329,8 +372,16 @@ export default function ExercisePage() {
 
   return (
     <Container size="xl" py="xl">
-      {/* Header du niveau avec Mantine */}
-      <Paper p="lg" radius="md" mb="xl" withBorder style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+      {/* Header du niveau */}
+      <Paper 
+        p="lg" 
+        radius="md" 
+        mb="xl" 
+        withBorder 
+        style={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+        }}
+      >
         <Group justify="space-between" align="flex-start" wrap="wrap">
           <Group gap="md">
             <Button
@@ -401,7 +452,7 @@ export default function ExercisePage() {
         )}
       </Box>
 
-      {/* Modal d'exercice avec Mantine */}
+      {/* Modal d'exercice */}
       <Modal
         opened={!!activeExercise}
         onClose={handleCloseExercise}
@@ -414,12 +465,15 @@ export default function ExercisePage() {
           <ExerciseModalContent
             exercise={activeExercise}
             userAnswer={userAnswer}
-            setUserAnswer={setUserAnswer}
+            setUserAnswer={handleAnswer}
             submissionResult={submissionResult}
             isSubmitting={isSubmitting}
             error={error}
+            attempts={attempts}
+            maxAttempts={activeExercise.attemptsAllowed || 3}
             onClose={handleCloseExercise}
             onSubmit={handleSubmit}
+            onTest={handleTest}
           />
         )}
       </Modal>
@@ -540,26 +594,19 @@ function ExerciseCard({ exercise, index, isCompleted, progress, onClick }) {
 // MODAL D'EXERCICE CONTENT
 // =========================
 
-function ExerciseModalContent({ exercise, userAnswer, setUserAnswer, submissionResult, isSubmitting, error, onClose, onSubmit }) {
-  const [attempts, setAttempts] = useState(0);
-
-  const handleAnswer = (answer) => {
-    setUserAnswer(answer);
-    onSubmit();
-  };
-
-  const handleTest = async (userAnswer) => {
-    // Simulation d'un test de code
-    return {
-      success: true,
-      message: 'Code exécuté avec succès',
-      details: {
-        lines: userAnswer.split('\n').length,
-        language: exercise?.language || 'javascript'
-      }
-    };
-  };
-
+function ExerciseModalContent({ 
+  exercise, 
+  userAnswer, 
+  setUserAnswer, 
+  submissionResult, 
+  isSubmitting, 
+  error, 
+  attempts,
+  maxAttempts,
+  onClose, 
+  onSubmit,
+  onTest
+}) {
   return (
     <Stack gap="md">
       {/* Métadonnées de l'exercice */}
@@ -576,18 +623,31 @@ function ExerciseModalContent({ exercise, userAnswer, setUserAnswer, submissionR
             </Badge>
           )}
         </Group>
+        {attempts > 0 && (
+          <Text size="sm" c="dimmed">
+            Tentatives: {attempts}/{maxAttempts}
+          </Text>
+        )}
       </Group>
 
       <Divider />
+
+      {/* Question */}
+      <Box>
+        <Text fw={600} mb="xs">Question :</Text>
+        <Text size="sm" c="dimmed" style={{ whiteSpace: 'pre-wrap' }}>
+          {exercise.question || 'Aucune question disponible'}
+        </Text>
+      </Box>
 
       {/* Interface de réponse */}
       <Box>
         <ExerciseAnswerInterface
           exercise={exercise}
-          onAnswer={handleAnswer}
-          onTest={handleTest}
+          onAnswer={setUserAnswer}
+          onTest={onTest}
           attempts={attempts}
-          maxAttempts={exercise.attemptsAllowed || 3}
+          maxAttempts={maxAttempts}
           isSubmitting={isSubmitting}
         />
       </Box>
@@ -608,13 +668,24 @@ function ExerciseModalContent({ exercise, userAnswer, setUserAnswer, submissionR
       {submissionResult && (
         <SubmissionResult result={submissionResult} />
       )}
+
+      {/* Boutons d'action */}
+      <Group justify="flex-end" mt="md">
+        <Button variant="outline" onClick={onClose}>
+          Fermer
+        </Button>
+        <Button
+          onClick={onSubmit}
+          loading={isSubmitting}
+          disabled={!userAnswer && exercise.type !== 'Code'}
+          leftSection={<IconCheck size={16} />}
+        >
+          Soumettre
+        </Button>
+      </Group>
     </Stack>
   );
 }
-
-// =========================
-// COMPOSANTS D'EXERCICES SPÉCIFIQUES (LEGACY - À SUPPRIMER)
-// =========================
 
 // =========================
 // RÉSULTAT DE SOUMISSION
