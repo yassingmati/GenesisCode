@@ -100,8 +100,18 @@ export default function ExercisePage() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE}/levels/${levelId}`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE}/levels/${levelId}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        }
+      });
+      
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Authentification requise. Veuillez vous connecter.');
+        }
         throw new Error('Impossible de charger le niveau');
       }
       
