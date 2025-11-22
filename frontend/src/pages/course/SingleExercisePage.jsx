@@ -4,10 +4,11 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import UnifiedExerciseInterface from '../../components/UnifiedExerciseInterface';
+import { getApiUrl } from '../../utils/apiConfig';
 import './CourseStyles.css';
 import './ExerciseEnhancements.css';
 
-const API_BASE = 'http://localhost:5000/api/courses';
+const API_BASE = getApiUrl('/api/courses');
 
 // Fonctions helper
 const getUserId = () => {
@@ -31,6 +32,65 @@ const markExerciseCompleted = (exerciseId, result) => {
   return completed;
 };
 
+// Fonction pour trouver un level dans les paths accessibles (fallback si accès direct refusé)
+async function findLevelInAccessiblePaths(levelId, token) {
+  try {
+    // Récupérer les catégories
+    const catsRes = await fetch(`${API_BASE}/categories`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!catsRes.ok) return null;
+    const cats = await catsRes.json();
+
+    // Chercher dans chaque catégorie
+    for (const cat of cats) {
+      const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!pRes.ok) continue;
+      const paths = await pRes.json();
+
+      // Chercher dans chaque path
+      for (const path of paths) {
+        const lvRes = await fetch(`${API_BASE}/paths/${path._id}/levels`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }).catch(() => ({ json: () => [] }));
+        if (!lvRes.ok) continue;
+        const levels = await lvRes.json();
+
+        // Chercher le level spécifique
+        const targetLevel = levels.find(level => level._id === levelId);
+        if (targetLevel) {
+          console.log(`[SingleExercisePage] Level trouvé dans path ${path._id}`);
+          // Ajouter l'information du path au level
+          return {
+            ...targetLevel,
+            path: {
+              _id: path._id,
+              name: path.name,
+              translations: path.translations
+            }
+          };
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[SingleExercisePage] Erreur lors de la recherche du level:', error);
+    return null;
+  }
+}
+
 export default function SingleExercisePage() {
   const { levelId, exerciseId } = useParams();
   const navigate = useNavigate();
@@ -46,18 +106,150 @@ export default function SingleExercisePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attempts, setAttempts] = useState(0);
 
+  // Helper pour faire une requête avec retry et gestion d'authentification
+  const fetchWithRetry = useCallback(async (url, options = {}, retries = 2) => {
+    const makeRequest = async (attempt = 0) => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Content-Type': 'application/json',
+          ...options.headers
+        };
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(url, {
+          ...options,
+          headers,
+          credentials: 'include'
+        });
+        
+        // Si 401 et on a encore des tentatives, essayer de rafraîchir le token
+        if (response.status === 401 && attempt < retries) {
+          console.log('[SingleExercisePage] Token expiré, tentative de rafraîchissement...', { attempt, retries });
+          
+          // Essayer de rafraîchir le token via l'API auth
+          try {
+            const refreshToken = localStorage.getItem('refreshToken');
+            if (refreshToken) {
+              const refreshResponse = await fetch(`${getApiUrl('')}/api/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+                credentials: 'include'
+              });
+              
+              if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                if (refreshData.token) {
+                  localStorage.setItem('token', refreshData.token);
+                  console.log('[SingleExercisePage] Token rafraîchi avec succès');
+                  // Réessayer la requête avec le nouveau token
+                  return makeRequest(attempt + 1);
+                }
+              }
+            }
+          } catch (refreshError) {
+            console.warn('[SingleExercisePage] Erreur lors du rafraîchissement du token:', refreshError);
+          }
+          
+          // Si le rafraîchissement échoue, rediriger vers la connexion
+          if (attempt === retries - 1) {
+            throw new Error('Session expirée. Veuillez vous reconnecter.');
+          }
+        }
+        
+        return response;
+      } catch (error) {
+        if (attempt < retries && error.message.includes('Session expirée')) {
+          throw error; // Ne pas retry si c'est une erreur de session
+        }
+        if (attempt < retries) {
+          console.log(`[SingleExercisePage] Tentative ${attempt + 1}/${retries} échouée, nouvelle tentative...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Backoff exponentiel
+          return makeRequest(attempt + 1);
+        }
+        throw error;
+      }
+    };
+    
+    return makeRequest();
+  }, []);
+
   // Charger les données
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Charger le niveau
-      const levelResponse = await fetch(`${API_BASE}/levels/${levelId}`);
-      if (!levelResponse.ok) {
-        throw new Error('Impossible de charger le niveau');
+      const token = localStorage.getItem('token');
+      console.log('[SingleExercisePage] Fetching level data:', { 
+        levelId, 
+        exerciseId,
+        API_BASE, 
+        hasToken: !!token 
+      });
+
+      // Essayer d'abord de charger le level individuellement
+      let levelResponse;
+      try {
+        levelResponse = await fetchWithRetry(`${API_BASE}/levels/${levelId}`);
+      } catch (fetchError) {
+        console.error('[SingleExercisePage] Erreur lors de fetchWithRetry:', fetchError);
+        // Si c'est une erreur réseau, essayer directement
+        levelResponse = await fetch(`${API_BASE}/levels/${levelId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
+          credentials: 'include'
+        });
       }
-      const levelData = await levelResponse.json();
+      
+      console.log('[SingleExercisePage] Response status:', levelResponse.status, levelResponse.statusText);
+      
+      let levelData;
+      
+      if (!levelResponse.ok) {
+        const errorData = await levelResponse.json().catch(() => ({}));
+        console.error('[SingleExercisePage] Error response:', errorData);
+        
+        if (levelResponse.status === 401) {
+          // Rediriger vers la page de connexion
+          setTimeout(() => {
+            navigate('/login');
+          }, 2000);
+          throw new Error('Authentification requise. Veuillez vous connecter.');
+        } else if (levelResponse.status === 403) {
+          // Si accès refusé, essayer de trouver le level dans les paths accessibles
+          console.log('[SingleExercisePage] Level non accessible directement (403), recherche dans les paths...');
+          const levelFromPaths = await findLevelInAccessiblePaths(levelId, token);
+          
+          if (levelFromPaths) {
+            console.log('[SingleExercisePage] Level trouvé via paths accessibles');
+            levelData = levelFromPaths;
+          } else {
+            // Si pas trouvé, lancer l'erreur
+            throw new Error(errorData.message || errorData.error || 'Accès refusé - Niveau verrouillé');
+          }
+        } else if (levelResponse.status === 404) {
+          throw new Error('Niveau introuvable');
+        } else {
+          throw new Error(errorData.error || errorData.message || `Erreur ${levelResponse.status}: Impossible de charger le niveau`);
+        }
+      } else {
+        // Réponse OK, parser les données
+        levelData = await levelResponse.json();
+      }
+
+      console.log('[SingleExercisePage] Level data received:', { 
+        levelId: levelData._id, 
+        title: levelData.title || levelData.translations?.fr?.title, 
+        exercisesCount: levelData.exercises?.length || 0 
+      });
+
       setLevel(levelData);
 
       // Trouver l'exercice dans le niveau
@@ -68,12 +260,13 @@ export default function SingleExercisePage() {
       setExercise(exerciseData);
 
     } catch (e) {
-      console.error('Erreur de chargement:', e);
-      setError(e.message);
+      console.error('[SingleExercisePage] Erreur de chargement complète:', e);
+      console.error('[SingleExercisePage] Stack trace:', e.stack);
+      setError(e.message || 'Erreur lors du chargement du niveau');
     } finally {
       setLoading(false);
     }
-  }, [levelId, exerciseId]);
+  }, [levelId, exerciseId, fetchWithRetry, navigate]);
 
   useEffect(() => {
     fetchData();
@@ -92,22 +285,29 @@ export default function SingleExercisePage() {
         userId: getUserId()
       };
 
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/exercises/${exercise._id}/submit`, {
+      console.log('[SingleExercisePage] Submitting exercise:', { exerciseId: exercise._id });
+
+      const response = await fetchWithRetry(`${API_BASE}/exercises/${exercise._id}/submit`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
         body: JSON.stringify(payload)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur de soumission');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[SingleExercisePage] Submission error:', errorData);
+        
+        if (response.status === 401) {
+          throw new Error('Session expirée. Veuillez vous reconnecter.');
+        } else if (response.status === 403) {
+          throw new Error('Accès refusé à cet exercice');
+        } else {
+          throw new Error(errorData.error || errorData.message || 'Erreur de soumission');
+        }
       }
 
       const result = await response.json();
+      console.log('[SingleExercisePage] Submission result:', result);
+      
       setSubmissionResult(result);
       setAttempts(prev => prev + 1);
       
@@ -116,13 +316,13 @@ export default function SingleExercisePage() {
 
       return result;
     } catch (e) {
-      console.error('Erreur de soumission:', e);
+      console.error('[SingleExercisePage] Erreur de soumission:', e);
       setError(e.message);
       throw e;
     } finally {
       setIsSubmitting(false);
     }
-  }, [exercise]);
+  }, [exercise, fetchWithRetry]);
 
   // Fonction de test pour les exercices de code
   const handleTest = useCallback(async (userAnswer) => {
