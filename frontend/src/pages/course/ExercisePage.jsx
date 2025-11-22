@@ -44,6 +44,65 @@ const API_BASE = getApiUrl('/api/courses');
 // HELPER FUNCTIONS
 // =========================
 
+// Fonction pour trouver un level dans les paths accessibles (fallback si accès direct refusé)
+async function findLevelInAccessiblePaths(levelId, token) {
+  try {
+    // Récupérer les catégories
+    const catsRes = await fetch(`${API_BASE}/categories`, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!catsRes.ok) return null;
+    const cats = await catsRes.json();
+
+    // Chercher dans chaque catégorie
+    for (const cat of cats) {
+      const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (!pRes.ok) continue;
+      const paths = await pRes.json();
+
+      // Chercher dans chaque path
+      for (const path of paths) {
+        const lvRes = await fetch(`${API_BASE}/paths/${path._id}/levels`, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          }
+        }).catch(() => ({ json: () => [] }));
+        if (!lvRes.ok) continue;
+        const levels = await lvRes.json();
+
+        // Chercher le level spécifique
+        const targetLevel = levels.find(level => level._id === levelId);
+        if (targetLevel) {
+          console.log(`[ExercisePage] Level trouvé dans path ${path._id}`);
+          // Ajouter l'information du path au level
+          return {
+            ...targetLevel,
+            path: {
+              _id: path._id,
+              name: path.name,
+              translations: path.translations
+            }
+          };
+        }
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[ExercisePage] Erreur lors de la recherche du level:', error);
+    return null;
+  }
+}
+
 const getUserId = () => {
   const stored = localStorage.getItem('userId');
   if (stored) return stored;
@@ -171,11 +230,33 @@ export default function ExercisePage() {
       setLoading(true);
       setError(null);
       
-      console.log('[ExercisePage] Fetching level data:', { levelId, API_BASE });
+      const token = localStorage.getItem('token');
+      console.log('[ExercisePage] Fetching level data:', { 
+        levelId, 
+        API_BASE, 
+        hasToken: !!token,
+        tokenPreview: token ? token.substring(0, 20) + '...' : 'none'
+      });
       
-      const response = await fetchWithRetry(`${API_BASE}/levels/${levelId}`);
+      // Essayer d'abord de charger le level individuellement (comme dans LevelPage)
+      let response;
+      try {
+        response = await fetchWithRetry(`${API_BASE}/levels/${levelId}`);
+      } catch (fetchError) {
+        console.error('[ExercisePage] Erreur lors de fetchWithRetry:', fetchError);
+        // Si c'est une erreur réseau, essayer directement
+        response = await fetch(`${API_BASE}/levels/${levelId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token && { 'Authorization': `Bearer ${token}` })
+          },
+          credentials: 'include'
+        });
+      }
       
       console.log('[ExercisePage] Response status:', response.status, response.statusText);
+      
+      let data;
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -194,18 +275,30 @@ export default function ExercisePage() {
           }, 2000);
           throw new Error('Authentification requise. Veuillez vous connecter.');
         } else if (response.status === 403) {
-          throw new Error(errorData.message || errorData.error || 'Accès refusé - Niveau verrouillé');
+          // Si accès refusé, essayer de trouver le level dans les paths accessibles
+          console.log('[ExercisePage] Level non accessible directement (403), recherche dans les paths...');
+          const levelFromPaths = await findLevelInAccessiblePaths(levelId, token);
+          
+          if (levelFromPaths) {
+            console.log('[ExercisePage] Level trouvé via paths accessibles');
+            data = levelFromPaths;
+          } else {
+            // Si pas trouvé, lancer l'erreur
+            throw new Error(errorData.message || errorData.error || 'Accès refusé - Niveau verrouillé');
+          }
         } else if (response.status === 404) {
           throw new Error('Niveau introuvable');
         } else {
           throw new Error(errorData.error || errorData.message || `Erreur ${response.status}: Impossible de charger le niveau`);
         }
+      } else {
+        // Réponse OK, parser les données
+        data = await response.json();
       }
       
-      const data = await response.json();
       console.log('[ExercisePage] Level data received:', { 
         levelId: data._id, 
-        title: data.title, 
+        title: data.title || data.translations?.fr?.title, 
         exercisesCount: data.exercises?.length || 0 
       });
       
@@ -219,7 +312,8 @@ export default function ExercisePage() {
       
       setLevel({ ...data, exercises: normalizedExercises });
     } catch (e) {
-      console.error('[ExercisePage] Erreur de chargement:', e);
+      console.error('[ExercisePage] Erreur de chargement complète:', e);
+      console.error('[ExercisePage] Stack trace:', e.stack);
       const errorMessage = e.message || 'Erreur lors du chargement du niveau';
       setError(errorMessage);
       
