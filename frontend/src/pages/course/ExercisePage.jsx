@@ -737,12 +737,14 @@ function ExerciseCard({ exercise, index, isCompleted, progress, onClick }) {
           ) : (
             <Button
               fullWidth
-              leftSection={<IconPlay size={16} />}
               onClick={handleStartClick}
               variant="gradient"
               gradient={{ from: 'blue', to: 'violet', deg: 90 }}
             >
-              Commencer
+              <Group gap={8}>
+                <IconPlay size={16} />
+                <span>Commencer</span>
+              </Group>
             </Button>
           )}
         </Group>
