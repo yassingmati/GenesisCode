@@ -42,6 +42,7 @@ export default function DebutantMap() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [selectedLevel, setSelectedLevel] = useState(null);
+  const [previewLevel, setPreviewLevel] = useState(null);
 
   // Recherche avec debounce
   const [debouncedQ, setDebouncedQ] = useState(query);
@@ -479,6 +480,7 @@ export default function DebutantMap() {
                     debouncedQ={debouncedQ}
                     videoOnly={videoOnly}
                     pdfOnly={pdfOnly}
+                    onPreview={setPreviewLevel}
                   />
                 ))}
               </div>
@@ -486,6 +488,164 @@ export default function DebutantMap() {
           </div>
         </main>
       </div>
+
+      {/* Modal d'aperçu */}
+      <AnimatePresence>
+        {previewLevel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPreviewLevel(null)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(4px)',
+              zIndex: 1000,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 20
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: 'white',
+                borderRadius: 16,
+                padding: 24,
+                maxWidth: 600,
+                width: '100%',
+                maxHeight: '90vh',
+                overflow: 'auto',
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0f172a' }}>
+                  Aperçu du niveau
+                </h2>
+                <button
+                  onClick={() => setPreviewLevel(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    fontSize: 24,
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    padding: 4,
+                    lineHeight: 1
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: 18, fontWeight: 600, color: '#1e293b' }}>
+                  {previewLevel.translations?.[lang]?.title || previewLevel.translations?.fr?.title || 'Sans titre'}
+                </h3>
+                {previewLevel.translations?.[lang]?.content && (
+                  <p style={{ margin: '8px 0', color: '#64748b', fontSize: 14, lineHeight: 1.6 }}>
+                    {previewLevel.translations[lang].content}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                <div style={{ 
+                  background: 'rgba(79, 172, 254, 0.1)', 
+                  padding: '8px 12px', 
+                  borderRadius: 8,
+                  fontSize: 14,
+                  color: '#4facfe',
+                  fontWeight: 600
+                }}>
+                  📝 {(previewLevel.exercises || []).length} exercice(s)
+                </div>
+                {hasAnyVideo(previewLevel) && (
+                  <div style={{ 
+                    background: 'rgba(79, 172, 254, 0.1)', 
+                    padding: '8px 12px', 
+                    borderRadius: 8,
+                    fontSize: 14,
+                    color: '#4facfe',
+                    fontWeight: 600
+                  }}>
+                    🎬 Vidéo disponible
+                  </div>
+                )}
+                {hasAnyPdf(previewLevel) && (
+                  <div style={{ 
+                    background: 'rgba(0, 242, 254, 0.1)', 
+                    padding: '8px 12px', 
+                    borderRadius: 8,
+                    fontSize: 14,
+                    color: '#00f2fe',
+                    fontWeight: 600
+                  }}>
+                    📄 PDF disponible
+                  </div>
+                )}
+                {previewLevel.order !== undefined && (
+                  <div style={{ 
+                    background: 'rgba(108, 79, 242, 0.1)', 
+                    padding: '8px 12px', 
+                    borderRadius: 8,
+                    fontSize: 14,
+                    color: '#6c4ff2',
+                    fontWeight: 600
+                  }}>
+                    Ordre: {previewLevel.order}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  onClick={() => {
+                    setPreviewLevel(null);
+                    openLevel(previewLevel._id);
+                  }}
+                  style={{
+                    flex: 1,
+                    background: 'linear-gradient(135deg, #4facfe, #00f2fe)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '12px 24px',
+                    borderRadius: 10,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Commencer
+                </button>
+                <button
+                  onClick={() => setPreviewLevel(null)}
+                  style={{
+                    flex: 1,
+                    background: 'transparent',
+                    color: '#6b7280',
+                    border: '1px solid #e5e7eb',
+                    padding: '12px 24px',
+                    borderRadius: 10,
+                    fontSize: 16,
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -506,7 +666,8 @@ function CategorySection({
   hasAnyPdf, 
   debouncedQ, 
   videoOnly, 
-  pdfOnly 
+  pdfOnly,
+  onPreview
 }) {
   if (activeCategory && activeCategory !== category._id) return null;
 
@@ -569,6 +730,7 @@ function CategorySection({
               seqMap={seqMap}
               hasAnyVideo={hasAnyVideo}
               hasAnyPdf={hasAnyPdf}
+              onPreview={onPreview}
             />
           );
         })}
@@ -580,7 +742,7 @@ function CategorySection({
 // =========================
 // SECTION DE PARCOURS
 // =========================
-function PathSection({ path, levels, lang, viewMode, openLevel, seqMap, hasAnyVideo, hasAnyPdf }) {
+function PathSection({ path, levels, lang, viewMode, openLevel, seqMap, hasAnyVideo, hasAnyPdf, onPreview }) {
   return (
     <article className="path-section" style={{ marginBottom: 32 }}>
       <div className="path-header" style={{ 
@@ -640,6 +802,7 @@ function PathSection({ path, levels, lang, viewMode, openLevel, seqMap, hasAnyVi
             openLevel={openLevel}
             hasAnyVideo={hasAnyVideo}
             hasAnyPdf={hasAnyPdf}
+            onPreview={onPreview}
           />
                         ))}
                       </div>
@@ -650,7 +813,7 @@ function PathSection({ path, levels, lang, viewMode, openLevel, seqMap, hasAnyVi
 // =========================
 // CARTE DE NIVEAU
 // =========================
-function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel, hasAnyVideo, hasAnyPdf }) {
+function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel, hasAnyVideo, hasAnyPdf, onPreview }) {
   const hasVideo = hasAnyVideo(level);
   const hasPdf = hasAnyPdf(level);
 
@@ -743,7 +906,7 @@ function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel,
           className="btn-ghost"
           onClick={(e) => { 
             e.stopPropagation(); 
-            // TODO: Implémenter l'aperçu
+            if (onPreview) onPreview(level);
           }}
           style={{ flex: 1, fontSize: 14 }}
         >

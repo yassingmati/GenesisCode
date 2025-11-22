@@ -402,7 +402,13 @@ export default function RewardsSystem({
   });
 
   const [showAddForm, setShowAddForm] = useState(false);
+  const [editingIndex, setEditingIndex] = useState(null);
   const [newReward, setNewReward] = useState({
+    points: '',
+    reward: '',
+    description: ''
+  });
+  const [editingReward, setEditingReward] = useState({
     points: '',
     reward: '',
     description: ''
@@ -465,9 +471,38 @@ export default function RewardsSystem({
     };
     
     setLocalRewards(newRewards);
+    setEditingIndex(null);
+    setEditingReward({ points: '', reward: '', description: '' });
     if (onRewardsChange) {
       onRewardsChange(newRewards);
     }
+  };
+
+  const startEditing = (index) => {
+    const reward = localRewards.rewardThresholds[index];
+    setEditingIndex(index);
+    setEditingReward({
+      points: reward.points.toString(),
+      reward: reward.reward,
+      description: reward.description || ''
+    });
+  };
+
+  const cancelEditing = () => {
+    setEditingIndex(null);
+    setEditingReward({ points: '', reward: '', description: '' });
+  };
+
+  const saveEditing = () => {
+    if (!editingReward.points || !editingReward.reward) return;
+    
+    const updatedReward = {
+      points: parseInt(editingReward.points),
+      reward: editingReward.reward,
+      description: editingReward.description
+    };
+    
+    editReward(editingIndex, updatedReward);
   };
 
   return (
@@ -532,30 +567,62 @@ export default function RewardsSystem({
             <RewardsList>
               {localRewards.rewardThresholds.map((reward, index) => (
                 <RewardItem key={index}>
-                  <RewardHeader>
-                    <RewardTitle>{reward.reward}</RewardTitle>
-                    <RewardCost>{reward.points} points</RewardCost>
-                  </RewardHeader>
-                  {reward.description && (
-                    <RewardDescription>{reward.description}</RewardDescription>
+                  {editingIndex === index ? (
+                    <AddRewardForm>
+                      <FormRow>
+                        <FormInput
+                          type="text"
+                          placeholder="Nom de la récompense"
+                          value={editingReward.reward}
+                          onChange={(e) => setEditingReward({ ...editingReward, reward: e.target.value })}
+                        />
+                        <FormInput
+                          type="number"
+                          placeholder="Points requis"
+                          value={editingReward.points}
+                          onChange={(e) => setEditingReward({ ...editingReward, points: e.target.value })}
+                          min="0"
+                        />
+                      </FormRow>
+                      <FormTextarea
+                        placeholder="Description (optionnelle)"
+                        value={editingReward.description}
+                        onChange={(e) => setEditingReward({ ...editingReward, description: e.target.value })}
+                      />
+                      <FormButtons>
+                        <FormButton className="secondary" onClick={cancelEditing}>
+                          Annuler
+                        </FormButton>
+                        <FormButton className="primary" onClick={saveEditing}>
+                          Enregistrer
+                        </FormButton>
+                      </FormButtons>
+                    </AddRewardForm>
+                  ) : (
+                    <>
+                      <RewardHeader>
+                        <RewardTitle>{reward.reward}</RewardTitle>
+                        <RewardCost>{reward.points} points</RewardCost>
+                      </RewardHeader>
+                      {reward.description && (
+                        <RewardDescription>{reward.description}</RewardDescription>
+                      )}
+                      <RewardActions>
+                        <ActionButton 
+                          className="edit"
+                          onClick={() => startEditing(index)}
+                        >
+                          ✏️ Modifier
+                        </ActionButton>
+                        <ActionButton 
+                          className="delete"
+                          onClick={() => removeReward(index)}
+                        >
+                          🗑️ Supprimer
+                        </ActionButton>
+                      </RewardActions>
+                    </>
                   )}
-                  <RewardActions>
-                    <ActionButton 
-                      className="edit"
-                      onClick={() => {
-                        // TODO: Implémenter l'édition
-                        console.log('Edit reward', index);
-                      }}
-                    >
-                      ✏️ Modifier
-                    </ActionButton>
-                    <ActionButton 
-                      className="delete"
-                      onClick={() => removeReward(index)}
-                    >
-                      🗑️ Supprimer
-                    </ActionButton>
-                  </RewardActions>
                 </RewardItem>
               ))}
             </RewardsList>

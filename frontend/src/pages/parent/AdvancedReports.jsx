@@ -4,6 +4,8 @@ import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 import ActivityChart from '../../components/parent/ActivityChart';
 import { getApiUrl } from '../../utils/apiConfig';
+import jsPDF from 'jspdf';
+import * as XLSX from 'xlsx';
 
 const ReportsContainer = styled.div`
   padding: 2rem;
@@ -394,13 +396,150 @@ export default function AdvancedReports() {
   };
 
   const handleExportPDF = () => {
-    console.log('Export PDF en cours...');
-    // TODO: Implémenter l'export PDF
+    if (!reportsData) {
+      alert('Aucune donnée à exporter');
+      return;
+    }
+
+    try {
+      const doc = new jsPDF();
+      let yPos = 20;
+
+      // Titre
+      doc.setFontSize(18);
+      doc.text('Rapport Avancé - GenesisCode', 20, yPos);
+      yPos += 15;
+
+      // Informations de période
+      doc.setFontSize(12);
+      doc.text(`Période: ${period === 'day' ? 'Jour' : period === 'week' ? 'Semaine' : period === 'month' ? 'Mois' : 'Année'}`, 20, yPos);
+      yPos += 10;
+
+      // Statistiques principales
+      doc.setFontSize(14);
+      doc.text('Statistiques Principales', 20, yPos);
+      yPos += 10;
+
+      doc.setFontSize(10);
+      const stats = reportsData.stats;
+      doc.text(`Temps total: ${stats.totalTime} minutes`, 20, yPos);
+      yPos += 7;
+      doc.text(`Exercices complétés: ${stats.totalExercises}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Score moyen: ${stats.averageScore}%`, 20, yPos);
+      yPos += 7;
+      doc.text(`Sessions: ${stats.totalSessions}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Pauses: ${stats.totalBreaks}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Récompenses: ${stats.totalRewards}`, 20, yPos);
+      yPos += 15;
+
+      // Données d'activité
+      if (reportsData.activityData && reportsData.activityData.length > 0) {
+        doc.setFontSize(14);
+        doc.text('Données d\'Activité', 20, yPos);
+        yPos += 10;
+
+        doc.setFontSize(10);
+        reportsData.activityData.forEach((item, index) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(`${item.label}: ${item.value} minutes`, 20, yPos);
+          yPos += 7;
+        });
+        yPos += 10;
+      }
+
+      // Données de comparaison
+      if (reportsData.comparisonData && reportsData.comparisonData.length > 0) {
+        if (yPos > 250) {
+          doc.addPage();
+          yPos = 20;
+        }
+        doc.setFontSize(14);
+        doc.text('Comparaison entre Enfants', 20, yPos);
+        yPos += 10;
+
+        doc.setFontSize(10);
+        reportsData.comparisonData.forEach((item, index) => {
+          if (yPos > 270) {
+            doc.addPage();
+            yPos = 20;
+          }
+          doc.text(`${item.child}: ${item.time} min, ${item.exercises} exercices, ${item.score}%`, 20, yPos);
+          yPos += 7;
+        });
+      }
+
+      // Date de génération
+      doc.setFontSize(8);
+      doc.text(`Généré le: ${new Date().toLocaleString('fr-FR')}`, 20, doc.internal.pageSize.height - 10);
+
+      // Sauvegarder
+      const fileName = `rapport-${period}-${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+    } catch (error) {
+      console.error('Erreur lors de l\'export PDF:', error);
+      alert('Erreur lors de l\'export PDF');
+    }
   };
 
   const handleExportExcel = () => {
-    console.log('Export Excel en cours...');
-    // TODO: Implémenter l'export Excel
+    if (!reportsData) {
+      alert('Aucune donnée à exporter');
+      return;
+    }
+
+    try {
+      const workbook = XLSX.utils.book_new();
+
+      // Feuille 1: Statistiques principales
+      const statsData = [
+        ['Statistique', 'Valeur'],
+        ['Temps total (minutes)', reportsData.stats.totalTime],
+        ['Exercices complétés', reportsData.stats.totalExercises],
+        ['Score moyen (%)', reportsData.stats.averageScore],
+        ['Sessions', reportsData.stats.totalSessions],
+        ['Pauses', reportsData.stats.totalBreaks],
+        ['Récompenses', reportsData.stats.totalRewards]
+      ];
+      const statsSheet = XLSX.utils.aoa_to_sheet(statsData);
+      XLSX.utils.book_append_sheet(workbook, statsSheet, 'Statistiques');
+
+      // Feuille 2: Données d'activité
+      if (reportsData.activityData && reportsData.activityData.length > 0) {
+        const activityData = [
+          ['Période', 'Minutes']
+        ];
+        reportsData.activityData.forEach(item => {
+          activityData.push([item.label, item.value]);
+        });
+        const activitySheet = XLSX.utils.aoa_to_sheet(activityData);
+        XLSX.utils.book_append_sheet(workbook, activitySheet, 'Activité');
+      }
+
+      // Feuille 3: Comparaison
+      if (reportsData.comparisonData && reportsData.comparisonData.length > 0) {
+        const comparisonData = [
+          ['Enfant', 'Temps (min)', 'Exercices', 'Score (%)']
+        ];
+        reportsData.comparisonData.forEach(item => {
+          comparisonData.push([item.child, item.time, item.exercises, item.score]);
+        });
+        const comparisonSheet = XLSX.utils.aoa_to_sheet(comparisonData);
+        XLSX.utils.book_append_sheet(workbook, comparisonSheet, 'Comparaison');
+      }
+
+      // Sauvegarder
+      const fileName = `rapport-${period}-${new Date().toISOString().split('T')[0]}.xlsx`;
+      XLSX.writeFile(workbook, fileName);
+    } catch (error) {
+      console.error('Erreur lors de l\'export Excel:', error);
+      alert('Erreur lors de l\'export Excel');
+    }
   };
 
   const handleRefresh = () => {

@@ -4,6 +4,7 @@ const UserActivity = require('../models/UserActivity');
 const SharedCalendar = require('../models/SharedCalendar');
 const Reward = require('../models/Reward');
 const mongoose = require('mongoose');
+const PDFDocument = require('pdfkit');
 
 // Générer un rapport détaillé
 exports.generateDetailedReport = async (req, res) => {
@@ -139,11 +140,112 @@ exports.generateDetailedReport = async (req, res) => {
     };
     
     if (format === 'pdf') {
-      // TODO: Implémenter génération PDF avec PDFKit
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="rapport-${childId}-${period}.pdf"`);
-      // Pour l'instant, retourner JSON
-      res.json(report);
+      try {
+        // Créer un nouveau document PDF
+        const doc = new PDFDocument({
+          size: 'A4',
+          margins: { top: 50, bottom: 50, left: 50, right: 50 }
+        });
+
+        // Définir les en-têtes de réponse
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="rapport-${childId}-${period}.pdf"`);
+
+        // Pipe le PDF vers la réponse
+        doc.pipe(res);
+
+        // En-tête du document
+        doc.fontSize(20).text('Rapport d\'Activité - GenesisCode', { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(12).text(`Enfant: ${relation.child.firstName} ${relation.child.lastName}`, { align: 'left' });
+        doc.text(`Période: ${period === 'day' ? 'Jour' : period === 'week' ? 'Semaine' : period === 'month' ? 'Mois' : 'Année'}`, { align: 'left' });
+        doc.text(`Date de génération: ${new Date().toLocaleDateString('fr-FR')}`, { align: 'left' });
+        doc.moveDown();
+
+        // Statistiques principales
+        doc.fontSize(16).text('Statistiques Principales', { underline: true });
+        doc.moveDown(0.5);
+        doc.fontSize(11);
+        doc.text(`Temps total: ${report.stats.totalTime} minutes`);
+        doc.text(`Exercices complétés: ${report.stats.totalExercises}`);
+        doc.text(`Score moyen: ${report.stats.averageScore}%`);
+        doc.text(`Sessions: ${report.stats.totalSessions}`);
+        doc.text(`Pauses: ${report.stats.totalBreaks}`);
+        doc.text(`Objectifs complétés: ${report.stats.goalsCompleted}`);
+        doc.text(`Récompenses gagnées: ${report.stats.rewardsEarned}`);
+        doc.moveDown();
+
+        // Tendances
+        if (report.trends && Object.keys(report.trends).length > 0) {
+          doc.fontSize(16).text('Tendances', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(11);
+          if (report.trends.timeTrend) {
+            doc.text(`Tendance temps: ${report.trends.timeTrend > 0 ? '+' : ''}${report.trends.timeTrend}%`);
+          }
+          if (report.trends.scoreTrend) {
+            doc.text(`Tendance score: ${report.trends.scoreTrend > 0 ? '+' : ''}${report.trends.scoreTrend}%`);
+          }
+          doc.moveDown();
+        }
+
+        // Activités récentes
+        if (report.activities && report.activities.length > 0) {
+          doc.fontSize(16).text('Activités Récentes', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(10);
+          report.activities.slice(0, 20).forEach((activity, index) => {
+            const date = new Date(activity.loginTime).toLocaleDateString('fr-FR');
+            const time = new Date(activity.loginTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            doc.text(`${index + 1}. ${date} ${time} - ${activity.action || 'Connexion'}`);
+            if (activity.duration) {
+              doc.text(`   Durée: ${activity.duration} minutes`, { indent: 20 });
+            }
+          });
+          doc.moveDown();
+        }
+
+        // Objectifs
+        if (report.goals && report.goals.length > 0) {
+          doc.fontSize(16).text('Objectifs', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(10);
+          report.goals.forEach((goal, index) => {
+            const status = goal.status === 'completed' ? '✓' : '○';
+            doc.text(`${status} ${goal.title || `Objectif ${index + 1}`}`);
+            if (goal.description) {
+              doc.text(`   ${goal.description}`, { indent: 20 });
+            }
+          });
+          doc.moveDown();
+        }
+
+        // Récompenses
+        if (report.rewards && report.rewards.length > 0) {
+          doc.fontSize(16).text('Récompenses', { underline: true });
+          doc.moveDown(0.5);
+          doc.fontSize(10);
+          report.rewards.forEach((reward, index) => {
+            doc.text(`${index + 1}. ${reward.name || `Récompense ${index + 1}`}`);
+            if (reward.points) {
+              doc.text(`   Points: ${reward.points}`, { indent: 20 });
+            }
+          });
+          doc.moveDown();
+        }
+
+        // Pied de page
+        doc.fontSize(8).text(
+          `Généré le ${new Date().toLocaleString('fr-FR')} - GenesisCode Learning Platform`,
+          { align: 'center' }
+        );
+
+        // Finaliser le PDF
+        doc.end();
+      } catch (error) {
+        console.error('Erreur génération PDF:', error);
+        res.status(500).json({ error: 'Erreur lors de la génération du PDF', details: error.message });
+      }
     } else {
       res.json(report);
     }

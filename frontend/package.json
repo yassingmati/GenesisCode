@@ -21,6 +21,7 @@
     "axios": "^1.12.2",
     "firebase": "^11.10.0",
     "framer-motion": "^12.23.6",
+    "jspdf": "^3.0.4",
     "lucide-react": "^0.544.0",
     "notistack": "^3.0.2",
     "pdfjs-dist": "^5.4.149",
@@ -34,7 +35,8 @@
     "react-scripts": "^5.0.1",
     "react-toastify": "^11.0.5",
     "styled-components": "^6.1.19",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "copy-pdf-worker": "cpx \"node_modules/pdfjs-dist/build/pdf.worker.min.js\" public/",
