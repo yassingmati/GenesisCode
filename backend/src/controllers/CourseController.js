@@ -743,6 +743,8 @@ class CourseController {
     if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: 'ID invalide' });
     const lang = getLang(req);
 
+    console.log(`[getLevelContent] Récupération du niveau ${req.params.id} avec exercices depuis MongoDB Atlas...`);
+
     const level = await Level.findById(req.params.id)
       .populate({
         path: 'exercises',
@@ -751,6 +753,8 @@ class CourseController {
       .lean();
 
     if (!level) return res.status(404).json({ error: 'Niveau non trouvé' });
+
+    console.log(`[getLevelContent] Niveau trouvé: ${level.translations?.fr?.title || 'Sans titre'}, ${level.exercises?.length || 0} exercice(s) chargé(s) depuis MongoDB Atlas`);
 
     const translation = getTranslation(level, lang) || getTranslation(level, 'fr') || {};
     const exercises = (level.exercises || []).map(ex => {
@@ -841,8 +845,15 @@ class CourseController {
     const level = await Level.findById(req.body.level);
     if (!level) return res.status(404).json({ error: 'Niveau non trouvé' });
 
+    console.log(`[createExercise] Création d'un exercice pour le niveau ${req.body.level} dans MongoDB Atlas...`);
     const exercise = await Exercise.create(req.body);
-    await Level.findByIdAndUpdate(req.body.level, { $push: { exercises: exercise._id } }).catch(() => {});
+    
+    // S'assurer que l'exercice est ajouté au niveau dans MongoDB Atlas
+    await Level.findByIdAndUpdate(req.body.level, { 
+      $addToSet: { exercises: exercise._id } // Utiliser $addToSet pour éviter les doublons
+    });
+    
+    console.log(`[createExercise] Exercice ${exercise._id} créé et ajouté au niveau ${req.body.level} dans MongoDB Atlas`);
     res.status(201).json(exercise);
   });
 
