@@ -30,7 +30,7 @@ import {
   IconArrowLeft, 
   IconCheck, 
   IconX, 
-  IconPlay, 
+  IconPlayerPlay, 
   IconTrophy,
   IconAlertCircle,
   IconFileText,
@@ -742,7 +742,7 @@ function ExerciseCard({ exercise, index, isCompleted, progress, onClick }) {
               gradient={{ from: 'blue', to: 'violet', deg: 90 }}
             >
               <Group gap={8}>
-                <IconPlay size={16} />
+                <IconPlayerPlay size={16} />
                 <span>Commencer</span>
               </Group>
             </Button>
