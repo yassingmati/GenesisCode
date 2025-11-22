@@ -1,37 +1,26 @@
 #!/bin/bash
-# Script de déploiement pour Firebase Hosting et Render
+# Script de déploiement pour Render et Firebase
 
-set -e
-
-echo "🚀 Démarrage du déploiement..."
-
-# Couleurs
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+echo "🚀 Déploiement sur Render et Firebase Hosting"
 
 # 1. Build du frontend
-echo -e "${BLUE}📦 Build du frontend...${NC}"
+echo "📦 Building frontend..."
 cd frontend
 npm run build
+if [ $? -ne 0 ]; then
+  echo "❌ Erreur lors du build du frontend"
+  exit 1
+fi
 cd ..
 
 # 2. Déploiement Firebase Hosting
-echo -e "${BLUE}🔥 Déploiement sur Firebase Hosting...${NC}"
-firebase deploy --only hosting
+echo "🔥 Déploiement sur Firebase Hosting..."
+npx firebase-tools deploy --only hosting
 
-echo -e "${GREEN}✅ Déploiement Firebase Hosting terminé!${NC}"
+if [ $? -ne 0 ]; then
+  echo "❌ Erreur lors du déploiement Firebase"
+  exit 1
+fi
 
-# 3. Instructions pour Render
-echo -e "${YELLOW}📋 Pour déployer sur Render:${NC}"
-echo "   1. Poussez les changements sur Git:"
-echo "      git add ."
-echo "      git commit -m 'Fix: Upload et récupération de vidéos/PDFs'"
-echo "      git push origin main"
-echo ""
-echo "   2. Render détectera automatiquement les changements et redéploiera"
-echo "      ou allez sur https://dashboard.render.com et cliquez sur 'Manual Deploy'"
-
-echo -e "${GREEN}✅ Déploiement terminé!${NC}"
-
+echo "✅ Déploiement terminé avec succès!"
+echo "📝 Note: Render déploie automatiquement depuis Git"

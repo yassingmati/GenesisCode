@@ -93,27 +93,87 @@ export default function ExercisePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [attempts, setAttempts] = useState(0);
 
+  // Helper pour faire une requête avec retry et gestion d'authentification
+  const fetchWithRetry = useCallback(async (url, options = {}, retries = 2) => {
+    const makeRequest = async (attempt = 0) => {
+      try {
+        const token = localStorage.getItem('token');
+        const headers = {
+          'Content-Type': 'application/json',
+          ...options.headers
+        };
+        
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(url, {
+          ...options,
+          headers,
+          credentials: 'include'
+        });
+        
+        // Si 401 et on a encore des tentatives, essayer de rafraîchir le token
+        if (response.status === 401 && attempt < retries) {
+          console.log('[ExercisePage] Token expiré, tentative de rafraîchissement...', { attempt, retries });
+          
+          // Essayer de rafraîchir le token via l'API auth
+          try {
+            const refreshToken = localStorage.getItem('refreshToken');
+            if (refreshToken) {
+              const refreshResponse = await fetch(`${getApiUrl('')}/api/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken }),
+                credentials: 'include'
+              });
+              
+              if (refreshResponse.ok) {
+                const refreshData = await refreshResponse.json();
+                if (refreshData.token) {
+                  localStorage.setItem('token', refreshData.token);
+                  console.log('[ExercisePage] Token rafraîchi avec succès');
+                  // Réessayer la requête avec le nouveau token
+                  return makeRequest(attempt + 1);
+                }
+              }
+            }
+          } catch (refreshError) {
+            console.warn('[ExercisePage] Erreur lors du rafraîchissement du token:', refreshError);
+          }
+          
+          // Si le rafraîchissement échoue, rediriger vers la connexion
+          if (attempt === retries - 1) {
+            throw new Error('Session expirée. Veuillez vous reconnecter.');
+          }
+        }
+        
+        return response;
+      } catch (error) {
+        if (attempt < retries && error.message.includes('Session expirée')) {
+          throw error; // Ne pas retry si c'est une erreur de session
+        }
+        if (attempt < retries) {
+          console.log(`[ExercisePage] Tentative ${attempt + 1}/${retries} échouée, nouvelle tentative...`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Backoff exponentiel
+          return makeRequest(attempt + 1);
+        }
+        throw error;
+      }
+    };
+    
+    return makeRequest();
+  }, []);
+
   // Charger les données du niveau
   const fetchLevelData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const token = localStorage.getItem('token');
-      console.log('[ExercisePage] Fetching level data:', { levelId, hasToken: !!token, API_BASE });
+      console.log('[ExercisePage] Fetching level data:', { levelId, API_BASE });
       
-      const headers = {
-        'Content-Type': 'application/json'
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`${API_BASE}/levels/${levelId}`, {
-        headers,
-        credentials: 'include'
-      });
+      const response = await fetchWithRetry(`${API_BASE}/levels/${levelId}`);
       
       console.log('[ExercisePage] Response status:', response.status, response.statusText);
       
@@ -122,9 +182,19 @@ export default function ExercisePage() {
         console.error('[ExercisePage] Error response:', errorData);
         
         if (response.status === 401) {
+          // Rediriger vers la page de connexion
+          notifications.show({
+            title: 'Session expirée',
+            message: 'Votre session a expiré. Veuillez vous reconnecter.',
+            color: 'orange',
+            icon: <IconAlertCircle size={18} />
+          });
+          setTimeout(() => {
+            navigate('/login');
+          }, 2000);
           throw new Error('Authentification requise. Veuillez vous connecter.');
         } else if (response.status === 403) {
-          throw new Error('Accès refusé - Niveau verrouillé');
+          throw new Error(errorData.message || errorData.error || 'Accès refusé - Niveau verrouillé');
         } else if (response.status === 404) {
           throw new Error('Niveau introuvable');
         } else {
@@ -150,18 +220,19 @@ export default function ExercisePage() {
       setLevel({ ...data, exercises: normalizedExercises });
     } catch (e) {
       console.error('[ExercisePage] Erreur de chargement:', e);
-      setError(e.message || 'Erreur lors du chargement du niveau');
+      const errorMessage = e.message || 'Erreur lors du chargement du niveau';
+      setError(errorMessage);
       
       notifications.show({
         title: 'Erreur de chargement',
-        message: e.message || 'Impossible de charger les exercices',
+        message: errorMessage,
         color: 'red',
         icon: <IconAlertCircle size={18} />
       });
     } finally {
       setLoading(false);
     }
-  }, [levelId, language]);
+  }, [levelId, language, fetchWithRetry, navigate]);
 
   useEffect(() => {
     fetchLevelData();
@@ -187,13 +258,9 @@ export default function ExercisePage() {
         ...extraData
       };
 
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${API_BASE}/exercises/${exerciseId}/submit`, {
+      // Utiliser fetchWithRetry pour la soumission aussi
+      const response = await fetchWithRetry(`${API_BASE}/exercises/${exerciseId}/submit`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
         body: JSON.stringify(payload)
       });
 
