@@ -101,34 +101,58 @@ export default function ExercisePage() {
       setError(null);
       
       const token = localStorage.getItem('token');
+      console.log('[ExercisePage] Fetching level data:', { levelId, hasToken: !!token, API_BASE });
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Toujours inclure le token s'il existe (comme dans LevelPage)
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
       const response = await fetch(`${API_BASE}/levels/${levelId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        }
+        headers,
+        credentials: 'include' // Inclure les cookies si nécessaire
       });
       
+      console.log('[ExercisePage] Response status:', response.status, response.statusText);
+      
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('[ExercisePage] Error response:', errorData);
+        
         if (response.status === 401) {
           throw new Error('Authentification requise. Veuillez vous connecter.');
+        } else if (response.status === 403) {
+          throw new Error('Accès refusé - Niveau verrouillé');
+        } else if (response.status === 404) {
+          throw new Error('Niveau introuvable');
+        } else {
+          throw new Error(errorData.error || errorData.message || `Erreur ${response.status}: Impossible de charger le niveau`);
         }
-        throw new Error('Impossible de charger le niveau');
       }
       
       const data = await response.json();
+      console.log('[ExercisePage] Level data received:', { 
+        levelId: data._id, 
+        title: data.title, 
+        exercisesCount: data.exercises?.length || 0 
+      });
       
       // Les données arrivent déjà normalisées du backend avec la langue appropriée
       const normalizedExercises = (data.exercises || []).map((ex, index) => ({
         ...ex,
-        name: ex.name || `Exercice ${index + 1}`,
-        question: ex.question || 'Question non disponible',
-        explanation: ex.explanation || ''
+        name: ex.name || ex.translations?.[language]?.name || `Exercice ${index + 1}`,
+        question: ex.question || ex.translations?.[language]?.question || 'Question non disponible',
+        explanation: ex.explanation || ex.translations?.[language]?.explanation || ''
       }));
       
       setLevel({ ...data, exercises: normalizedExercises });
     } catch (e) {
-      console.error('Erreur de chargement:', e);
-      setError(e.message);
+      console.error('[ExercisePage] Erreur de chargement:', e);
+      setError(e.message || 'Erreur lors du chargement du niveau');
     } finally {
       setLoading(false);
     }
