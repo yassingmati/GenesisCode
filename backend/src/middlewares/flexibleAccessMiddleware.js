@@ -174,26 +174,46 @@ exports.requireFlexibleCourseAccess = () => {
 
 /**
  * Middleware pour vérifier l'accès aux exercices
+ * Amélioré avec meilleure gestion d'erreurs et validation
  */
 exports.requireExerciseAccess = () => {
   return async (req, res, next) => {
     try {
+      // Vérification d'authentification
       if (!req.user || !req.user.id) {
+        console.warn('[requireExerciseAccess] Utilisateur non authentifié', {
+          path: req.path,
+          method: req.method
+        });
         return res.status(401).json({ 
           success: false, 
-          message: 'Non authentifié',
-          code: 'UNAUTHORIZED'
+          message: 'Authentification requise. Veuillez vous connecter.',
+          code: 'UNAUTHORIZED',
+          error: 'Token manquant ou invalide'
         });
       }
 
       const userId = req.user.id;
       const exerciseId = req.params.id || req.params.exerciseId;
       
+      // Validation de l'ID d'exercice
       if (!exerciseId) {
+        console.warn('[requireExerciseAccess] ID d\'exercice manquant', { userId, path: req.path });
         return res.status(400).json({ 
           success: false, 
           message: 'ID de l\'exercice requis',
           code: 'MISSING_EXERCISE_ID'
+        });
+      }
+
+      // Validation du format de l'ID
+      const mongoose = require('mongoose');
+      if (!mongoose.isValidObjectId(exerciseId)) {
+        console.warn('[requireExerciseAccess] ID d\'exercice invalide', { userId, exerciseId });
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Format d\'ID d\'exercice invalide',
+          code: 'INVALID_EXERCISE_ID'
         });
       }
 
@@ -208,6 +228,7 @@ exports.requireExerciseAccess = () => {
       }).lean();
       
       if (!exercise) {
+        console.warn('[requireExerciseAccess] Exercice non trouvé', { userId, exerciseId });
         return res.status(404).json({ 
           success: false, 
           message: 'Exercice non trouvé',
@@ -215,12 +236,26 @@ exports.requireExerciseAccess = () => {
         });
       }
 
-      const levelId = exercise.level._id;
-      const pathId = exercise.level.path._id;
+      // Vérifier que l'exercice a un niveau et un parcours valides
+      if (!exercise.level || !exercise.level.path) {
+        console.error('[requireExerciseAccess] Exercice mal configuré - niveau ou parcours manquant', {
+          exerciseId,
+          hasLevel: !!exercise.level,
+          hasPath: !!(exercise.level && exercise.level.path)
+        });
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Exercice mal configuré',
+          code: 'EXERCISE_CONFIG_ERROR'
+        });
+      }
 
+      const levelId = exercise.level._id;
+      const pathId = exercise.level.path._id || exercise.level.path;
+
+      // Les administrateurs ont accès à tous les exercices
       if (isAdmin) {
-        // Les administrateurs ont accès à tous les exercices
-        console.log(`[DEBUG flexibleAccessMiddleware] Admin access granted: userId=${userId}, exerciseId=${exerciseId}`);
+        console.log('[requireExerciseAccess] Accès admin accordé', { userId, exerciseId });
         req.exerciseAccess = { 
           hasAccess: true, 
           accessType: 'admin', 
@@ -231,6 +266,7 @@ exports.requireExerciseAccess = () => {
         };
         req.levelId = levelId;
         req.pathId = pathId;
+        req.exercise = exercise;
         return next();
       }
 
@@ -238,11 +274,34 @@ exports.requireExerciseAccess = () => {
       const access = await AccessControlService.checkUserAccess(userId, pathId, levelId, exerciseId);
       
       if (!access.hasAccess) {
+        console.warn('[requireExerciseAccess] Accès refusé', {
+          userId,
+          exerciseId,
+          pathId,
+          levelId,
+          reason: access.reason
+        });
         return res.status(403).json({ 
           success: false, 
-          message: 'Accès refusé',
+          message: 'Accès refusé - Vous n\'avez pas accès à cet exercice',
           code: 'ACCESS_DENIED',
           reason: access.reason
+        });
+      }
+
+      // Vérifier que l'utilisateur peut interagir (soumission)
+      if (!access.canInteract) {
+        console.warn('[requireExerciseAccess] Interaction non autorisée', {
+          userId,
+          exerciseId,
+          canView: access.canView,
+          canInteract: access.canInteract
+        });
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Vous ne pouvez pas soumettre de réponse pour cet exercice',
+          code: 'INTERACTION_DENIED',
+          reason: 'canInteract: false'
         });
       }
 
@@ -250,13 +309,28 @@ exports.requireExerciseAccess = () => {
       req.exerciseAccess = access;
       req.levelId = levelId;
       req.pathId = pathId;
+      req.exercise = exercise;
+      
+      console.log('[requireExerciseAccess] Accès accordé', {
+        userId,
+        exerciseId,
+        accessType: access.accessType,
+        source: access.source
+      });
+      
       next();
     } catch (error) {
-      console.error('Exercise access middleware error:', error);
+      console.error('[requireExerciseAccess] Erreur de vérification d\'accès', {
+        error: error.message,
+        stack: error.stack,
+        path: req.path,
+        userId: req.user?.id
+      });
       return res.status(500).json({ 
         success: false, 
         message: 'Erreur de vérification d\'accès',
-        code: 'ACCESS_CHECK_ERROR'
+        code: 'ACCESS_CHECK_ERROR',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }
   };
