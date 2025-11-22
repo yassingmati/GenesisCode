@@ -64,3 +64,5 @@ Si vous voyez des avertissements, vérifiez que toutes les variables sont correc
 Si vous n'avez pas encore configuré Konnect, le service fonctionnera en mode dégradé avec des messages d'avertissement. Les paiements ne fonctionneront pas, mais le reste de l'application fonctionnera normalement.
 
 
+
+

@@ -17,6 +17,7 @@
     "cypress": "^13.6.0"
   },
   "dependencies": {
+    "form-data": "^4.0.5",
     "mongodb": "^6.20.0"
   }
 }

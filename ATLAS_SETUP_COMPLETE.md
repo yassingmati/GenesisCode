@@ -97,3 +97,5 @@ La collection `plans` (modèle `Plan`) est vide car elle est utilisée pour un a
 Si vous voyez toujours 0 documents dans MongoDB Atlas après avoir rafraîchi, exécutez le script de vérification pour confirmer que les données sont bien présentes.
 
 
+
+

@@ -28,7 +28,7 @@ async function findAccessiblePath(token) {
       }
     });
     const cats = await catsRes.json();
-    
+
     // Chercher dans chaque catégorie
     for (const cat of cats) {
       const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
@@ -38,13 +38,13 @@ async function findAccessiblePath(token) {
         }
       });
       const paths = await pRes.json();
-      
+
       // Retourner le premier path accessible
       if (paths && paths.length > 0) {
         return paths[0];
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error('Erreur lors de la recherche d\'un path accessible:', error);
@@ -63,7 +63,7 @@ async function findLevelInAccessiblePaths(levelId, token) {
       }
     });
     const cats = await catsRes.json();
-    
+
     // Chercher dans chaque catégorie
     for (const cat of cats) {
       const pRes = await fetch(`${API_BASE}/categories/${cat._id}/paths`, {
@@ -73,7 +73,7 @@ async function findLevelInAccessiblePaths(levelId, token) {
         }
       });
       const paths = await pRes.json();
-      
+
       // Chercher dans chaque path
       for (const path of paths) {
         const lvRes = await fetch(`${API_BASE}/paths/${path._id}/levels`, {
@@ -83,7 +83,7 @@ async function findLevelInAccessiblePaths(levelId, token) {
           }
         });
         const levels = await lvRes.json();
-        
+
         // Chercher le level spécifique
         const targetLevel = levels.find(level => level._id === levelId);
         if (targetLevel) {
@@ -100,7 +100,7 @@ async function findLevelInAccessiblePaths(levelId, token) {
         }
       }
     }
-    
+
     return null;
   } catch (error) {
     console.error('Erreur lors de la recherche du level:', error);
@@ -159,7 +159,7 @@ export default function LevelPagePdfAutoProxy() {
       try {
         setLoading(true);
         const token = localStorage.getItem('token');
-        
+
         // Essayer d'abord de charger le level individuellement
         const res = await fetch(`${API_BASE}/levels/${levelId}`, {
           headers: {
@@ -167,7 +167,7 @@ export default function LevelPagePdfAutoProxy() {
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         let l;
         if (!res.ok) {
           if (res.status === 403) {
@@ -186,29 +186,71 @@ export default function LevelPagePdfAutoProxy() {
           l = await res.json();
         }
 
-        // Normalize urls
+        // Normalize urls - utiliser les endpoints API pour récupérer les fichiers
+        // Cela garantit l'authentification et le contrôle d'accès
         const vids = {};
         const pdfs = {};
+        
+        // Gérer les vidéos (nouveau format: videos.fr, videos.en, videos.ar)
         if (l.videos) {
-          for (const k of ['fr','en','ar']) {
-            if (l.videos[k]) vids[k] = l.videos[k].startsWith('http') ? l.videos[k] : `${API_ORIGIN}${l.videos[k]}`;
+          for (const k of ['fr', 'en', 'ar']) {
+            if (l.videos[k]) {
+              const vPath = l.videos[k];
+              // Si c'est déjà une URL HTTP complète, l'utiliser directement
+              if (vPath.startsWith('http://') || vPath.startsWith('https://')) {
+                vids[k] = vPath;
+              } else {
+                // Utiliser l'endpoint API pour streamer la vidéo (avec authentification)
+                vids[k] = `${API_BASE}/levels/${levelId}/video?lang=${k}`;
+              }
+            }
           }
         }
+        // Gérer l'ancien format: video (singulier) - mapper vers fr par défaut
+        if (l.video && !l.videos) {
+          const vPath = l.video;
+          if (vPath.startsWith('http://') || vPath.startsWith('https://')) {
+            vids.fr = vPath;
+          } else {
+            vids.fr = `${API_BASE}/levels/${levelId}/video?lang=fr`;
+          }
+        }
+        
+        // Gérer les PDFs (nouveau format: pdfs.fr, pdfs.en, pdfs.ar)
         if (l.pdfs) {
-          for (const k of ['fr','en','ar']) {
-            if (l.pdfs[k]) pdfs[k] = l.pdfs[k].startsWith('http') ? l.pdfs[k] : `${API_ORIGIN}${l.pdfs[k]}`;
+          for (const k of ['fr', 'en', 'ar']) {
+            if (l.pdfs[k]) {
+              const pPath = l.pdfs[k];
+              // Si c'est déjà une URL HTTP complète, l'utiliser directement
+              if (pPath.startsWith('http://') || pPath.startsWith('https://')) {
+                pdfs[k] = pPath;
+              } else {
+                // Utiliser l'endpoint API pour streamer le PDF (avec authentification)
+                pdfs[k] = `${API_BASE}/levels/${levelId}/pdf?lang=${k}`;
+              }
+            }
           }
         }
+        // Gérer l'ancien format: pdf (singulier) - mapper vers fr par défaut
+        if (l.pdf && !l.pdfs) {
+          const pPath = l.pdf;
+          if (pPath.startsWith('http://') || pPath.startsWith('https://')) {
+            pdfs.fr = pPath;
+          } else {
+            pdfs.fr = `${API_BASE}/levels/${levelId}/pdf?lang=fr`;
+          }
+        }
+        
         l.videos = vids;
         l.pdfs = pdfs;
 
         if (!mounted) return;
         setLevel(l);
-        
+
         // Récupérer les informations du parcours
         console.log('Level data:', l);
         console.log('Path data:', l.path);
-        
+
         if (l.path && l.path._id) {
           // Si le parcours est déjà inclus dans les données du niveau
           setPathInfo({
@@ -218,7 +260,12 @@ export default function LevelPagePdfAutoProxy() {
         } else if (l.path && typeof l.path === 'string') {
           // Si l.path est un ID de parcours (string)
           try {
-            const pathRes = await fetch(`${API_BASE}/paths/${l.path}`);
+            const pathRes = await fetch(`${API_BASE}/paths/${l.path}`, {
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              }
+            });
             if (pathRes.ok) {
               const pathData = await pathRes.json();
               setPathInfo({
@@ -287,16 +334,16 @@ export default function LevelPagePdfAutoProxy() {
             }
           });
           const paths = await pRes.json();
-          paths.sort((a,b)=>(a.order||0)-(b.order||0));
+          paths.sort((a, b) => (a.order || 0) - (b.order || 0));
           for (const p of paths) {
             const lvRes = await fetch(`${API_BASE}/paths/${p._id}/levels`, {
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               }
-            }).catch(()=>({json:()=>[]}));
+            }).catch(() => ({ json: () => [] }));
             const lvls = await lvRes.json();
-            lvls.sort((a,b)=>(a.order||0)-(b.order||0));
+            lvls.sort((a, b) => (a.order || 0) - (b.order || 0));
             for (const ll of lvls) seq.push(ll._id);
           }
         }
@@ -306,7 +353,7 @@ export default function LevelPagePdfAutoProxy() {
       }
     })();
 
-    return ()=> mounted = false;
+    return () => mounted = false;
   }, [levelId]);
 
   const isBlockedByFrameHeaders = (headers) => {
@@ -326,7 +373,7 @@ export default function LevelPagePdfAutoProxy() {
           if (!fa.includes("'self'") && !fa.includes(origin)) return true;
         }
       }
-    } catch (e) {}
+    } catch (e) { }
     return false;
   };
 
@@ -356,8 +403,23 @@ export default function LevelPagePdfAutoProxy() {
         return;
       }
 
+      // Si l'URL est un endpoint API, l'utiliser directement (avec token d'authentification)
+      if (candidate.includes('/api/courses/levels/') && candidate.includes('/pdf')) {
+        const token = localStorage.getItem('token');
+        const urlWithAuth = token ? `${candidate}${candidate.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : candidate;
+        if (!cancelled) {
+          setPdfDirectUrl(candidate);
+          setPdfEffectiveUrl(`${urlWithAuth}#toolbar=0&scroll=continuous&view=FitH`);
+          setPdfMode('direct');
+          setPdfStatusMsg(null);
+        }
+        return;
+      }
+
       try {
-        const head = await fetch(candidate, { method: 'HEAD' });
+        const token = localStorage.getItem('token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const head = await fetch(candidate, { method: 'HEAD', headers, credentials: 'include' });
         if (!head.ok) {
           const proxyUrl = `${PROXY_FILE}?url=${encodeURIComponent(candidate)}`;
           if (!cancelled) {
@@ -420,8 +482,21 @@ export default function LevelPagePdfAutoProxy() {
         }
         return;
       }
+      // Si l'URL est un endpoint API, ajouter le token dans l'URL
+      if (candidate.includes('/api/courses/levels/') && candidate.includes('/video')) {
+        const token = localStorage.getItem('token');
+        const urlWithAuth = token ? `${candidate}${candidate.includes('?') ? '&' : '?'}token=${encodeURIComponent(token)}` : candidate;
+        if (!cancelled) {
+          setVideoEffectiveUrl(urlWithAuth);
+          setVideoStatusMsg(null);
+        }
+        return;
+      }
+
       try {
-        const h = await fetch(candidate, { method: 'HEAD' });
+        const token = localStorage.getItem('token');
+        const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+        const h = await fetch(candidate, { method: 'HEAD', headers, credentials: 'include' });
         if (h.ok) {
           if (!cancelled) {
             setVideoEffectiveUrl(candidate);
@@ -495,7 +570,7 @@ export default function LevelPagePdfAutoProxy() {
   const togglePlay = () => {
     const v = videoRef.current;
     if (!v) return;
-    if (v.paused) v.play().catch(()=>{});
+    if (v.paused) v.play().catch(() => { });
     else v.pause();
   };
 
@@ -520,7 +595,7 @@ export default function LevelPagePdfAutoProxy() {
   const prevId = idx > 0 ? orderedLevelIds[idx - 1] : null;
   const nextId = idx >= 0 && idx < orderedLevelIds.length - 1 ? orderedLevelIds[idx + 1] : null;
   const openExercises = () => navigate(`/courses/levels/${levelId}/exercises`);
-  
+
   // Load exercises for the current level
   const loadExercises = useCallback(async () => {
     try {
@@ -570,7 +645,7 @@ export default function LevelPagePdfAutoProxy() {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE}/exercises/${exerciseId}/submit`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -584,7 +659,7 @@ export default function LevelPagePdfAutoProxy() {
 
       const result = await response.json();
       setSubmissionResult(result);
-      
+
       // Mark as completed locally
       const updated = { ...completedExercises };
       updated[exerciseId] = {
@@ -609,7 +684,7 @@ export default function LevelPagePdfAutoProxy() {
   // Handle exercise submission
   const handleSubmitExercise = useCallback(async () => {
     if (!activeExercise || (!userAnswer && activeExercise.type !== 'Code')) return;
-    
+
     try {
       let submissionData = userAnswer;
       let extraData = {};
@@ -646,10 +721,10 @@ export default function LevelPagePdfAutoProxy() {
   }, [levelId, loadExercises]);
 
   if (loading) return (
-    <div style={{ 
-      padding: 48, 
-      display: 'flex', 
-      justifyContent: 'center', 
+    <div style={{
+      padding: 48,
+      display: 'flex',
+      justifyContent: 'center',
       alignItems: 'center',
       fontFamily: 'Inter, system-ui',
       color: '#666',
@@ -658,10 +733,10 @@ export default function LevelPagePdfAutoProxy() {
       {t('loading')}...
     </div>
   );
-  
+
   if (error) return (
-    <div style={{ 
-      padding: 48, 
+    <div style={{
+      padding: 48,
       textAlign: 'center',
       fontFamily: 'Inter, system-ui',
       color: '#dc3545',
@@ -670,10 +745,10 @@ export default function LevelPagePdfAutoProxy() {
       {error}
     </div>
   );
-  
+
   if (!level) return (
-    <div style={{ 
-      padding: 48, 
+    <div style={{
+      padding: 48,
       textAlign: 'center',
       fontFamily: 'Inter, system-ui',
       color: '#666',
@@ -684,771 +759,771 @@ export default function LevelPagePdfAutoProxy() {
   );
 
   return (
-    <CourseAccessGuard 
-      pathId={level?.path?._id || pathInfo?._id} 
+    <CourseAccessGuard
+      pathId={level?.path?._id || pathInfo?._id}
       pathName={pathInfo?.name || level?.path?.translations?.fr?.name || 'Parcours'}
       levelId={levelId}
     >
-      <div style={{ 
+      <div style={{
         minHeight: '100vh',
         background: 'linear-gradient(135deg, #f5f7ff 0%, #eef2ff 100%)',
         fontFamily: 'Inter, system-ui'
       }}>
-      {/* Header minimaliste */}
-      <div style={{
-        background: 'rgb(108, 79, 242)',
-        backdropFilter: 'blur(8px)',
-        padding: '12px 20px',
-        borderBottom: '1px solid rgba(0,0,0,0.05)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100
-      }}>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          {/* Logo GenesisCode */}
-          <div 
-            onClick={() => navigate('/dashboard')}
-            style={{
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '4px',
-              gap: '8px'
-            }}
-          >
-            <div style={{ fontSize: '24px' }}>🚀</div>
-            <span style={{ 
-              color: 'white', 
-              fontWeight: '700', 
-              fontSize: '18px' 
-            }}>
-              GenesisCode
-            </span>
-            <img 
-              src="/images/logo-removebg-preview.png" 
-              alt="Logo" 
-              style={{ 
-                height: '40px',
-                width: 'auto',
-                filter: 'brightness(0) invert(1)'
-              }}
-            />
-          </div>
-          <h1 style={{ 
-            margin: 0, 
-            fontSize: '1.15rem',
-            color: '#FFFFFFFF',
-            fontWeight: 700
-          }}>
-            {level.translations?.[lang]?.title || level.translations?.fr?.title}
-          </h1>
-        </div>
-        
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <select 
-            value={lang} 
-            onChange={e => setLang(e.target.value)}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 8,
-              border: '1px solid #e6e9ef',
-              background: 'white',
-              fontWeight: 600,
-              fontSize: '0.9rem'
-            }}
-          >
-            {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
-          </select>
-          
-          <button 
-            onClick={() => {
-              const url = pdfMode === 'proxy' 
-                ? `${PROXY_FILE}?url=${encodeURIComponent(pdfDirectUrl)}` 
-                : pdfDirectUrl;
-              if (url) window.open(url, '_blank', 'noopener');
-            }}
-            style={{
-              background: 'linear-gradient(135deg, #667eea, #764ba2)',
-              color: 'white',
-              border: 'none',
-              padding: '8px 14px',
-              borderRadius: 10,
-              cursor: 'pointer',
-              fontWeight: 700,
-              fontSize: '0.9rem'
-            }}
-             >
-               📄 {t('openPdf')}
-             </button>
-        </div>
-      </div>
-
-      {/* Main Content - Full screen PDF with wider sidebar for bigger video */}
-      <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: showExercises ? '1fr 1fr' : (isCompactLayout ? '1fr' : '1fr 480px'),
-        height: 'calc(100vh - 64px)'
-      }}>
-        {/* PDF Section - MODIFIÉ pour supprimer l'espace entre les pages */}
-        <section style={{ 
-          position: 'relative',
-          background: '#fff',
-          margin: 0,
-          padding: 0,
-          overflow: 'hidden'
+        {/* Header minimaliste */}
+        <div style={{
+          background: 'rgb(108, 79, 242)',
+          backdropFilter: 'blur(8px)',
+          padding: '12px 20px',
+          borderBottom: '1px solid rgba(0,0,0,0.05)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          position: 'sticky',
+          top: 0,
+          zIndex: 100
         }}>
-          {/* PDF Status Message - Minimal */}
-          {pdfStatusMsg && (
-            <div style={{ 
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              background: 'rgba(255, 193, 7, 0.95)',
-              color: '#856404',
-              padding: '6px 10px',
-              borderRadius: 6,
-              fontSize: '0.85rem',
-              zIndex: 10
-            }}>
-              {pdfStatusMsg}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            {/* Logo GenesisCode */}
+            <div
+              onClick={() => navigate('/dashboard')}
+              style={{
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                padding: '4px',
+                gap: '8px'
+              }}
+            >
+              <div style={{ fontSize: '24px' }}>🚀</div>
+              <span style={{
+                color: 'white',
+                fontWeight: '700',
+                fontSize: '18px'
+              }}>
+                GenesisCode
+              </span>
+              <img
+                src="/images/logo-removebg-preview.png"
+                alt="Logo"
+                style={{
+                  height: '40px',
+                  width: 'auto',
+                  filter: 'brightness(0) invert(1)'
+                }}
+              />
             </div>
-          )}
+            <h1 style={{
+              margin: 0,
+              fontSize: '1.15rem',
+              color: '#FFFFFFFF',
+              fontWeight: 700
+            }}>
+              {level.translations?.[lang]?.title || level.translations?.fr?.title}
+            </h1>
+          </div>
 
-          {/* PDF Viewer - MODIFIÉ pour pages fusionnées sans espace */}
-          <div style={{ 
-            width: '100%',
-            height: '100%',
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <select
+              value={lang}
+              onChange={e => setLang(e.target.value)}
+              style={{
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: '1px solid #e6e9ef',
+                background: 'white',
+                fontWeight: 600,
+                fontSize: '0.9rem'
+              }}
+            >
+              {LANGS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+            </select>
+
+            <button
+              onClick={() => {
+                const url = pdfMode === 'proxy'
+                  ? `${PROXY_FILE}?url=${encodeURIComponent(pdfDirectUrl)}`
+                  : pdfDirectUrl;
+                if (url) window.open(url, '_blank', 'noopener');
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #667eea, #764ba2)',
+                color: 'white',
+                border: 'none',
+                padding: '8px 14px',
+                borderRadius: 10,
+                cursor: 'pointer',
+                fontWeight: 700,
+                fontSize: '0.9rem'
+              }}
+            >
+              📄 {t('openPdf')}
+            </button>
+          </div>
+        </div>
+
+        {/* Main Content - Full screen PDF with wider sidebar for bigger video */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: showExercises ? '1fr 1fr' : (isCompactLayout ? '1fr' : '1fr 480px'),
+          height: 'calc(100vh - 64px)'
+        }}>
+          {/* PDF Section - MODIFIÉ pour supprimer l'espace entre les pages */}
+          <section style={{
+            position: 'relative',
             background: '#fff',
             margin: 0,
             padding: 0,
-            border: 'none'
+            overflow: 'hidden'
           }}>
-            {!pdfEffectiveUrl ? (
-              <div style={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: '100%',
-                color: '#6c757d'
-              }}>
-                <div style={{ fontSize: 64, marginBottom: 16 }}>📄</div>
-                 <div style={{ fontSize: '1.1rem' }}>{t('noPdfAvailable')}</div>
-                 <div style={{ fontSize: '0.9rem', marginTop: 8 }}>{t('selectOtherLanguage')}</div>
-              </div>
-            ) : (
-              <iframe
-                title="PDF Viewer"
-                src={pdfEffectiveUrl}
-                style={{ 
-                  width: '100%', 
-                  height: '100%', 
-                  border: 'none',
-                  display: 'block',
-                  margin: 0,
-                  padding: 0
-                }}
-              />
-            )}
-          </div>
-
-          {/* Floating video button for compact layouts */}
-          {isCompactLayout && (
-            <button
-              onClick={() => setShowVideoOverlay(true)}
-              aria-label="Ouvrir la vidéo"
-              style={{
+            {/* PDF Status Message - Minimal */}
+            {pdfStatusMsg && (
+              <div style={{
                 position: 'absolute',
-                right: 16,
-                top: 16,
-                width: 56,
-                height: 56,
-                borderRadius: 56,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                color: 'white',
-                boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
-                zIndex: 20
-              }}
-            >
-              🎬
-            </button>
-          )}
-        </section>
-        {/* Video Sidebar (hidden in compact layout; use overlay instead) */}
-        {!isCompactLayout && (
-        <aside style={{ 
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
-          borderLeft: '1px solid rgba(15,23,42,0.06)',
-          padding: 18,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 16
-        }}>
-          {/* Video Section */}
-          <div>
-            <div style={{ 
-              fontWeight: 700, 
-              marginBottom: 10,
-              color: '#0f172a',
-              fontSize: '0.95rem'
+                top: 12,
+                left: 12,
+                background: 'rgba(255, 193, 7, 0.95)',
+                color: '#856404',
+                padding: '6px 10px',
+                borderRadius: 6,
+                fontSize: '0.85rem',
+                zIndex: 10
+              }}>
+                {pdfStatusMsg}
+              </div>
+            )}
+
+            {/* PDF Viewer - MODIFIÉ pour pages fusionnées sans espace */}
+            <div style={{
+              width: '100%',
+              height: '100%',
+              background: '#fff',
+              margin: 0,
+              padding: 0,
+              border: 'none'
             }}>
-               🎬 {t('video')} — {LANGS.find(l => l.code === lang)?.label}
-            </div>
-
-            <div ref={videoContainerRef} style={{ 
-              background: '#000', 
-              borderRadius: 12, 
-              overflow: 'hidden',
-              boxShadow: '0 8px 20px rgba(15,23,42,0.08)'
-            }}>
-              {videoEffectiveUrl ? (
-                <div style={{ position: 'relative', width: '100%', height: 360 }}>
-                  <video
-                    ref={videoRef}
-                    key={videoEffectiveUrl}
-                    src={videoEffectiveUrl}
-                    controls
-                    style={{ 
-                      width: '100%',
-                      height: '100%',
-                      display: 'block',
-                      background: '#000'
-                    }}
-                    onError={handleVideoError}
-                  />
-
-                  {/* Play overlay when paused */}
-                  {!isPlaying && (
-                    <div onClick={togglePlay} style={{
-                      position: 'absolute',
-                      inset: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer',
-                      background: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.35))'
-                    }}>
-                      <div style={{
-                        width: 84,
-                        height: 84,
-                        borderRadius: 84,
-                        background: 'rgba(255,255,255,0.12)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1px solid rgba(255,255,255,0.1)'
-                      }}>
-                        <div style={{ fontSize: 34, color: 'white' }}>▶</div>
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-              ) : (
-                <div style={{ 
-                  color: '#6c757d', 
-                  textAlign: 'center',
-                  padding: 36,
-                  height: 200,
+              {!pdfEffectiveUrl ? (
+                <div style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  justifyContent: 'center'
+                  justifyContent: 'center',
+                  height: '100%',
+                  color: '#6c757d'
                 }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🎬</div>
-                   <div style={{ fontSize: '0.95rem' }}>{t('noVideo')}</div>
+                  <div style={{ fontSize: 64, marginBottom: 16 }}>📄</div>
+                  <div style={{ fontSize: '1.1rem' }}>{t('noPdfAvailable')}</div>
+                  <div style={{ fontSize: '0.9rem', marginTop: 8 }}>{t('selectOtherLanguage')}</div>
                 </div>
+              ) : (
+                <iframe
+                  title="PDF Viewer"
+                  src={pdfEffectiveUrl}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    display: 'block',
+                    margin: 0,
+                    padding: 0
+                  }}
+                />
               )}
             </div>
 
-            {videoStatusMsg && (
-              <div style={{ 
-                background: 'rgba(255, 193, 7, 0.1)',
-                color: '#856404',
-                padding: 8,
-                borderRadius: 8,
-                marginTop: 8,
-                fontSize: '0.85rem'
-              }}>
-                {videoStatusMsg}
-              </div>
-            )}
-
-            {/* Progress and controls */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-              <div onClick={togglePlay} style={{
-                background: 'transparent',
-                border: '1px solid rgba(15,23,42,0.06)',
-                padding: 8,
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontWeight: 700
-               }}>{isPlaying ? t('pause') : t('play')}</div>
-
-              <div onClick={openVideoFullscreen} style={{
-                background: 'transparent',
-                border: '1px solid rgba(15,23,42,0.06)',
-                padding: 8,
-                borderRadius: 8,
-                cursor: 'pointer',
-                fontWeight: 700
-               }}>
-                 {t('enlargeVideo')}
-               </div>
-
-              <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#6b7280' }}>
-                {duration ? `${Math.floor(progress/60)}:${String(Math.floor(progress%60)).padStart(2,'0')} / ${Math.floor(duration/60)}:${String(Math.floor(duration%60)).padStart(2,'0')}` : ''}
-              </div>
-            </div>
-
-            {/* Clickable progress bar */}
-            <div onClick={seek} style={{
-              height: 8,
-              background: 'rgba(15,23,42,0.06)',
-              borderRadius: 8,
-              marginTop: 8,
-              cursor: 'pointer',
-              overflow: 'hidden'
-            }}>
-              <div style={{ width: duration ? `${(progress/duration)*100}%` : '0%', height: '100%', background: 'linear-gradient(90deg,#667eea,#764ba2)' }} />
-            </div>
-
-          </div>
-
-          {/* Navigation Section */}
-          <div style={{ 
-            background: 'white',
-            borderRadius: 12,
-            padding: 1,
-            border: '1px solid rgba(15,23,42,0.04)'
-          }}>
-            <div style={{ textAlign: 'center', marginBottom: 12 }}>
-              <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>
-                {level.translations?.[lang]?.title}
-              </div>
-              {level.tags?.length > 0 && (
-                <div style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: 6 }}>
-                  {level.tags.join(', ')}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <button 
-                onClick={() => {
-                  const fromSpecific = location.state?.fromSpecific;
-                  const backCategoryId = location.state?.categoryId;
-                  const backPathId = location.state?.pathId;
-                  if (fromSpecific && backCategoryId && backPathId) {
-                    navigate(`/learning/specific/${backCategoryId}/paths/${backPathId}`);
-                  } else {
-                    prevId ? navigate(`/courses/levels/${prevId}`) : navigate('/courses');
-                  }
-                }}
+            {/* Floating video button for compact layouts */}
+            {isCompactLayout && (
+              <button
+                onClick={() => setShowVideoOverlay(true)}
+                aria-label="Ouvrir la vidéo"
                 style={{
-                  background: prevId ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#e6e9ef',
-                  color: prevId ? 'white' : '#94a3b8',
+                  position: 'absolute',
+                  right: 16,
+                  top: 16,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 56,
                   border: 'none',
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  cursor: prevId ? 'pointer' : 'not-allowed',
-                  fontWeight: 700,
-                  fontSize: '0.95rem'
-                }}
-              >
-                 ← {t('previousLesson')}
-               </button>
-              
-              <button 
-                onClick={openExercises}
-                style={{
-                  background: showExercises ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #06b6d4)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
                   color: 'white',
-                  border: 'none',
-                  padding: '10px 12px',
-                  borderRadius: 10,
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                  fontSize: '0.95rem'
+                  boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+                  zIndex: 20
                 }}
               >
-                 📝 {showExercises ? 'Masquer' : t('exercises')} {showExercises ? '←' : '→'}
-               </button>
-
-              {nextId && (
-                <button 
-                  onClick={() => navigate(`/courses/levels/${nextId}`)}
-                  style={{
-                    background: 'linear-gradient(135deg, #fb7c2a, #ef4444)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '10px 12px',
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                    fontWeight: 700,
-                    fontSize: '0.95rem'
-                  }}
-                >
-                   {t('nextLesson')} →
-                 </button>
-              )}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div style={{ 
-            background: 'white',
-            borderRadius: 12,
-            padding: 12,
-            border: '1px solid rgba(15,23,42,0.04)'
-          }}>
-             <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.95rem', color: '#0f172a' }}>
-               {t('quickActions')}
-             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button 
-                onClick={() => window.print()}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(15,23,42,0.06)',
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontSize: '0.85rem'
-                }}
-              >
-                 🖨️ {t('print')}
-               </button>
-              <button 
-                onClick={() => {
-                  const currentUrl = window.location.href;
-                  navigator.clipboard.writeText(currentUrl);
-                }}
-                style={{
-                  background: 'transparent',
-                  border: '1px solid rgba(15,23,42,0.06)',
-                  padding: '8px 10px',
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  fontSize: '0.85rem'
-                }}
-              >
-                 🔗 {t('copyLink')}
-               </button>
-            </div>
-          </div>
-
-        </aside>
-        )}
-
-        {/* Exercise Section - Only shown when showExercises is true */}
-        {showExercises && (
-          <section style={{
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
-            borderLeft: '1px solid rgba(15,23,42,0.06)',
-            padding: 20,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
-            overflow: 'auto'
-          }}>
-            {/* Exercise Header */}
-            <div style={{
-              background: 'white',
-              borderRadius: 12,
-              padding: 16,
-              border: '1px solid rgba(15,23,42,0.04)',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: 12
-              }}>
-                <h3 style={{
-                  margin: 0,
-                  fontSize: '1.1rem',
-                  fontWeight: 700,
-                  color: '#0f172a'
-                }}>
-                  📝 Exercices du Niveau
-                </h3>
-                <button
-                  onClick={() => navigate(`/courses/levels/${levelId}/exercises`)}
-                  style={{
-                    background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
-                  }}
-                >
-                  📋 Voir tous les exercices
-                </button>
-                
-                <button
-                  onClick={() => navigate(`/level-exercise-tester/${levelId}`)}
-                  style={{
-                    background: 'linear-gradient(135deg, #10b981, #059669)',
-                    color: 'white',
-                    border: 'none',
-                    padding: '8px 16px',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.3s ease',
-                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.transform = 'translateY(-2px)';
-                    e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.transform = 'translateY(0)';
-                    e.target.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
-                  }}
-                >
-                  🔧 Tester les Exercices
-                </button>
-              </div>
-              <div style={{
-                display: 'flex',
-                gap: 8,
-                flexWrap: 'wrap'
-              }}>
-                {exercises.map((exercise, index) => {
-                  const isCompleted = completedExercises[exercise._id]?.completed || false;
-                  const progress = completedExercises[exercise._id];
-                  
-                  return (
-                    <button
-                      key={exercise._id}
-                      onClick={() => {
-                        // Navigation vers la page d'exercice individuel
-                        navigate(`/courses/levels/${levelId}/exercises/${exercise._id}`);
-                      }}
-                      style={{
-                        background: isCompleted 
-                          ? 'linear-gradient(135deg, #10b981, #06b6d4)' 
-                          : 'linear-gradient(135deg, #667eea, #764ba2)',
-                        color: 'white',
-                        border: 'none',
-                        padding: '8px 12px',
-                        borderRadius: 8,
-                        cursor: 'pointer',
-                        fontWeight: 600,
-                        fontSize: '0.85rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        transition: 'all 0.3s ease',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-                      }}
-                      onMouseEnter={(e) => {
-                        e.target.style.transform = 'translateY(-2px)';
-                        e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.target.style.transform = 'translateY(0)';
-                        e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
-                      }}
-                    >
-                      {isCompleted ? '✅' : '📝'} {exercise.name || `Exercice ${index + 1}`}
-                      {progress && (
-                        <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>
-                          ({progress.pointsEarned}/{progress.pointsMax})
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Active Exercise */}
-            {activeExercise && (
-              <div style={{
-                background: 'white',
-                borderRadius: 12,
-                padding: 20,
-                border: '1px solid rgba(15,23,42,0.04)',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-                flex: 1,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16
-              }}>
-                {/* Exercise Header */}
-                <ExerciseHeader
-                  title={activeExercise.name}
-                  difficulty={activeExercise.difficulty}
-                  points={activeExercise.points}
-                  type={activeExercise.type}
-                  timeLimit={activeExercise.timeLimit}
-                />
-
-                {/* Exercise Content */}
-                <div style={{ flex: 1 }}>
-                  <ExerciseAnswerInterface
-                    exercise={activeExercise}
-                    answer={userAnswer}
-                    onAnswer={setUserAnswer}
-                    onSubmit={handleSubmitExercise}
-                    onTest={handleTestCode}
-                    attempts={0}
-                    maxAttempts={activeExercise.attemptsAllowed || 3}
-                    isSubmitting={isSubmitting}
-                    submissionResult={submissionResult}
-                    error={exerciseError}
-                  />
-                </div>
-
-                {/* Submission Panel */}
-                <SubmissionPanel
-                  onSubmit={handleSubmitExercise}
-                  result={submissionResult}
-                  isSubmitting={isSubmitting}
-                  attemptsAllowed={activeExercise.attemptsAllowed || 3}
-                  currentAttempts={0}
-                  userAnswer={userAnswer}
-                />
-
-                {/* Close Exercise Button */}
-                <button
-                  onClick={() => {
-                    setActiveExercise(null);
-                    setUserAnswer(null);
-                    setSubmissionResult(null);
-                    setExerciseError(null);
-                  }}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid rgba(15,23,42,0.1)',
-                    color: '#6b7280',
-                    padding: '8px 16px',
-                    borderRadius: 8,
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    fontSize: '0.9rem'
-                  }}
-                >
-                  ✕ Fermer l'exercice
-                </button>
-              </div>
-            )}
-
-            {/* No Exercise Selected */}
-            {!activeExercise && (
-              <div style={{
-                background: 'white',
-                borderRadius: 12,
-                padding: 40,
-                border: '1px solid rgba(15,23,42,0.04)',
-                textAlign: 'center',
-                color: '#6b7280'
-              }}>
-                <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
-                <h4 style={{ margin: '0 0 8px 0', color: '#374151' }}>
-                  Sélectionnez un exercice
-                </h4>
-                <p style={{ margin: 0, fontSize: '0.9rem' }}>
-                  Cliquez sur un exercice ci-dessus pour commencer
-                </p>
-              </div>
+                🎬
+              </button>
             )}
           </section>
-        )}
-      </div>
-      {/* Compact video overlay modal */}
-      {isCompactLayout && showVideoOverlay && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0,0,0,0.6)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}
-          onClick={() => setShowVideoOverlay(false)}
-        >
-          <div style={{
-            width: '92vw',
-            maxWidth: 800,
-            aspectRatio: '16 / 9',
-            background: '#000',
-            borderRadius: 12,
-            overflow: 'hidden',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.35)'
-          }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {videoEffectiveUrl ? (
-              <video
-                ref={videoRef}
-                key={videoEffectiveUrl}
-                src={videoEffectiveUrl}
-                controls
-                style={{ width: '100%', height: '100%', display: 'block', background: '#000' }}
-                onError={handleVideoError}
-              />
-            ) : (
-              <div style={{ color: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                {t('noVideo')}
+          {/* Video Sidebar (hidden in compact layout; use overlay instead) */}
+          {!isCompactLayout && (
+            <aside style={{
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
+              borderLeft: '1px solid rgba(15,23,42,0.06)',
+              padding: 18,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16
+            }}>
+              {/* Video Section */}
+              <div>
+                <div style={{
+                  fontWeight: 700,
+                  marginBottom: 10,
+                  color: '#0f172a',
+                  fontSize: '0.95rem'
+                }}>
+                  🎬 {t('video')} — {LANGS.find(l => l.code === lang)?.label}
+                </div>
+
+                <div ref={videoContainerRef} style={{
+                  background: '#000',
+                  borderRadius: 12,
+                  overflow: 'hidden',
+                  boxShadow: '0 8px 20px rgba(15,23,42,0.08)'
+                }}>
+                  {videoEffectiveUrl ? (
+                    <div style={{ position: 'relative', width: '100%', height: 360 }}>
+                      <video
+                        ref={videoRef}
+                        key={videoEffectiveUrl}
+                        src={videoEffectiveUrl}
+                        controls
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          display: 'block',
+                          background: '#000'
+                        }}
+                        onError={handleVideoError}
+                      />
+
+                      {/* Play overlay when paused */}
+                      {!isPlaying && (
+                        <div onClick={togglePlay} style={{
+                          position: 'absolute',
+                          inset: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          background: 'linear-gradient(180deg, rgba(0,0,0,0.15), rgba(0,0,0,0.35))'
+                        }}>
+                          <div style={{
+                            width: 84,
+                            height: 84,
+                            borderRadius: 84,
+                            background: 'rgba(255,255,255,0.12)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            border: '1px solid rgba(255,255,255,0.1)'
+                          }}>
+                            <div style={{ fontSize: 34, color: 'white' }}>▶</div>
+                          </div>
+                        </div>
+                      )}
+
+                    </div>
+                  ) : (
+                    <div style={{
+                      color: '#6c757d',
+                      textAlign: 'center',
+                      padding: 36,
+                      height: 200,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <div style={{ fontSize: 32, marginBottom: 8 }}>🎬</div>
+                      <div style={{ fontSize: '0.95rem' }}>{t('noVideo')}</div>
+                    </div>
+                  )}
+                </div>
+
+                {videoStatusMsg && (
+                  <div style={{
+                    background: 'rgba(255, 193, 7, 0.1)',
+                    color: '#856404',
+                    padding: 8,
+                    borderRadius: 8,
+                    marginTop: 8,
+                    fontSize: '0.85rem'
+                  }}>
+                    {videoStatusMsg}
+                  </div>
+                )}
+
+                {/* Progress and controls */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                  <div onClick={togglePlay} style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(15,23,42,0.06)',
+                    padding: 8,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontWeight: 700
+                  }}>{isPlaying ? t('pause') : t('play')}</div>
+
+                  <div onClick={openVideoFullscreen} style={{
+                    background: 'transparent',
+                    border: '1px solid rgba(15,23,42,0.06)',
+                    padding: 8,
+                    borderRadius: 8,
+                    cursor: 'pointer',
+                    fontWeight: 700
+                  }}>
+                    {t('enlargeVideo')}
+                  </div>
+
+                  <div style={{ marginLeft: 'auto', fontSize: '0.85rem', color: '#6b7280' }}>
+                    {duration ? `${Math.floor(progress / 60)}:${String(Math.floor(progress % 60)).padStart(2, '0')} / ${Math.floor(duration / 60)}:${String(Math.floor(duration % 60)).padStart(2, '0')}` : ''}
+                  </div>
+                </div>
+
+                {/* Clickable progress bar */}
+                <div onClick={seek} style={{
+                  height: 8,
+                  background: 'rgba(15,23,42,0.06)',
+                  borderRadius: 8,
+                  marginTop: 8,
+                  cursor: 'pointer',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{ width: duration ? `${(progress / duration) * 100}%` : '0%', height: '100%', background: 'linear-gradient(90deg,#667eea,#764ba2)' }} />
+                </div>
+
               </div>
-            )}
-          </div>
-          <button
-            onClick={() => setShowVideoOverlay(false)}
-            aria-label="Fermer la vidéo"
-            style={{
-              position: 'absolute',
-              top: 20,
-              right: 20,
-              width: 40,
-              height: 40,
-              borderRadius: 40,
-              border: 'none',
-              cursor: 'pointer',
-              background: 'rgba(255,255,255,0.9)',
-              color: '#111827',
-              fontSize: 18,
-              fontWeight: 700
-            }}
-          >
-            ✕
-          </button>
+
+              {/* Navigation Section */}
+              <div style={{
+                background: 'white',
+                borderRadius: 12,
+                padding: 1,
+                border: '1px solid rgba(15,23,42,0.04)'
+              }}>
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <div style={{ fontWeight: 700, color: '#0f172a', fontSize: '0.95rem' }}>
+                    {level.translations?.[lang]?.title}
+                  </div>
+                  {level.tags?.length > 0 && (
+                    <div style={{ color: '#6b7280', fontSize: '0.85rem', marginTop: 6 }}>
+                      {level.tags.join(', ')}
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      const fromSpecific = location.state?.fromSpecific;
+                      const backCategoryId = location.state?.categoryId;
+                      const backPathId = location.state?.pathId;
+                      if (fromSpecific && backCategoryId && backPathId) {
+                        navigate(`/learning/specific/${backCategoryId}/paths/${backPathId}`);
+                      } else {
+                        prevId ? navigate(`/courses/levels/${prevId}`) : navigate('/courses');
+                      }
+                    }}
+                    style={{
+                      background: prevId ? 'linear-gradient(135deg, #667eea, #764ba2)' : '#e6e9ef',
+                      color: prevId ? 'white' : '#94a3b8',
+                      border: 'none',
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      cursor: prevId ? 'pointer' : 'not-allowed',
+                      fontWeight: 700,
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    ← {t('previousLesson')}
+                  </button>
+
+                  <button
+                    onClick={openExercises}
+                    style={{
+                      background: showExercises ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #06b6d4)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                      fontSize: '0.95rem'
+                    }}
+                  >
+                    📝 {showExercises ? 'Masquer' : t('exercises')} {showExercises ? '←' : '→'}
+                  </button>
+
+                  {nextId && (
+                    <button
+                      onClick={() => navigate(`/courses/levels/${nextId}`)}
+                      style={{
+                        background: 'linear-gradient(135deg, #fb7c2a, #ef4444)',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 12px',
+                        borderRadius: 10,
+                        cursor: 'pointer',
+                        fontWeight: 700,
+                        fontSize: '0.95rem'
+                      }}
+                    >
+                      {t('nextLesson')} →
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div style={{
+                background: 'white',
+                borderRadius: 12,
+                padding: 12,
+                border: '1px solid rgba(15,23,42,0.04)'
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.95rem', color: '#0f172a' }}>
+                  {t('quickActions')}
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => window.print()}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(15,23,42,0.06)',
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    🖨️ {t('print')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      const currentUrl = window.location.href;
+                      navigator.clipboard.writeText(currentUrl);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(15,23,42,0.06)',
+                      padding: '8px 10px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    🔗 {t('copyLink')}
+                  </button>
+                </div>
+              </div>
+
+            </aside>
+          )}
+
+          {/* Exercise Section - Only shown when showExercises is true */}
+          {showExercises && (
+            <section style={{
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(250,250,255,0.95) 100%)',
+              borderLeft: '1px solid rgba(15,23,42,0.06)',
+              padding: 20,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 16,
+              overflow: 'auto'
+            }}>
+              {/* Exercise Header */}
+              <div style={{
+                background: 'white',
+                borderRadius: 12,
+                padding: 16,
+                border: '1px solid rgba(15,23,42,0.04)',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 12
+                }}>
+                  <h3 style={{
+                    margin: 0,
+                    fontSize: '1.1rem',
+                    fontWeight: 700,
+                    color: '#0f172a'
+                  }}>
+                    📝 Exercices du Niveau
+                  </h3>
+                  <button
+                    onClick={() => navigate(`/courses/levels/${levelId}/exercises`)}
+                    style={{
+                      background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(59, 130, 246, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 2px 8px rgba(59, 130, 246, 0.3)';
+                    }}
+                  >
+                    📋 Voir tous les exercices
+                  </button>
+
+                  <button
+                    onClick={() => navigate(`/level-exercise-tester/${levelId}`)}
+                    style={{
+                      background: 'linear-gradient(135deg, #10b981, #059669)',
+                      color: 'white',
+                      border: 'none',
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.85rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      transition: 'all 0.3s ease',
+                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.transform = 'translateY(-2px)';
+                      e.target.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.transform = 'translateY(0)';
+                      e.target.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
+                    }}
+                  >
+                    🔧 Tester les Exercices
+                  </button>
+                </div>
+                <div style={{
+                  display: 'flex',
+                  gap: 8,
+                  flexWrap: 'wrap'
+                }}>
+                  {exercises.map((exercise, index) => {
+                    const isCompleted = completedExercises[exercise._id]?.completed || false;
+                    const progress = completedExercises[exercise._id];
+
+                    return (
+                      <button
+                        key={exercise._id}
+                        onClick={() => {
+                          // Navigation vers la page d'exercice individuel
+                          navigate(`/courses/levels/${levelId}/exercises/${exercise._id}`);
+                        }}
+                        style={{
+                          background: isCompleted
+                            ? 'linear-gradient(135deg, #10b981, #06b6d4)'
+                            : 'linear-gradient(135deg, #667eea, #764ba2)',
+                          color: 'white',
+                          border: 'none',
+                          padding: '8px 12px',
+                          borderRadius: 8,
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          transition: 'all 0.3s ease',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.target.style.transform = 'translateY(-2px)';
+                          e.target.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.target.style.transform = 'translateY(0)';
+                          e.target.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                        }}
+                      >
+                        {isCompleted ? '✅' : '📝'} {exercise.name || `Exercice ${index + 1}`}
+                        {progress && (
+                          <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>
+                            ({progress.pointsEarned}/{progress.pointsMax})
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Active Exercise */}
+              {activeExercise && (
+                <div style={{
+                  background: 'white',
+                  borderRadius: 12,
+                  padding: 20,
+                  border: '1px solid rgba(15,23,42,0.04)',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 16
+                }}>
+                  {/* Exercise Header */}
+                  <ExerciseHeader
+                    title={activeExercise.name}
+                    difficulty={activeExercise.difficulty}
+                    points={activeExercise.points}
+                    type={activeExercise.type}
+                    timeLimit={activeExercise.timeLimit}
+                  />
+
+                  {/* Exercise Content */}
+                  <div style={{ flex: 1 }}>
+                    <ExerciseAnswerInterface
+                      exercise={activeExercise}
+                      answer={userAnswer}
+                      onAnswer={setUserAnswer}
+                      onSubmit={handleSubmitExercise}
+                      onTest={handleTestCode}
+                      attempts={0}
+                      maxAttempts={activeExercise.attemptsAllowed || 3}
+                      isSubmitting={isSubmitting}
+                      submissionResult={submissionResult}
+                      error={exerciseError}
+                    />
+                  </div>
+
+                  {/* Submission Panel */}
+                  <SubmissionPanel
+                    onSubmit={handleSubmitExercise}
+                    result={submissionResult}
+                    isSubmitting={isSubmitting}
+                    attemptsAllowed={activeExercise.attemptsAllowed || 3}
+                    currentAttempts={0}
+                    userAnswer={userAnswer}
+                  />
+
+                  {/* Close Exercise Button */}
+                  <button
+                    onClick={() => {
+                      setActiveExercise(null);
+                      setUserAnswer(null);
+                      setSubmissionResult(null);
+                      setExerciseError(null);
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(15,23,42,0.1)',
+                      color: '#6b7280',
+                      padding: '8px 16px',
+                      borderRadius: 8,
+                      cursor: 'pointer',
+                      fontWeight: 600,
+                      fontSize: '0.9rem'
+                    }}
+                  >
+                    ✕ Fermer l'exercice
+                  </button>
+                </div>
+              )}
+
+              {/* No Exercise Selected */}
+              {!activeExercise && (
+                <div style={{
+                  background: 'white',
+                  borderRadius: 12,
+                  padding: 40,
+                  border: '1px solid rgba(15,23,42,0.04)',
+                  textAlign: 'center',
+                  color: '#6b7280'
+                }}>
+                  <div style={{ fontSize: 48, marginBottom: 16 }}>📝</div>
+                  <h4 style={{ margin: '0 0 8px 0', color: '#374151' }}>
+                    Sélectionnez un exercice
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem' }}>
+                    Cliquez sur un exercice ci-dessus pour commencer
+                  </p>
+                </div>
+              )}
+            </section>
+          )}
         </div>
-      )}
+        {/* Compact video overlay modal */}
+        {isCompactLayout && showVideoOverlay && (
+          <div style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000
+          }}
+            onClick={() => setShowVideoOverlay(false)}
+          >
+            <div style={{
+              width: '92vw',
+              maxWidth: 800,
+              aspectRatio: '16 / 9',
+              background: '#000',
+              borderRadius: 12,
+              overflow: 'hidden',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.35)'
+            }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {videoEffectiveUrl ? (
+                <video
+                  ref={videoRef}
+                  key={videoEffectiveUrl}
+                  src={videoEffectiveUrl}
+                  controls
+                  style={{ width: '100%', height: '100%', display: 'block', background: '#000' }}
+                  onError={handleVideoError}
+                />
+              ) : (
+                <div style={{ color: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                  {t('noVideo')}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowVideoOverlay(false)}
+              aria-label="Fermer la vidéo"
+              style={{
+                position: 'absolute',
+                top: 20,
+                right: 20,
+                width: 40,
+                height: 40,
+                borderRadius: 40,
+                border: 'none',
+                cursor: 'pointer',
+                background: 'rgba(255,255,255,0.9)',
+                color: '#111827',
+                fontSize: 18,
+                fontWeight: 700
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
       </div>
     </CourseAccessGuard>
   );

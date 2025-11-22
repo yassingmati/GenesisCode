@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
+import { getAnalytics, isSupported as isAnalyticsSupported } from "firebase/analytics";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -18,5 +18,25 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-export { app }; // 👈 très important ici
+
+let analyticsPromise = Promise.resolve(null);
+
+if (typeof window !== 'undefined') {
+  analyticsPromise = isAnalyticsSupported()
+    .then((supported) => {
+      if (supported) {
+        return getAnalytics(app);
+      }
+
+      if (process.env.NODE_ENV !== 'production') {
+        console.info('[Firebase] Analytics not supported in this environment.');
+      }
+      return null;
+    })
+    .catch((error) => {
+      console.warn('[Firebase] Analytics initialization skipped:', error);
+      return null;
+    });
+}
+
+export { app, analyticsPromise };

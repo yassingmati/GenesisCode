@@ -13,6 +13,10 @@ function extractToken(req) {
   if (req.headers?.authorization && req.headers.authorization.startsWith('Bearer ')) {
     return { token: req.headers.authorization.split(' ')[1], isAdminToken: false };
   }
+  // Vérifier paramètre token (utile pour prévisualisation fichiers via URL directe)
+  if (req.query?.token) {
+    return { token: req.query.token, isAdminToken: false };
+  }
   // Vérifier le cookie token standard
   if (req.cookies?.token) {
     return { token: req.cookies.token, isAdminToken: false };

@@ -1311,7 +1311,7 @@ function LevelsPanel({ onOpenCreate }) {
 
   const uploadMedia = async (levelId, lang, file, mediaType) => {
     const endpoint = mediaType === 'video' ? 'video' : 'pdf';
-    const url = `${API_BASE_URL}/api/courses/levels/${levelId}/${endpoint}`;
+    const url = getApiUrl(`/api/courses/levels/${levelId}/${endpoint}`);
 
     setUploading(prev => ({
       ...prev,
@@ -1478,8 +1478,8 @@ function LevelsPanel({ onOpenCreate }) {
     try {
       const endpoint = mediaType === 'video' ? 'video' : 'pdf';
       const token = localStorage.getItem('adminToken');
-      
-      await axios.delete(`${API_BASE_URL}/api/courses/levels/${levelId}/${endpoint}?lang=${lang}`, {
+
+      await axios.delete(getApiUrl(`/api/courses/levels/${levelId}/${endpoint}?lang=${encodeURIComponent(lang)}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       
@@ -1495,7 +1495,11 @@ function LevelsPanel({ onOpenCreate }) {
 
   const previewMediaUrl = (levelId, lang, mediaType) => {
     const endpoint = mediaType === 'video' ? 'video' : 'pdf';
-    return `${API_BASE_URL}/api/courses/levels/${levelId}/${endpoint}?lang=${lang}`;
+    const token = localStorage.getItem('adminToken');
+    const url = new URL(getApiUrl(`/api/courses/levels/${levelId}/${endpoint}`));
+    url.searchParams.set('lang', lang);
+    if (token) url.searchParams.set('token', token);
+    return url.toString();
   };
 
   return (

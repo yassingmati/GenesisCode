@@ -1,13 +1,48 @@
 const nodemailer = require('nodemailer');
 
-// Configuration du transporteur email
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+// Configuration du transporteur email (supporte Gmail ou SMTP générique, avec timeouts/pool)
+let transporter = null;
+try {
+  if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true' || Number(process.env.SMTP_PORT) === 465,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+      },
+      pool: true,
+      maxConnections: Number(process.env.SMTP_MAX_CONNECTIONS) || 2,
+      maxMessages: Number(process.env.SMTP_MAX_MESSAGES) || 50,
+      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS) || 15000,
+      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS) || 10000,
+      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS) || 20000,
+      requireTLS: String(process.env.SMTP_REQUIRE_TLS || 'true').toLowerCase() === 'true',
+      tls: {
+        rejectUnauthorized: String(process.env.SMTP_REJECT_UNAUTHORIZED || '').toLowerCase() !== 'false'
+      }
+    });
+  } else {
+    transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      },
+      pool: true,
+      maxConnections: 2,
+      maxMessages: 50,
+      connectionTimeout: 15000,
+      greetingTimeout: 10000,
+      socketTimeout: 20000,
+      requireTLS: true
+    });
   }
-});
+} catch (e) {
+  console.error('❌ Erreur création transporteur email:', e && e.message ? e.message : e);
+  transporter = null;
+}
 
 // Vérifier si le transporteur est configuré
 const isEmailConfigured = () => {

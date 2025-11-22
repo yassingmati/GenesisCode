@@ -1,0 +1,24 @@
+# Commandes de déploiement
+
+## 1. Déploiement Firebase Hosting (Frontend)
+# Option A: Script npm (recommandé)
+npm run deploy:hosting
+
+# Option B: Commandes manuelles
+cd frontend
+npm run build
+cd ..
+firebase deploy --only hosting
+
+## 2. Déploiement Render (Backend)
+# Commit et push des changements
+git add .
+git commit -m "Fix: Upload et récupération de vidéos/PDFs - Support formats ancien/nouveau, normalisation chemins Windows, endpoints API avec auth"
+git push origin main
+
+# Render détectera automatiquement les changements et redéploiera
+
+## Fichiers modifiés
+- frontend/src/pages/course/LevelPage.jsx
+- backend/src/controllers/CourseController.js
+

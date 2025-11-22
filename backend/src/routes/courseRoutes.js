@@ -11,7 +11,9 @@ const router = express.Router();
 
 const {
   CourseController,
-  languageMiddleware
+  languageMiddleware,
+  uploadVideoMiddleware,
+  uploadPDFMiddleware
 } = require('../controllers/CourseController');
 
 // Import des middlewares de contrôle d'accès
@@ -151,6 +153,45 @@ router.delete('/levels/:id', validateId('id'), protectUserOrAdmin, catchErrors(C
 
 /* Exercises for a level (list) */
 router.get('/levels/:id/exercises', protectUserOrAdmin, validateId('id'), requireFlexibleLevelAccess(), catchErrors(CourseController.getExercisesByLevel));
+
+// Media handling for levels (videos & pdf)
+router.post('/levels/:levelId/video',
+  protectUserOrAdmin,
+  validateId('levelId'),
+  uploadVideoMiddleware,
+  CourseController.saveVideoPath
+);
+
+router.post('/levels/:levelId/pdf',
+  protectUserOrAdmin,
+  validateId('levelId'),
+  uploadPDFMiddleware,
+  CourseController.savePDFPath
+);
+
+router.delete('/levels/:levelId/video',
+  protectUserOrAdmin,
+  validateId('levelId'),
+  CourseController.deleteLevelVideo
+);
+
+router.delete('/levels/:levelId/pdf',
+  protectUserOrAdmin,
+  validateId('levelId'),
+  CourseController.deleteLevelPDF
+);
+
+router.get('/levels/:levelId/video',
+  protectUserOrAdmin,
+  validateId('levelId'),
+  catchErrors(CourseController.streamVideo)
+);
+
+router.get('/levels/:levelId/pdf',
+  protectUserOrAdmin,
+  validateId('levelId'),
+  catchErrors(CourseController.streamPDF)
+);
 
 /* ===========================
    Exercises (CRUD & submit)

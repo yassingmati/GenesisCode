@@ -61,7 +61,13 @@ const uploadsBaseDir = path.resolve(__dirname, '..', 'uploads'); // /.../uploads
 const relUploadsPrefix = '/uploads/'; // utilisé pour construire chemins accessibles
 
 const resolveRelPath = (subPath) => `${relUploadsPrefix}${subPath.replace(/^\/+/, '')}`; // ex: /uploads/videos/...
-const resolveAbsFromRel = rel => path.resolve(__dirname, '..', rel.replace(/^\//, ''));
+const resolveAbsFromRel = rel => {
+  // Normaliser les backslashes Windows en slashes
+  const normalized = rel.replace(/\\/g, '/');
+  // Enlever le slash initial si présent
+  const clean = normalized.replace(/^\//, '');
+  return path.resolve(__dirname, '..', clean);
+};
 
 // only unlink files inside our uploads directory to avoid path traversal mistakes
 const safeUnlink = async (relPath) => {
@@ -794,7 +800,8 @@ class CourseController {
       pdf: level.pdfs?.[lang] || null,
       exercises,
       videos: level.videos || {},
-      pdfs: level.pdfs || {}
+      pdfs: level.pdfs || {},
+      path: level.path
     });
   });
 
@@ -1815,15 +1822,28 @@ class CourseController {
     if (!isValidObjectId(req.params.levelId)) return res.status(400).json({ error: 'ID invalide' });
     if (!isAllowedLang(lang)) return res.status(400).json({ error: 'Langue invalide' });
 
-    const level = await Level.findById(req.params.levelId).select('videos').lean();
-    const videoRel = level?.videos?.[lang];
+    const level = await Level.findById(req.params.levelId).select('videos video').lean();
+    // Essayer d'abord le nouveau format (videos par langue)
+    let videoRel = level?.videos?.[lang];
+    // Si pas trouvé, essayer l'ancien format (video singulier) pour la langue fr
+    if (!videoRel && lang === 'fr' && level?.video) {
+      videoRel = level.video;
+    }
     if (!videoRel) return res.status(404).json({ error: 'Vidéo introuvable pour cette langue' });
 
+    // Normaliser les backslashes Windows en slashes
+    videoRel = videoRel.replace(/\\/g, '/');
     const videoPath = resolveAbsFromRel(videoRel);
+    
+    // Log pour debug
+    console.log('[streamVideo] Video rel:', videoRel);
+    console.log('[streamVideo] Video abs:', videoPath);
+    
     try {
       await fsp.access(videoPath);
-    } catch {
-      return res.status(404).json({ error: 'Fichier vidéo manquant' });
+    } catch (err) {
+      console.error('[streamVideo] File access error:', err.message);
+      return res.status(404).json({ error: 'Fichier vidéo manquant', path: videoPath, relPath: videoRel });
     }
 
     const stat = await fsp.stat(videoPath);
@@ -1886,15 +1906,29 @@ class CourseController {
     if (!isValidObjectId(req.params.levelId)) return res.status(400).json({ error: 'ID invalide' });
     if (!isAllowedLang(lang)) return res.status(400).json({ error: 'Langue invalide' });
 
-    const level = await Level.findById(req.params.levelId).select('pdfs').lean();
-    const pdfRel = level?.pdfs?.[lang];
+    const level = await Level.findById(req.params.levelId).select('pdfs pdf').lean();
+    // Essayer d'abord le nouveau format (pdfs par langue)
+    let pdfRel = level?.pdfs?.[lang];
+    // Si pas trouvé, essayer l'ancien format (pdf singulier) pour la langue fr
+    if (!pdfRel && lang === 'fr' && level?.pdf) {
+      pdfRel = level.pdf;
+    }
     if (!pdfRel) return res.status(404).json({ error: 'PDF introuvable pour cette langue' });
 
+    // Normaliser les backslashes Windows en slashes
+    pdfRel = pdfRel.replace(/\\/g, '/');
     const pdfPath = resolveAbsFromRel(pdfRel);
+    
+    // Log pour debug
+    console.log('[streamPDF] PDF rel:', pdfRel);
+    console.log('[streamPDF] PDF abs:', pdfPath);
+    console.log('[streamPDF] File exists:', await fsp.access(pdfPath).then(() => true).catch(() => false));
+    
     try {
       await fsp.access(pdfPath);
-    } catch {
-      return res.status(404).json({ error: 'Fichier PDF manquant' });
+    } catch (err) {
+      console.error('[streamPDF] File access error:', err.message);
+      return res.status(404).json({ error: 'Fichier PDF manquant', path: pdfPath, relPath: pdfRel });
     }
 
     res.setHeader('Content-Type', 'application/pdf');

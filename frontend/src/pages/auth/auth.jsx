@@ -173,14 +173,14 @@ const Auth = ({ type }) => {
       
       // Envoyer le token au backend
       console.log('🔵 Envoi du token au backend...');
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login/google`, {
-        idToken
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: 10000
-      });
+          const response = await axios.post(`${API_BASE_URL}/api/auth/login/google`, {
+            idToken
+          }, {
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            timeout: Number(process.env.REACT_APP_GOOGLE_LOGIN_TIMEOUT_MS || 20000)
+          });
 
       if (!response.data || !response.data.token) {
         throw new Error('Réponse invalide du serveur');
