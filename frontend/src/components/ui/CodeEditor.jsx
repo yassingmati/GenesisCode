@@ -1,5 +1,27 @@
 import React, { useRef, useEffect, useState } from 'react';
 import Editor from '@monaco-editor/react';
+import {
+  Paper,
+  Group,
+  Select,
+  Badge,
+  Button,
+  ActionIcon,
+  Text,
+  Box,
+  Stack,
+  Code,
+  Tooltip,
+  Divider
+} from '@mantine/core';
+import {
+  IconPlayerPlay,
+  IconTrash,
+  IconMessageCircle,
+  IconBrush,
+  IconTerminal2,
+  IconCode
+} from '@tabler/icons-react';
 
 const CodeEditor = ({
   value = '',
@@ -39,10 +61,10 @@ const CodeEditor = ({
 
   const handleEditorDidMount = (editor, monaco) => {
     editorRef.current = editor;
-    
+
     // Configuration Monaco
     monaco.languages.typescript.javascriptDefaults.setEagerModelSync(true);
-    
+
     // Configuration du thème personnalisé
     monaco.editor.defineTheme('codegenesis-dark', {
       base: 'vs-dark',
@@ -63,7 +85,7 @@ const CodeEditor = ({
     });
 
     monaco.editor.setTheme('codegenesis-dark');
-    
+
     if (onMount) {
       onMount(editor, monaco);
     }
@@ -79,18 +101,18 @@ const CodeEditor = ({
   const handleExecute = async () => {
     setIsExecuting(true);
     setOutput('');
-    
+
     try {
       // Simulation d'exécution de code
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       const mockOutput = `Exécution ${languageMap[selectedLanguage]?.name || selectedLanguage}:
 ${value}
 
 Résultat: Code exécuté avec succès
 Sortie: Hello World!
 Temps d'exécution: 0.001s`;
-      
+
       setOutput(mockOutput);
     } catch (error) {
       setOutput(`Erreur d'exécution: ${error.message}`);
@@ -139,41 +161,50 @@ Temps d'exécution: 0.001s`;
   };
 
   return (
-    <div className="code-editor-container">
-      <div className="editor-header">
-        <div className="editor-info">
-          {showLanguageSelector ? (
-            <select 
-              className="language-selector"
-              value={selectedLanguage}
-              onChange={(e) => handleLanguageChange(e.target.value)}
-              disabled={readOnly}
-            >
-              {Object.entries(languageMap).map(([key, lang]) => (
-                <option key={key} value={key}>
-                  {lang.icon} {lang.name}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <span className="language-badge">
-              {languageMap[selectedLanguage]?.icon} {languageMap[selectedLanguage]?.name || selectedLanguage.toUpperCase()}
-            </span>
-          )}
-          {readOnly && <span className="read-only-badge">Lecture seule</span>}
-        </div>
-        
-        <div className="editor-actions">
-          <button 
+    <Paper withBorder radius="md" overflow="hidden" shadow="sm">
+      <Box p="xs" bg="dark.8" style={{ borderBottom: '1px solid #373A40' }}>
+        <Group justify="space-between">
+          <Group gap="xs">
+            {showLanguageSelector ? (
+              <Select
+                size="xs"
+                value={selectedLanguage}
+                onChange={handleLanguageChange}
+                disabled={readOnly}
+                data={Object.entries(languageMap).map(([key, lang]) => ({
+                  value: key,
+                  label: `${lang.icon} ${lang.name}`
+                }))}
+                styles={{ input: { backgroundColor: '#2C2E33', color: '#fff', border: '1px solid #373A40' } }}
+              />
+            ) : (
+              <Badge
+                variant="filled"
+                color="dark"
+                leftSection={<IconCode size={12} />}
+                size="lg"
+                radius="sm"
+              >
+                {languageMap[selectedLanguage]?.name || selectedLanguage.toUpperCase()}
+              </Badge>
+            )}
+            {readOnly && <Badge color="orange" variant="light">Lecture seule</Badge>}
+          </Group>
+
+          <Button
+            size="xs"
+            variant="gradient"
+            gradient={{ from: 'green', to: 'teal' }}
+            leftSection={<IconPlayerPlay size={14} />}
             onClick={handleExecute}
             disabled={isExecuting || !value.trim()}
-            className="execute-btn"
+            loading={isExecuting}
           >
-            {isExecuting ? '⏳ Exécution...' : '▶️ Exécuter'}
-          </button>
-        </div>
-      </div>
-      
+            Exécuter
+          </Button>
+        </Group>
+      </Box>
+
       <Editor
         height={height}
         language={selectedLanguage}
@@ -183,46 +214,42 @@ Temps d'exécution: 0.001s`;
         options={defaultOptions}
         theme="codegenesis-dark"
       />
-      
+
       {showToolbar && !readOnly && (
-        <div className="editor-toolbar">
-          <button 
-            onClick={clearCode}
-            className="toolbar-btn"
-            title="Effacer le code"
-          >
-            🗑️ Effacer
-          </button>
-          <button 
-            onClick={addComment}
-            className="toolbar-btn"
-            title="Ajouter un commentaire"
-          >
-            💬 Commentaire
-          </button>
-          <button 
-            onClick={formatCode}
-            className="toolbar-btn"
-            title="Formater le code"
-          >
-            🎨 Formater
-          </button>
-        </div>
+        <Box p="xs" bg="dark.8" style={{ borderTop: '1px solid #373A40' }}>
+          <Group gap="xs">
+            <Tooltip label="Effacer le code">
+              <Button size="xs" variant="subtle" color="gray" leftSection={<IconTrash size={14} />} onClick={clearCode}>
+                Effacer
+              </Button>
+            </Tooltip>
+            <Tooltip label="Ajouter un commentaire">
+              <Button size="xs" variant="subtle" color="gray" leftSection={<IconMessageCircle size={14} />} onClick={addComment}>
+                Commenter
+              </Button>
+            </Tooltip>
+            <Tooltip label="Formater le code">
+              <Button size="xs" variant="subtle" color="gray" leftSection={<IconBrush size={14} />} onClick={formatCode}>
+                Formater
+              </Button>
+            </Tooltip>
+          </Group>
+        </Box>
       )}
 
       {output && (
-        <div className="execution-output">
-          <div className="output-header">
-            <span className="output-icon">📊</span>
-            <span className="output-title">Résultat d'exécution</span>
-          </div>
-          <pre className="output-content">{output}</pre>
-        </div>
+        <Box p="md" bg="dark.9" style={{ borderTop: '1px solid #373A40' }}>
+          <Group mb="xs" gap="xs">
+            <IconTerminal2 size={16} color="var(--mantine-color-gray-5)" />
+            <Text size="sm" fw={600} c="gray.3">Résultat d'exécution</Text>
+          </Group>
+          <Code block bg="dark.8" c="gray.3" style={{ whiteSpace: 'pre-wrap' }}>
+            {output}
+          </Code>
+        </Box>
       )}
-    </div>
+    </Paper>
   );
 };
 
 export default CodeEditor;
-
-

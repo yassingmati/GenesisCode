@@ -109,7 +109,7 @@ class AccessControlService {
   static async checkSequentialLevelAccess(userId, pathId, levelId) {
     try {
       console.log(`[DEBUG] checkSequentialLevelAccess: userId=${userId}, pathId=${pathId}, levelId=${levelId}`);
-      
+
       const path = await Path.findById(pathId).lean();
       if (!path) {
         console.log(`[DEBUG] Path not found`);
@@ -121,10 +121,25 @@ class AccessControlService {
       // Category access must be active to use sequential unlock
       const categoryAccess = await CategoryAccess.findActiveByUserAndCategory(userId, path.category);
       console.log(`[DEBUG] CategoryAccess found:`, !!categoryAccess);
-      
+
       if (!categoryAccess || !categoryAccess.isActive()) {
         console.log(`[DEBUG] No category access or inactive`);
         return { hasAccess: false, reason: 'no_category_access' };
+      }
+
+      console.log(`[DEBUG] CategoryAccess is active, accessType=${categoryAccess.accessType}`);
+
+      // If user has admin access type, grant full access to all levels
+      if (categoryAccess.accessType === 'admin') {
+        console.log(`[DEBUG] Admin CategoryAccess - granting full access`);
+        return {
+          hasAccess: true,
+          accessType: 'admin',
+          canView: true,
+          canInteract: true,
+          canDownload: true,
+          source: 'category_admin'
+        };
       }
 
       // If already unlocked in CategoryAccess
@@ -144,9 +159,9 @@ class AccessControlService {
       if (!currentLevel) return { hasAccess: false, reason: 'level_not_found' };
 
       // Find the previous level (order - 1)
-      const previousLevel = await Level.findOne({ 
-        path: pathId, 
-        order: currentLevel.order - 1 
+      const previousLevel = await Level.findOne({
+        path: pathId,
+        order: currentLevel.order - 1
       }).lean();
 
       if (!previousLevel) {
@@ -163,12 +178,12 @@ class AccessControlService {
 
       if (previousProgress) {
         // Previous level is completed, grant access
-        return { 
-          hasAccess: true, 
-          accessType: 'sequential_unlock', 
-          canView: true, 
-          canInteract: true, 
-          canDownload: false, 
+        return {
+          hasAccess: true,
+          accessType: 'sequential_unlock',
+          canView: true,
+          canInteract: true,
+          canDownload: false,
           source: 'sequential_unlock',
           previousLevelCompleted: true
         };

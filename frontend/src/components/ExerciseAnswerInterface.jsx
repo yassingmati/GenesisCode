@@ -1,19 +1,50 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CodeEditor from './ui/CodeEditor';
-import './ExerciseAnswerInterface.css';
+import ScratchEditor from './ui/ScratchEditor';
+import {
+  Button,
+  Checkbox,
+  Textarea,
+  Input,
+  Select,
+  SelectItem,
+  Snippet,
+  Chip,
+  Divider,
+  Card,
+  CardBody,
+  CardHeader,
+  CardFooter,
+  Accordion,
+  AccordionItem,
+  ScrollShadow
+} from "@nextui-org/react";
+import {
+  IconCheck,
+  IconX,
+  IconBulb,
+  IconPlayerPlay,
+  IconArrowUp,
+  IconArrowDown,
+  IconPuzzle,
+  IconTestPipe,
+  IconSend,
+  IconGripVertical
+} from '@tabler/icons-react';
 
 /**
  * Interface unifiée pour répondre aux exercices
- * Logique simplifiée et UX améliorée
+ * Logique simplifiée et UX améliorée avec NextUI
  */
-export default function ExerciseAnswerInterface({ 
-  exercise, 
-  onAnswer, 
-  onTest, 
-  attempts = 0, 
+export default function ExerciseAnswerInterface({
+  exercise,
+  onAnswer,
+  onTest,
+  attempts = 0,
   maxAttempts = 3,
-  isSubmitting = false 
+  isSubmitting = false,
+  onSubmit
 }) {
   const [userAnswer, setUserAnswer] = useState(null);
   const [showSolution, setShowSolution] = useState(attempts >= maxAttempts);
@@ -64,7 +95,7 @@ export default function ExerciseAnswerInterface({
   // Fonction de test unifiée
   const handleTest = async () => {
     if (!onTest) return;
-    
+
     try {
       // Validation avancée pour les exercices de code
       if (['Code', 'Trace', 'Debug', 'CodeCompletion', 'PseudoCode', 'Complexity', 'CodeOutput', 'Optimization'].includes(exercise.type)) {
@@ -78,7 +109,7 @@ export default function ExerciseAnswerInterface({
           return;
         }
       }
-      
+
       setIsTesting(true);
       const result = await onTest(userAnswer);
       setTestResult(result);
@@ -98,79 +129,76 @@ export default function ExerciseAnswerInterface({
   const handleSubmit = () => {
     try {
       if (!isAnswerValid()) {
-        alert('Veuillez compléter votre réponse avant de soumettre');
         return;
       }
-      
-      if (onAnswer) {
+
+      if (onSubmit) {
+        onSubmit();
+      } else if (onAnswer) {
         onAnswer(userAnswer);
       }
     } catch (error) {
       console.error('Erreur lors de la soumission:', error);
-      alert('Erreur lors de la soumission. Veuillez réessayer.');
     }
   };
 
   // Vérifier si la réponse est valide
   const isAnswerValid = () => {
     if (!userAnswer) return false;
-    
+
     try {
       switch (exercise.type) {
-      case 'QCM':
-        return Array.isArray(userAnswer) && userAnswer.length > 0;
-      
-      case 'TextInput':
-      case 'FillInTheBlank':
-      case 'SpotTheError':
-        return typeof userAnswer === 'string' && userAnswer.trim().length > 0;
-      
-      case 'Code':
-      case 'Trace':
-      case 'Debug':
-      case 'CodeCompletion':
-      case 'PseudoCode':
-      case 'Complexity':
-      case 'CodeOutput':
-      case 'Optimization':
-        if (typeof userAnswer !== 'string' || userAnswer.trim().length === 0) return false;
-        
-        // Validation stricte pour le code
-        const code = userAnswer.toLowerCase().trim();
-        
-        // Vérifications de base pour tout code
-        const hasFunction = code.includes('function') || code.includes('=>') || code.includes('const') || code.includes('let');
-        const hasReturn = code.includes('return') || code.includes('console.log') || code.includes('print');
-        
-        if (!hasFunction || !hasReturn) return false;
-        
-        // Validations spécifiques selon le type d'exercice
-        if (exercise.type === 'Code') {
-          // Vérifier que c'est du code JavaScript valide
-          return code.includes('function') || code.includes('=>') || code.includes('const') || code.includes('let');
-        }
-        
-        if (exercise.type === 'Debug') {
-          // Pour le debug, vérifier qu'il y a une identification d'erreur
-          return code.includes('error') || code.includes('erreur') || code.includes('bug') || code.includes('problem');
-        }
-        
-        return true;
-      
-      case 'OrderBlocks':
-      case 'Algorithm':
-      case 'AlgorithmSteps':
-        return Array.isArray(userAnswer) && userAnswer.length > 0;
-      
-      case 'DragDrop':
-      case 'Matching':
-        return typeof userAnswer === 'object' && Object.keys(userAnswer).length > 0;
-      
-      case 'ScratchBlocks':
-        return Array.isArray(userAnswer) && userAnswer.length > 0;
-      
-      default:
-        return true;
+        case 'QCM':
+          return Array.isArray(userAnswer) && userAnswer.length > 0;
+
+        case 'TextInput':
+        case 'FillInTheBlank':
+        case 'SpotTheError':
+          return typeof userAnswer === 'string' && userAnswer.trim().length > 0;
+
+        case 'Code':
+        case 'Trace':
+        case 'Debug':
+        case 'CodeCompletion':
+        case 'PseudoCode':
+        case 'Complexity':
+        case 'CodeOutput':
+        case 'Optimization':
+          if (typeof userAnswer !== 'string' || userAnswer.trim().length === 0) return false;
+
+          const code = userAnswer.toLowerCase().trim();
+          const hasFunction = code.includes('function') || code.includes('=>') || code.includes('const') || code.includes('let');
+          const hasReturn = code.includes('return') || code.includes('console.log') || code.includes('print');
+
+          if (!hasFunction || !hasReturn) return false;
+
+          if (exercise.type === 'Code') {
+            return code.includes('function') || code.includes('=>') || code.includes('const') || code.includes('let');
+          }
+
+          if (exercise.type === 'Debug') {
+            return code.includes('error') || code.includes('erreur') || code.includes('bug') || code.includes('problem');
+          }
+
+          return true;
+
+        case 'OrderBlocks':
+        case 'Algorithm':
+        case 'AlgorithmSteps':
+          return Array.isArray(userAnswer) && userAnswer.length > 0;
+
+        case 'DragDrop':
+        case 'Matching':
+          return typeof userAnswer === 'object' && Object.keys(userAnswer).length > 0;
+
+        case 'Scratch':
+          return typeof userAnswer === 'string' && userAnswer.trim().length > 0;
+
+        case 'ScratchBlocks':
+          return Array.isArray(userAnswer) && userAnswer.length > 0;
+
+        default:
+          return true;
       }
     } catch (error) {
       console.error('Erreur lors de la validation:', error);
@@ -181,37 +209,35 @@ export default function ExerciseAnswerInterface({
   // Validation avancée pour les exercices de code
   const validateCodeAnswer = (code) => {
     if (!code || typeof code !== 'string') return { valid: false, message: 'Code vide' };
-    
+
     const codeLower = code.toLowerCase().trim();
-    
-    // Vérifications de base
+
     if (!codeLower.includes('function') && !codeLower.includes('=>') && !codeLower.includes('const') && !codeLower.includes('let')) {
       return { valid: false, message: 'Il manque une déclaration de fonction' };
     }
-    
+
     if (!codeLower.includes('return') && !codeLower.includes('console.log') && !codeLower.includes('print')) {
       return { valid: false, message: 'Il manque un retour de valeur ou un affichage' };
     }
-    
-    // Vérifications spécifiques selon l'exercice
+
     if (exercise.name && exercise.name.toLowerCase().includes('factoriel')) {
       if (!codeLower.includes('factoriel') || !codeLower.includes('n * factoriel')) {
         return { valid: false, message: 'La fonction doit s\'appeler "factoriel" et être récursive' };
       }
     }
-    
+
     if (exercise.name && exercise.name.toLowerCase().includes('fizz')) {
       if (!codeLower.includes('fizz') || !codeLower.includes('buzz')) {
         return { valid: false, message: 'Il manque la logique FizzBuzz' };
       }
     }
-    
+
     if (exercise.name && exercise.name.toLowerCase().includes('somme')) {
       if (!codeLower.includes('filter') && !codeLower.includes('for') && !codeLower.includes('reduce')) {
         return { valid: false, message: 'Il manque une méthode pour traiter les éléments du tableau' };
       }
     }
-    
+
     return { valid: true, message: 'Code valide' };
   };
 
@@ -220,12 +246,12 @@ export default function ExerciseAnswerInterface({
     switch (exercise.type) {
       case 'QCM':
         return <QCMInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'TextInput':
       case 'FillInTheBlank':
       case 'SpotTheError':
         return <TextInputInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'Code':
       case 'Trace':
       case 'Debug':
@@ -235,105 +261,105 @@ export default function ExerciseAnswerInterface({
       case 'CodeOutput':
       case 'Optimization':
         return <CodeInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'OrderBlocks':
         return <OrderBlocksInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'DragDrop':
         return <DragDropInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'Matching':
         return <MatchingInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'Algorithm':
       case 'AlgorithmSteps':
         return <AlgorithmInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
+      case 'Scratch':
+        return <ScratchInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
+
       case 'ScratchBlocks':
         return <ScratchInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'CodeCompletion':
         return <CodeCompletionInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       case 'PseudoCode':
         return <PseudoCodeInterface exercise={exercise} answer={userAnswer} onAnswer={setUserAnswer} />;
-      
+
       default:
-        return <div className="unsupported-exercise">
-          <p>Type d'exercice non supporté: {exercise.type}</p>
-        </div>;
+        return (
+          <div className="bg-danger-50 text-danger p-4 rounded-lg border border-danger-200">
+            Type d'exercice non supporté: {exercise.type}
+          </div>
+        );
     }
   };
 
   return (
-    <div className="exercise-answer-interface">
-      {/* En-tête avec informations */}
-      <div className="answer-header">
-        <div className="exercise-info">
-          <h3>{exercise.name}</h3>
-          <div className="exercise-meta">
-            <span className="type-badge">{exercise.type}</span>
-            <span className="points-badge">{exercise.points || 10} points</span>
-            {attempts > 0 && (
-              <span className="attempts-badge">
-                Tentatives: {attempts}/{maxAttempts}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
+    <div className="space-y-6">
       {/* Question */}
-      <div className="question-section">
-        <p className="question-text">{exercise.question}</p>
+      <div className="mb-6">
+        <p className="text-lg whitespace-pre-wrap leading-relaxed text-default-700">
+          {exercise.question}
+        </p>
       </div>
 
       {/* Interface de réponse */}
-      <div className="answer-section">
+      <div className="mb-6">
         {renderAnswerInterface()}
       </div>
 
+      <Divider className="my-6" />
+
       {/* Boutons d'action */}
-      <div className="action-buttons">
+      <div className="flex justify-end gap-3">
         {onTest && (
-          <button 
-            className="btn-test"
-            onClick={handleTest}
-            disabled={!isAnswerValid() || isTesting}
+          <Button
+            variant="flat"
+            color="secondary"
+            startContent={<IconTestPipe size={18} />}
+            onPress={handleTest}
+            isDisabled={!isAnswerValid() || isTesting}
+            isLoading={isTesting}
           >
-            {isTesting ? '⏳ Test en cours...' : '🧪 Tester ma réponse'}
-          </button>
+            Tester ma réponse
+          </Button>
         )}
-        
-        <button 
-          className="btn-submit"
-          onClick={handleSubmit}
-          disabled={!isAnswerValid() || isSubmitting}
+
+        <Button
+          color="primary"
+          startContent={<IconSend size={18} />}
+          onPress={handleSubmit}
+          isDisabled={!isAnswerValid() || isSubmitting}
+          isLoading={isSubmitting}
+          className="bg-gradient-to-r from-primary to-secondary shadow-lg"
         >
-          {isSubmitting ? '⏳ Envoi...' : '📤 Soumettre'}
-        </button>
+          Soumettre
+        </Button>
       </div>
 
       {/* Résultat du test */}
       <AnimatePresence>
         {testResult && (
-          <motion.div 
-            className={`test-result ${testResult.success ? 'success' : 'error'}`}
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            className="mt-4"
           >
-            <div className="result-header">
-              <span className="result-icon">
-                {testResult.success ? '✅' : '❌'}
-              </span>
-              <span className="result-message">{testResult.message}</span>
-            </div>
-            {testResult.details && (
-              <div className="result-details">
-                <pre>{JSON.stringify(testResult.details, null, 2)}</pre>
+            <div className={`p-4 rounded-lg border ${testResult.success ? 'bg-success-50 border-success-200 text-success-700' : 'bg-danger-50 border-danger-200 text-danger-700'}`}>
+              <div className="flex items-center gap-2 mb-2">
+                {testResult.success ? <IconCheck size={20} /> : <IconX size={20} />}
+                <span className="font-bold">{testResult.success ? 'Test réussi' : 'Erreur de test'}</span>
               </div>
-            )}
+              <p className="text-sm mb-2">{testResult.message}</p>
+              {testResult.details && (
+                <Snippet hideSymbol color={testResult.success ? 'success' : 'danger'} className="w-full">
+                  {typeof testResult.details === 'string' ? testResult.details : JSON.stringify(testResult.details, null, 2)}
+                </Snippet>
+              )}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -341,18 +367,20 @@ export default function ExerciseAnswerInterface({
       {/* Solution après 3 tentatives */}
       <AnimatePresence>
         {showSolution && exercise.solution && (
-          <motion.div 
-            className="solution-section"
+          <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
+            className="mt-4"
           >
-            <div className="solution-header">
-              <span className="solution-icon">💡</span>
-              <span className="solution-title">Solution</span>
-            </div>
-            <div className="solution-content">
-              <pre>{exercise.solution}</pre>
+            <div className="p-4 rounded-lg border border-success-200 bg-success-50">
+              <div className="flex items-center gap-2 mb-2 text-success-700">
+                <IconBulb size={20} />
+                <span className="font-bold">Solution</span>
+              </div>
+              <Snippet hideSymbol color="success" className="w-full">
+                {exercise.solution}
+              </Snippet>
             </div>
           </motion.div>
         )}
@@ -368,7 +396,7 @@ export default function ExerciseAnswerInterface({
 function QCMInterface({ exercise, answer, onAnswer }) {
   const options = exercise.options || [];
   const currentAnswer = answer || [];
-  
+
   const handleOptionChange = (index, checked) => {
     if (checked) {
       onAnswer([...currentAnswer, index]);
@@ -378,46 +406,48 @@ function QCMInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="qcm-interface">
-      <div className="options-grid">
-        {options.map((option, index) => (
-          <label key={index} className="option-item">
-            <input
-              type="checkbox"
-              checked={currentAnswer.includes(index)}
-              onChange={(e) => handleOptionChange(index, e.target.checked)}
-            />
-            <span className="option-text">
+    <div className="flex flex-col gap-3">
+      {options.map((option, index) => (
+        <Card
+          key={index}
+          isPressable
+          onPress={() => handleOptionChange(index, !currentAnswer.includes(index))}
+          className={`border-2 ${currentAnswer.includes(index) ? 'border-primary bg-primary/5' : 'border-transparent'}`}
+        >
+          <CardBody className="flex flex-row items-center gap-3 p-4">
+            <Checkbox
+              isSelected={currentAnswer.includes(index)}
+              onValueChange={() => { }} // Géré par le onPress du Card
+              classNames={{ label: "w-full" }}
+            >
               {typeof option === 'object' ? option.text : option}
-            </span>
-          </label>
-        ))}
-      </div>
+            </Checkbox>
+          </CardBody>
+        </Card>
+      ))}
     </div>
   );
 }
 
 function TextInputInterface({ exercise, answer, onAnswer }) {
   const currentAnswer = answer || '';
-  
+
   return (
-    <div className="text-input-interface">
-      <textarea
-        className="answer-textarea"
-        value={currentAnswer}
-        onChange={(e) => onAnswer(e.target.value)}
-        placeholder="Tapez votre réponse ici..."
-        rows={4}
-      />
-    </div>
+    <Textarea
+      value={currentAnswer}
+      onValueChange={onAnswer}
+      placeholder="Tapez votre réponse ici..."
+      minRows={4}
+      variant="bordered"
+      className="w-full"
+    />
   );
 }
 
 function CodeInterface({ exercise, answer, onAnswer }) {
   const currentAnswer = answer || '';
-  
+
   const handleTest = async (userCode) => {
-    // Simulation d'un test de code
     return {
       success: true,
       message: 'Code exécuté avec succès',
@@ -429,7 +459,7 @@ function CodeInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="code-interface">
+    <div className="border border-divider rounded-lg overflow-hidden">
       <CodeEditor
         exercise={exercise}
         userAnswer={currentAnswer}
@@ -447,7 +477,7 @@ function CodeInterface({ exercise, answer, onAnswer }) {
 function OrderBlocksInterface({ exercise, answer, onAnswer }) {
   const blocks = exercise.blocks || [];
   const currentAnswer = answer || [];
-  
+
   const moveBlock = (fromIndex, toIndex) => {
     const newAnswer = [...currentAnswer];
     const [moved] = newAnswer.splice(fromIndex, 1);
@@ -456,31 +486,37 @@ function OrderBlocksInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="order-blocks-interface">
-      <div className="blocks-container">
-        {currentAnswer.map((blockIndex, position) => (
-          <div key={blocks[blockIndex]?.id} className="block-item">
-            <div className="block-controls">
-              <button 
-                onClick={() => position > 0 && moveBlock(position, position - 1)}
-                disabled={position === 0}
-                className="btn-move up"
+    <div className="flex flex-col gap-2">
+      {currentAnswer.map((blockIndex, position) => (
+        <Card key={blocks[blockIndex]?.id} className="border border-divider">
+          <CardBody className="flex flex-row items-center gap-3 p-3">
+            <div className="flex flex-col gap-1">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={() => position > 0 && moveBlock(position, position - 1)}
+                isDisabled={position === 0}
               >
-                ↑
-              </button>
-              <span className="position">{position + 1}</span>
-              <button 
-                onClick={() => position < currentAnswer.length - 1 && moveBlock(position, position + 1)}
-                disabled={position === currentAnswer.length - 1}
-                className="btn-move down"
+                <IconArrowUp size={16} />
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={() => position < currentAnswer.length - 1 && moveBlock(position, position + 1)}
+                isDisabled={position === currentAnswer.length - 1}
               >
-                ↓
-              </button>
+                <IconArrowDown size={16} />
+              </Button>
             </div>
-            <pre className="block-code">{blocks[blockIndex]?.code}</pre>
-          </div>
-        ))}
-      </div>
+            <Chip variant="flat" color="default">{position + 1}</Chip>
+            <code className="flex-1 font-mono text-sm bg-default-100 p-2 rounded">
+              {blocks[blockIndex]?.code}
+            </code>
+          </CardBody>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -498,45 +534,41 @@ function DragDropInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="drag-drop-interface">
-      <div className="elements-section">
-        <h4>Éléments</h4>
-        {elements.map((element, index) => (
-          <div key={element.id || index} className="element-item">
-            {typeof element === 'object' ? element.content : element}
-          </div>
-        ))}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div>
+        <h4 className="text-lg font-semibold mb-3">Éléments</h4>
+        <div className="flex flex-col gap-2">
+          {elements.map((element, index) => (
+            <Card key={element.id || index} className="bg-default-50">
+              <CardBody className="p-3">
+                <p>{typeof element === 'object' ? element.content : element}</p>
+              </CardBody>
+            </Card>
+          ))}
+        </div>
       </div>
-      
-      <div className="targets-section">
-        <h4>Cibles</h4>
-        {targets.map((target, index) => (
-          <div key={target.id || index} className="target-item">
-            {typeof target === 'object' ? target.content : target}
-          </div>
-        ))}
-      </div>
-      
-      <div className="assignments-section">
-        <h4>Associations :</h4>
-        {elements.map((element, index) => (
-          <div key={element.id || index} className="assignment-row">
-            <span className="element-label">
-              {typeof element === 'object' ? element.content : element}
-            </span>
-            <select 
-              value={currentAnswer[element.id || index] || ''}
-              onChange={(e) => handleAssignment(element.id || index, e.target.value)}
-            >
-              <option value="">Sélectionner une cible</option>
-              {targets.map((target, targetIndex) => (
-                <option key={target.id || targetIndex} value={target.id || targetIndex}>
-                  {typeof target === 'object' ? target.content : target}
-                </option>
-              ))}
-            </select>
-          </div>
-        ))}
+
+      <div>
+        <h4 className="text-lg font-semibold mb-3">Associations</h4>
+        <div className="flex flex-col gap-2">
+          {elements.map((element, index) => (
+            <div key={element.id || index} className="flex flex-col gap-2 p-3 border border-divider rounded-lg">
+              <span className="font-medium text-sm">{typeof element === 'object' ? element.content : element}</span>
+              <Select
+                placeholder="Choisir une cible"
+                selectedKeys={currentAnswer[element.id || index] ? [currentAnswer[element.id || index].toString()] : []}
+                onChange={(e) => handleAssignment(element.id || index, e.target.value)}
+                size="sm"
+              >
+                {targets.map((t, i) => (
+                  <SelectItem key={(t.id || i).toString()} value={(t.id || i).toString()}>
+                    {typeof t === 'object' ? t.content : t}
+                  </SelectItem>
+                ))}
+              </Select>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -558,29 +590,28 @@ function MatchingInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="matching-interface">
-      <div className="matching-container">
-        {prompts.map((prompt, index) => (
-          <div key={prompt.id || index} className="matching-row">
-            <div className="prompt-item">
-              {typeof prompt === 'object' ? prompt.content : prompt}
-            </div>
-            <div className="arrow">→</div>
-            <select 
-              value={currentAnswer[prompt.id] || ''}
-              onChange={(e) => handlePairing(prompt.id, e.target.value)}
-              className="match-select"
-            >
-              <option value="">Choisir...</option>
-              {matches.map((match, matchIndex) => (
-                <option key={match.id || matchIndex} value={match.id || matchIndex}>
-                  {typeof match === 'object' ? match.content : match}
-                </option>
-              ))}
-            </select>
+    <div className="flex flex-col gap-4">
+      {prompts.map((prompt, index) => (
+        <div key={prompt.id || index} className="flex items-center gap-4">
+          <div className="flex-1 p-3 bg-default-100 rounded-lg text-center font-medium">
+            {typeof prompt === 'object' ? prompt.content : prompt}
           </div>
-        ))}
-      </div>
+          <IconPlayerPlay size={20} className="text-default-400" />
+          <div className="flex-1">
+            <Select
+              placeholder="Correspondance..."
+              selectedKeys={currentAnswer[prompt.id] ? [currentAnswer[prompt.id].toString()] : []}
+              onChange={(e) => handlePairing(prompt.id, e.target.value)}
+            >
+              {matches.map((m, i) => (
+                <SelectItem key={(m.id || i).toString()} value={(m.id || i).toString()}>
+                  {typeof m === 'object' ? m.content : m}
+                </SelectItem>
+              ))}
+            </Select>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -588,7 +619,7 @@ function MatchingInterface({ exercise, answer, onAnswer }) {
 function AlgorithmInterface({ exercise, answer, onAnswer }) {
   const steps = exercise.algorithmSteps || [];
   const currentAnswer = answer || [];
-  
+
   const moveStep = (fromIndex, toIndex) => {
     const newAnswer = [...currentAnswer];
     const [moved] = newAnswer.splice(fromIndex, 1);
@@ -597,39 +628,55 @@ function AlgorithmInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="algorithm-interface">
-      <div className="steps-container">
-        {currentAnswer.map((stepIndex, position) => (
-          <div key={steps[stepIndex]?.id} className="step-item">
-            <div className="step-controls">
-              <button 
-                onClick={() => position > 0 && moveStep(position, position - 1)}
-                disabled={position === 0}
-                className="btn-move up"
+    <div className="flex flex-col gap-2">
+      {currentAnswer.map((stepIndex, position) => (
+        <Card key={steps[stepIndex]?.id} className="border border-divider">
+          <CardBody className="flex flex-row items-center gap-3 p-3">
+            <div className="flex flex-col gap-1">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={() => position > 0 && moveStep(position, position - 1)}
+                isDisabled={position === 0}
               >
-                ↑
-              </button>
-              <span className="position">{position + 1}</span>
-              <button 
-                onClick={() => position < currentAnswer.length - 1 && moveStep(position, position + 1)}
-                disabled={position === currentAnswer.length - 1}
-                className="btn-move down"
+                <IconArrowUp size={16} />
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={() => position < currentAnswer.length - 1 && moveStep(position, position + 1)}
+                isDisabled={position === currentAnswer.length - 1}
               >
-                ↓
-              </button>
+                <IconArrowDown size={16} />
+              </Button>
             </div>
-            <div className="step-content">{steps[stepIndex]?.content}</div>
-          </div>
-        ))}
-      </div>
+            <Chip variant="flat" color="primary">{position + 1}</Chip>
+            <p className="flex-1">{steps[stepIndex]?.content}</p>
+          </CardBody>
+        </Card>
+      ))}
     </div>
   );
 }
 
 function ScratchInterface({ exercise, answer, onAnswer }) {
+  if (exercise.type === 'Scratch') {
+    return (
+      <div className="h-[600px] border border-divider rounded-lg overflow-hidden">
+        <ScratchEditor
+          initialXml={exercise.initialXml}
+          onCodeChange={(code) => onAnswer(code)}
+          readOnly={false}
+        />
+      </div>
+    );
+  }
+
   const blocks = exercise.scratchBlocks || [];
   const currentAnswer = answer || [];
-  
+
   const addBlock = (block) => {
     onAnswer([...currentAnswer, { ...block, id: Date.now() }]);
   };
@@ -639,42 +686,59 @@ function ScratchInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="scratch-interface">
-      <div className="available-blocks">
-        <h4>Blocs disponibles :</h4>
-        <div className="blocks-grid">
-          {blocks.map((block, index) => (
-            <div
-              key={index}
-              className={`scratch-block ${block.category}`}
-              onClick={() => addBlock(block)}
-            >
-              <div className="block-icon">{block.icon || '🧩'}</div>
-              <div className="block-text">{block.text}</div>
-            </div>
-          ))}
-        </div>
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-[500px]">
+      <div className="md:col-span-5 flex flex-col">
+        <h5 className="font-semibold mb-2">Blocs disponibles</h5>
+        <ScrollShadow className="flex-1 border border-divider rounded-lg p-2 bg-default-50">
+          <div className="flex flex-col gap-2">
+            {blocks.map((block, index) => (
+              <Button
+                key={index}
+                variant="flat"
+                color={block.category === 'motion' ? 'primary' : block.category === 'control' ? 'warning' : 'default'}
+                className="justify-start"
+                startContent={<IconPuzzle size={18} />}
+                onPress={() => addBlock(block)}
+              >
+                {block.text}
+              </Button>
+            ))}
+          </div>
+        </ScrollShadow>
       </div>
-      
-      <div className="program-area">
-        <h4>Votre programme :</h4>
-        <div className="selected-blocks">
+
+      <div className="md:col-span-7 flex flex-col">
+        <h5 className="font-semibold mb-2">Votre programme</h5>
+        <ScrollShadow className="flex-1 border border-divider rounded-lg p-2 bg-default-100">
           {currentAnswer.length === 0 ? (
-            <div className="empty-program">
+            <div className="h-full flex items-center justify-center text-default-400">
               <p>Cliquez sur des blocs pour commencer</p>
             </div>
           ) : (
-            currentAnswer.map((block, index) => (
-              <div key={block.id} className={`scratch-block ${block.category} selected`}>
-                <div className="block-content">
-                  <div className="block-icon">{block.icon || '🧩'}</div>
-                  <div className="block-text">{block.text}</div>
+            <div className="flex flex-col gap-2">
+              {currentAnswer.map((block) => (
+                <div key={block.id} className="flex gap-2">
+                  <Button
+                    className="flex-1 justify-start"
+                    variant="solid"
+                    color={block.category === 'motion' ? 'primary' : block.category === 'control' ? 'warning' : 'default'}
+                    startContent={<IconPuzzle size={18} />}
+                  >
+                    {block.text}
+                  </Button>
+                  <Button
+                    isIconOnly
+                    color="danger"
+                    variant="light"
+                    onPress={() => removeBlock(block.id)}
+                  >
+                    <IconX size={18} />
+                  </Button>
                 </div>
-                <button onClick={() => removeBlock(block.id)} className="btn-remove">✕</button>
-              </div>
-            ))
+              ))}
+            </div>
           )}
-        </div>
+        </ScrollShadow>
       </div>
     </div>
   );
@@ -683,7 +747,7 @@ function ScratchInterface({ exercise, answer, onAnswer }) {
 function CodeCompletionInterface({ exercise, answer, onAnswer }) {
   const currentAnswer = answer || {};
   const gaps = exercise.codeGaps || [];
-  
+
   const handleGapChange = (gapId, value) => {
     onAnswer({
       ...currentAnswer,
@@ -692,28 +756,23 @@ function CodeCompletionInterface({ exercise, answer, onAnswer }) {
   };
 
   return (
-    <div className="code-completion-interface">
-      <div className="code-template">
-        <h4>Template de code :</h4>
-        <pre>{exercise.codeTemplate}</pre>
+    <div className="flex flex-col gap-4">
+      <div className="bg-[#1e1e1e] p-4 rounded-lg text-white font-mono text-sm whitespace-pre-wrap">
+        {exercise.codeTemplate}
       </div>
-      
-      <div className="gaps-section">
-        <h4>Complétez les trous :</h4>
-        {gaps.map((gap, index) => (
-          <div key={gap.id} className="gap-item">
-            <label className="gap-label">
-              {gap.placeholder}:
-              {gap.hint && <span className="gap-hint"> ({gap.hint})</span>}
-            </label>
-            <input
-              type="text"
-              className="gap-input"
-              value={currentAnswer[gap.id] || ''}
-              onChange={(e) => handleGapChange(gap.id, e.target.value)}
-              placeholder={`Complétez ${gap.placeholder}`}
-            />
-          </div>
+
+      <h5 className="font-semibold">Complétez les trous :</h5>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {gaps.map((gap) => (
+          <Input
+            key={gap.id}
+            label={gap.placeholder}
+            placeholder={`Complétez ${gap.placeholder}`}
+            value={currentAnswer[gap.id] || ''}
+            onValueChange={(val) => handleGapChange(gap.id, val)}
+            description={gap.hint}
+            classNames={{ input: "font-mono" }}
+          />
         ))}
       </div>
     </div>
@@ -722,27 +781,18 @@ function CodeCompletionInterface({ exercise, answer, onAnswer }) {
 
 function PseudoCodeInterface({ exercise, answer, onAnswer }) {
   const currentAnswer = answer || '';
-  
+
   return (
-    <div className="pseudo-code-interface">
-      <div className="instruction">
-        <p>Écrivez le pseudo-code demandé :</p>
-      </div>
-      
-      <textarea
-        className="pseudo-code-textarea"
+    <div className="flex flex-col gap-2">
+      <p className="text-sm text-default-600">Écrivez le pseudo-code demandé :</p>
+      <Textarea
         value={currentAnswer}
-        onChange={(e) => onAnswer(e.target.value)}
+        onValueChange={onAnswer}
         placeholder="Écrivez votre pseudo-code ici..."
-        rows={8}
+        minRows={6}
+        variant="bordered"
+        classNames={{ input: "font-mono" }}
       />
-      
-      {exercise.pseudoCodeStructure && (
-        <div className="structure-hint">
-          <h4>Structure attendue :</h4>
-          <pre className="structure-example">{exercise.pseudoCodeStructure}</pre>
-        </div>
-      )}
     </div>
   );
 }
