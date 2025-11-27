@@ -16,7 +16,10 @@ import FormModal from '../components/FormModal';
 
 // Helper to get API URL
 const getApiUrl = (path) => {
-  const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+  const baseUrl = process.env.REACT_APP_API_BASE_URL ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://codegenesis-backend.onrender.com'
+      : 'http://localhost:5000');
   return `${baseUrl}${path}`;
 };
 
