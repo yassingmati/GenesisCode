@@ -24,6 +24,9 @@ const UserLevelProgress = require('../models/UserLevelProgress');
 // Services
 const ExerciseService = require('../services/exerciseService');
 
+// Cloudinary
+const { uploadVideo, uploadPDF, deleteFile } = require('../config/cloudinary');
+
 /* ============================
    Helpers / utilities
    ============================ */
@@ -1517,21 +1520,47 @@ class CourseController {
       return res.status(404).json({ error: 'Niveau non trouvé' });
     }
 
-    const rel = resolveRelPath(path.join('videos', req.file.filename));
+    try {
+      // Upload to Cloudinary
+      const filePath = req.file.path;
+      const uploadResult = await uploadVideo(filePath, `codegenesis/levels/${levelId}/videos`);
 
-    if (level.videos && level.videos[lang]) {
-      await safeUnlink(level.videos[lang]);
+      // Delete old video from Cloudinary if exists
+      if (level.cloudinary_videos && level.cloudinary_videos[lang]) {
+        try {
+          await deleteFile(level.cloudinary_videos[lang].public_id, 'video');
+        } catch (err) {
+          console.error('Failed to delete old video:', err);
+        }
+      }
+
+      // Update level with Cloudinary URL
+      level.videos = level.videos || {};
+      level.videos[lang] = uploadResult.url;
+
+      level.cloudinary_videos = level.cloudinary_videos || {};
+      level.cloudinary_videos[lang] = {
+        public_id: uploadResult.public_id,
+        url: uploadResult.url,
+        format: uploadResult.format,
+        duration: uploadResult.duration
+      };
+
+      await level.save();
+
+      // Delete local file after successful upload
+      await safeUnlink(filePath);
+
+      res.json({
+        message: `Vidéo (${lang}) enregistrée sur Cloudinary`,
+        url: uploadResult.url,
+        videos: level.videos
+      });
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      await safeUnlink(req.file.path);
+      res.status(500).json({ error: 'Erreur lors de l\'upload vers Cloudinary' });
     }
-
-    level.videos = level.videos || {};
-    level.videos[lang] = rel;
-    await level.save();
-
-    res.json({
-      message: `Vidéo (${lang}) enregistrée`,
-      path: rel,
-      videos: level.videos
-    });
   });
 
   // Save PDF
@@ -1554,21 +1583,46 @@ class CourseController {
       return res.status(404).json({ error: 'Niveau non trouvé' });
     }
 
-    const rel = resolveRelPath(path.join('pdfs', req.file.filename));
+    try {
+      // Upload to Cloudinary
+      const filePath = req.file.path;
+      const uploadResult = await uploadPDF(filePath, `codegenesis/levels/${levelId}/pdfs`);
 
-    if (level.pdfs && level.pdfs[lang]) {
-      await safeUnlink(level.pdfs[lang]);
+      // Delete old PDF from Cloudinary if exists
+      if (level.cloudinary_pdfs && level.cloudinary_pdfs[lang]) {
+        try {
+          await deleteFile(level.cloudinary_pdfs[lang].public_id, 'raw');
+        } catch (err) {
+          console.error('Failed to delete old PDF:', err);
+        }
+      }
+
+      // Update level with Cloudinary URL
+      level.pdfs = level.pdfs || {};
+      level.pdfs[lang] = uploadResult.url;
+
+      level.cloudinary_pdfs = level.cloudinary_pdfs || {};
+      level.cloudinary_pdfs[lang] = {
+        public_id: uploadResult.public_id,
+        url: uploadResult.url,
+        format: uploadResult.format
+      };
+
+      await level.save();
+
+      // Delete local file after successful upload
+      await safeUnlink(filePath);
+
+      res.json({
+        message: `PDF (${lang}) enregistré sur Cloudinary`,
+        url: uploadResult.url,
+        pdfs: level.pdfs
+      });
+    } catch (error) {
+      console.error('Cloudinary upload error:', error);
+      await safeUnlink(req.file.path);
+      res.status(500).json({ error: 'Erreur lors de l\'upload vers Cloudinary' });
     }
-
-    level.pdfs = level.pdfs || {};
-    level.pdfs[lang] = rel;
-    await level.save();
-
-    res.json({
-      message: `PDF (${lang}) enregistré`,
-      path: rel,
-      pdfs: level.pdfs
-    });
   });
 
   // delete single language video
@@ -1616,29 +1670,38 @@ class CourseController {
     if (!isAllowedLang(lang)) return res.status(400).json({ error: 'Langue invalide' });
 
     const level = await Level.findById(req.params.levelId).select('videos video').lean();
-    // Essayer d'abord le nouveau format (videos par langue)
-    let videoRel = level?.videos?.[lang];
-    // Si pas trouvé, essayer l'ancien format (video singulier) pour la langue fr
-    if (!videoRel && lang === 'fr' && level?.video) {
-      videoRel = level.video;
+
+    // Try new format (videos by language)
+    let videoUrl = level?.videos?.[lang];
+    // If not found, try old format (singular video) for French
+    if (!videoUrl && lang === 'fr' && level?.video) {
+      videoUrl = level.video;
     }
-    if (!videoRel) return res.status(404).json({ error: 'Vidéo introuvable pour cette langue' });
 
-    // Normaliser les backslashes Windows en slashes
-    videoRel = videoRel.replace(/\\/g, '/');
+    if (!videoUrl) {
+      return res.status(404).json({ error: 'Vidéo introuvable pour cette langue' });
+    }
+
+    // If it's a Cloudinary URL (starts with http), redirect to it
+    if (videoUrl.startsWith('http')) {
+      return res.redirect(videoUrl);
+    }
+
+    // Otherwise, it's a legacy local file path - try to stream it
+    const videoRel = videoUrl.replace(/\\/g, '/');
     const videoPath = resolveAbsFromRel(videoRel);
-
-    // Log pour debug
-    console.log('[streamVideo] Video rel:', videoRel);
-    console.log('[streamVideo] Video abs:', videoPath);
 
     try {
       await fsp.access(videoPath);
     } catch (err) {
-      console.error('[streamVideo] File access error:', err.message);
-      return res.status(404).json({ error: 'Fichier vidéo manquant', path: videoPath, relPath: videoRel });
+      console.error('[streamVideo] Legacy file not found:', err.message);
+      return res.status(404).json({
+        error: 'Fichier vidéo manquant. Veuillez re-uploader la vidéo.',
+        path: videoPath
+      });
     }
 
+    // Stream legacy local file
     const stat = await fsp.stat(videoPath);
     const fileSize = stat.size;
     const range = req.headers.range;
@@ -1700,50 +1763,42 @@ class CourseController {
     if (!isAllowedLang(lang)) return res.status(400).json({ error: 'Langue invalide' });
 
     const level = await Level.findById(req.params.levelId).select('pdfs pdf').lean();
-    // Essayer d'abord le nouveau format (pdfs par langue)
-    let pdfRel = level?.pdfs?.[lang];
-    // Si pas trouvé, essayer l'ancien format (pdf singulier) pour la langue fr
-    if (!pdfRel && lang === 'fr' && level?.pdf) {
-      pdfRel = level.pdf;
+
+    // Try new format (pdfs by language)
+    let pdfUrl = level?.pdfs?.[lang];
+    // If not found, try old format (singular pdf) for French
+    if (!pdfUrl && lang === 'fr' && level?.pdf) {
+      pdfUrl = level.pdf;
     }
-    if (!pdfRel) return res.status(404).json({ error: 'PDF introuvable pour cette langue' });
 
-    // Normaliser les backslashes Windows en slashes
-    pdfRel = pdfRel.replace(/\\/g, '/');
+    if (!pdfUrl) {
+      return res.status(404).json({ error: 'PDF introuvable pour cette langue' });
+    }
+
+    // If it's a Cloudinary URL (starts with http), redirect to it
+    if (pdfUrl.startsWith('http')) {
+      return res.redirect(pdfUrl);
+    }
+
+    // Otherwise, it's a legacy local file path - try to stream it
+    const pdfRel = pdfUrl.replace(/\\/g, '/');
     const pdfPath = resolveAbsFromRel(pdfRel);
-
-    // Log pour debug
-    console.log('[streamPDF] PDF rel:', pdfRel);
-    console.log('[streamPDF] PDF abs:', pdfPath);
-    console.log('[streamPDF] __dirname:', __dirname);
-    console.log('[streamPDF] uploadsBaseDir:', uploadsBaseDir);
 
     try {
       await fsp.access(pdfPath);
     } catch (err) {
-      console.error('[streamPDF] File access error:', err.message);
-      console.error('[streamPDF] Attempted path:', pdfPath);
-      // Vérifier si le dossier uploads existe
-      try {
-        const uploadsExists = await fsp.access(uploadsBaseDir).then(() => true).catch(() => false);
-        console.error('[streamPDF] Uploads directory exists:', uploadsExists);
-        if (uploadsExists) {
-          const files = await fsp.readdir(path.join(uploadsBaseDir, 'pdfs')).catch(() => []);
-          console.error('[streamPDF] Files in pdfs directory:', files.slice(0, 5));
-        }
-      } catch (checkErr) {
-        console.error('[streamPDF] Error checking uploads dir:', checkErr.message);
-      }
+      console.error('[streamPDF] Legacy file not found:', err.message);
       return res.status(404).json({
-        error: 'Fichier PDF manquant',
-        path: pdfPath,
-        relPath: pdfRel,
-        message: 'Le fichier n\'existe pas sur le serveur. Veuillez le ré-uploader via l\'interface admin.'
+        error: 'Fichier PDF manquant. Veuillez re-uploader le PDF.',
+        path: pdfPath
       });
     }
 
+    // Stream legacy local file
+    const stat = await fsp.stat(pdfPath);
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `inline; filename="${path.basename(pdfPath)}"`);
+    res.setHeader('Content-Length', stat.size);
+    res.setHeader('Content-Disposition', 'inline');
 
     const stream = fs.createReadStream(pdfPath);
     stream.on('error', error => {
