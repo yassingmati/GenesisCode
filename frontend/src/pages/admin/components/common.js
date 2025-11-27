@@ -1,9 +1,14 @@
 // src/pages/CourseManagement/components/common.js
 import axios from 'axios';
 
-// API client
+// Use environment-aware API URL
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://codegenesis-backend.onrender.com'
+    : 'http://localhost:5000');
+
 export const api = axios.create({
-  baseURL: 'http://localhost:5000/api/courses',
+  baseURL: `${API_BASE_URL}/api/courses`,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -12,7 +17,7 @@ api.interceptors.request.use(config => {
   const adminToken = localStorage.getItem('adminToken');
   const userToken = localStorage.getItem('token');
   const token = adminToken || userToken;
-  
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   } else {
@@ -29,7 +34,7 @@ api.interceptors.response.use(
       console.error('❌ Erreur 401 - Token invalide ou expiré');
       console.error('   URL:', error.config?.url);
       console.error('   Token utilisé:', error.config?.headers?.Authorization ? 'Oui' : 'Non');
-      
+
       // Essayer de rafraîchir le token si c'était un token admin
       const adminToken = localStorage.getItem('adminToken');
       if (adminToken && error.config?.headers?.Authorization?.includes(adminToken)) {
@@ -52,9 +57,9 @@ api.interceptors.response.use(
 export const pickTitle = (obj) => {
   if (!obj) return '';
   if (obj.translations) {
-    return obj.translations.fr?.name || obj.translations.fr?.title || 
-           obj.translations.en?.name || obj.translations.en?.title || 
-           obj.translations.ar?.name || obj.translations.ar?.title || '';
+    return obj.translations.fr?.name || obj.translations.fr?.title ||
+      obj.translations.en?.name || obj.translations.en?.title ||
+      obj.translations.ar?.name || obj.translations.ar?.title || '';
   }
   return obj.name || obj.title || obj.question || '';
 };
