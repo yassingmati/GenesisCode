@@ -54,6 +54,11 @@ async function findLevelInAccessiblePaths(levelId, token) {
   } catch (error) { return null; }
 }
 
+import { Document, Page, pdfjs } from 'react-pdf';
+
+// Configure PDF worker
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+
 export default function LevelPage() {
   const { levelId } = useParams();
   const navigate = useNavigate();
@@ -69,6 +74,13 @@ export default function LevelPage() {
 
   // PDF state
   const [pdfEffectiveUrl, setPdfEffectiveUrl] = useState(null);
+  const [numPages, setNumPages] = useState(null);
+  const [pageNumber, setPageNumber] = useState(1);
+
+  const onDocumentLoadSuccess = ({ numPages }) => {
+    setNumPages(numPages);
+    setPageNumber(1);
+  };
 
   // Video state
   const [videoEffectiveUrl, setVideoEffectiveUrl] = useState(null);
@@ -306,13 +318,69 @@ export default function LevelPage() {
 
           {/* PDF Viewer Area */}
           <Card className="h-full shadow-md border-none overflow-hidden">
-            <CardBody className="p-0 h-full bg-gray-100">
+            <CardBody className="p-0 h-full bg-gray-100 flex flex-col items-center justify-center relative">
               {pdfEffectiveUrl ? (
-                <iframe
-                  src={pdfEffectiveUrl}
-                  className="w-full h-full border-none"
-                  title="PDF Viewer"
-                />
+                <div className="w-full h-full overflow-auto flex justify-center p-4">
+                  <Document
+                    file={pdfEffectiveUrl}
+                    onLoadSuccess={onDocumentLoadSuccess}
+                    loading={
+                      <div className="flex flex-col items-center gap-2">
+                        <Spinner size="lg" color="primary" />
+                        <p className="text-gray-500">Chargement du PDF...</p>
+                      </div>
+                    }
+                    error={
+                      <div className="flex flex-col items-center gap-2 text-danger">
+                        <IconFileText size={48} />
+                        <p>Impossible de charger le PDF.</p>
+                        <Button
+                          size="sm"
+                          color="primary"
+                          variant="flat"
+                          onPress={() => window.open(pdfEffectiveUrl, '_blank')}
+                        >
+                          Ouvrir dans un nouvel onglet
+                        </Button>
+                      </div>
+                    }
+                    className="max-w-full"
+                  >
+                    <Page
+                      pageNumber={pageNumber}
+                      width={isCompactLayout ? window.innerWidth - 40 : undefined}
+                      scale={isCompactLayout ? 1 : 1.2}
+                      renderTextLayer={false}
+                      renderAnnotationLayer={false}
+                    />
+                  </Document>
+
+                  {numPages && numPages > 1 && (
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-10">
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        isDisabled={pageNumber <= 1}
+                        onPress={() => setPageNumber(prev => prev - 1)}
+                      >
+                        <IconArrowLeft size={16} />
+                      </Button>
+                      <span className="text-sm font-medium">
+                        {pageNumber} / {numPages}
+                      </span>
+                      <Button
+                        isIconOnly
+                        size="sm"
+                        variant="light"
+                        isDisabled={pageNumber >= numPages}
+                        onPress={() => setPageNumber(prev => prev + 1)}
+                      >
+                        <IconArrowRight size={16} />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400">
                   <IconFileText size={64} className="mb-4 opacity-50" />
