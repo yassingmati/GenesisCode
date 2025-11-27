@@ -143,34 +143,26 @@ export default function LevelPage() {
     return () => mounted = false;
   }, [levelId]);
 
-  // PDF Probe
+  // PDF Probe - use Cloudinary URLs directly
   useEffect(() => {
     setPdfEffectiveUrl(null);
     if (!level) return;
     const candidate = level.pdfs?.[lang];
     if (!candidate) return;
 
-    if (candidate.includes('/api/')) {
-      const token = localStorage.getItem('token');
-      setPdfEffectiveUrl(`${candidate}${candidate.includes('?') ? '&' : '?'}token=${token}#toolbar=0&scroll=continuous&view=FitH`);
-    } else {
-      setPdfEffectiveUrl(`${PROXY_FILE}?url=${encodeURIComponent(candidate)}#toolbar=0&scroll=continuous&view=FitH`);
-    }
+    // Use URL directly (Cloudinary URLs are public)
+    setPdfEffectiveUrl(`${candidate}#toolbar=0&scroll=continuous&view=FitH`);
   }, [level, lang]);
 
-  // Video Probe
+  // Video Probe - use Cloudinary URLs directly
   useEffect(() => {
     setVideoEffectiveUrl(null);
     if (!level) return;
     const candidate = level.videos?.[lang];
     if (!candidate) return;
 
-    if (candidate.includes('/api/')) {
-      const token = localStorage.getItem('token');
-      setVideoEffectiveUrl(`${candidate}${candidate.includes('?') ? '&' : '?'}token=${token}`);
-    } else {
-      setVideoEffectiveUrl(`${PROXY_VIDEO}?url=${encodeURIComponent(candidate)}`);
-    }
+    // Use URL directly (Cloudinary URLs are public)
+    setVideoEffectiveUrl(candidate);
   }, [level, lang]);
 
   // Video UI handlers
