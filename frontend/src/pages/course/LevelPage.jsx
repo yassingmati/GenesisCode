@@ -110,15 +110,41 @@ export default function LevelPage() {
           l = await res.json();
         }
 
-        // Normalize URLs logic
+        // Normalize URLs logic - handle both correct and malformed Cloudinary URLs
         const vids = {};
         const pdfs = {};
         ['fr', 'en', 'ar'].forEach(k => {
-          if (l.videos?.[k]) vids[k] = l.videos[k].startsWith('http') ? l.videos[k] : `${API_BASE}/levels/${levelId}/video?lang=${k}`;
-          if (l.pdfs?.[k]) pdfs[k] = l.pdfs[k].startsWith('http') ? l.pdfs[k] : `${API_BASE}/levels/${levelId}/pdf?lang=${k}`;
+          if (l.videos?.[k]) {
+            // Check if it's a Cloudinary URL (even if malformed)
+            const videoUrl = l.videos[k];
+            if (videoUrl.includes('cloudinary.com') || videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
+              vids[k] = videoUrl;
+            } else {
+              vids[k] = `${API_BASE}/levels/${levelId}/video?lang=${k}`;
+            }
+          }
+          if (l.pdfs?.[k]) {
+            // Check if it's a Cloudinary URL (even if malformed)
+            const pdfUrl = l.pdfs[k];
+            if (pdfUrl.includes('cloudinary.com') || pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://')) {
+              pdfs[k] = pdfUrl;
+            } else {
+              pdfs[k] = `${API_BASE}/levels/${levelId}/pdf?lang=${k}`;
+            }
+          }
         });
-        if (l.video && !l.videos) vids.fr = l.video.startsWith('http') ? l.video : `${API_BASE}/levels/${levelId}/video?lang=fr`;
-        if (l.pdf && !l.pdfs) pdfs.fr = l.pdf.startsWith('http') ? l.pdf : `${API_BASE}/levels/${levelId}/pdf?lang=fr`;
+        if (l.video && !l.videos) {
+          const videoUrl = l.video;
+          vids.fr = (videoUrl.includes('cloudinary.com') || videoUrl.startsWith('http://') || videoUrl.startsWith('https://'))
+            ? videoUrl
+            : `${API_BASE}/levels/${levelId}/video?lang=fr`;
+        }
+        if (l.pdf && !l.pdfs) {
+          const pdfUrl = l.pdf;
+          pdfs.fr = (pdfUrl.includes('cloudinary.com') || pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://'))
+            ? pdfUrl
+            : `${API_BASE}/levels/${levelId}/pdf?lang=fr`;
+        }
 
         l.videos = vids;
         l.pdfs = pdfs;
