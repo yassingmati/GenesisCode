@@ -1,33 +1,22 @@
-
-// src/pages/CourseManagement/components/SearchBar.jsx
+// src/pages/admin/components/SearchBar.jsx
 import React from 'react';
-import { FiSearch } from 'react-icons/fi';
+import { Input } from "@nextui-org/react";
+import { IconSearch } from '@tabler/icons-react';
 
 export default function SearchBar({ value, onChange, placeholder = 'Rechercher...' }) {
   return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'center', 
-      gap: '8px', 
-      padding: '8px 12px', 
-      background: '#fff', 
-      borderRadius: '10px', 
-      border: '1px solid #e9eef9' 
-    }}>
-      <FiSearch />
-      <input 
-        placeholder={placeholder} 
-        value={value} 
-        onChange={e => onChange(e.target.value)} 
-        style={{ 
-          border: 0, 
-          outline: 'none', 
-          minWidth: '220px', 
-          fontSize: '0.95rem', 
-          color: '#223', 
-          background: 'transparent' 
-        }}
-      />
-    </div>
+    <Input
+      classNames={{
+        base: "max-w-full sm:max-w-[20rem]",
+        inputWrapper: "bg-default-100"
+      }}
+      placeholder={placeholder}
+      value={value}
+      onValueChange={onChange}
+      startContent={<IconSearch size={18} className="text-default-400" />}
+      isClearable
+      onClear={() => onChange('')}
+      size="sm"
+    />
   );
 }

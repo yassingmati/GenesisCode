@@ -4,7 +4,7 @@ import API_CONFIG from '../config/api';
 const BASE = `${API_CONFIG.BASE_URL}/api/category-payments`;
 
 function authHeaders() {
-  const token = localStorage.getItem('token') || '';
+  const token = localStorage.getItem('token') || localStorage.getItem('adminToken') || '';
   return {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`

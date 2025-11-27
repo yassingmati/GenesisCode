@@ -1,13 +1,16 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
-import { api, pickTitle, inputStyle, selectStyle, textareaStyle } from '../components/common';
-import { Grid, Card, CardTitle, CardMeta, CardActions, IconButton, EmptyState, Tiny } from '../styles';
+import {
+  Card, CardHeader, CardBody, CardFooter,
+  Button, Input, Skeleton,
+  Chip, Select, SelectItem, Textarea
+} from "@nextui-org/react";
+import { IconEdit, IconTrash, IconPlus } from '@tabler/icons-react';
+import { api, pickTitle } from '../components/common';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
-import { ActionPrimary } from '../styles';
 
 export default function PathsPanel({ onOpenCreate }) {
   const [paths, setPaths] = useState([]);
@@ -144,74 +147,79 @@ export default function PathsPanel({ onOpenCreate }) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
+      <div className="flex justify-between items-center gap-4 mb-6">
+        <div className="flex gap-4 flex-1">
           <SearchBar 
             value={query} 
             onChange={v => { setQuery(v); setPage(1); }} 
             placeholder="Rechercher parcours..." 
           />
-          <select 
-            value={filterCategory} 
-            onChange={e => setFilterCategory(e.target.value)} 
-            style={selectStyle()}
+          <Select 
+            placeholder="Toutes catégories"
+            selectedKeys={filterCategory ? [filterCategory] : []}
+            onChange={e => setFilterCategory(e.target.value)}
+            className="max-w-xs"
+            size="sm"
           >
-            <option value="">Toutes catégories</option>
             {categories.map(cat => (
-              <option key={cat._id} value={cat._id}>
+              <SelectItem key={cat._id} value={cat._id}>
                 {pickTitle(cat)}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </Select>
         </div>
-        <ActionPrimary onClick={() => setModalOpen(true)}>
-          <FiPlus /> Nouveau parcours
-        </ActionPrimary>
+        <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => setModalOpen(true)}>
+          Nouveau parcours
+        </Button>
       </div>
 
-      <div style={{ marginTop: '16px' }}>
+      <div className="mt-4">
         {loading ? (
-          <Grid>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <div style={{ height: '18px', background: '#f3f4f6', borderRadius: '4px' }} />
+              <Card key={i} className="h-[140px]">
+                <Skeleton className="rounded-lg">
+                  <div className="h-full rounded-lg bg-default-300"></div>
+                </Skeleton>
               </Card>
             ))}
-          </Grid>
+          </div>
         ) : pagedPaths.length ? (
           <>
-            <Grid>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {pagedPaths.map(path => (
-                <Card key={path._id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div>
-                      <CardTitle>{pickTitle(path) || 'Sans nom'}</CardTitle>
-                      <CardMeta>
+                <Card key={path._id} className="h-full">
+                  <CardHeader className="flex justify-between items-start pb-0">
+                    <div className="flex flex-col">
+                      <h4 className="text-md font-bold">{pickTitle(path) || 'Sans nom'}</h4>
+                      <p className="text-small text-default-500">
                         {(path.translations?.fr?.description || '').substring(0, 70)}
-                      </CardMeta>
+                        {(path.translations?.fr?.description || '').length > 70 ? '...' : ''}
+                      </p>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <Tiny>
-                        {path.category?.translations?.fr?.name || path.category?._id || ''}
-                      </Tiny>
-                    </div>
-                  </div>
-                  <CardActions>
-                    <IconButton onClick={() => startEdit(path)}>
-                      <FiEdit />
-                    </IconButton>
-                    <IconButton danger onClick={() => askDelete(path._id)}>
-                      <FiTrash2 />
-                    </IconButton>
-                  </CardActions>
+                    <Chip size="sm" variant="flat" color="secondary">
+                      {path.category?.translations?.fr?.name || 'Catégorie'}
+                    </Chip>
+                  </CardHeader>
+                  <CardBody className="py-2">
+                    {/* Additional content can go here */}
+                  </CardBody>
+                  <CardFooter className="justify-end gap-2 pt-0">
+                    <Button isIconOnly size="sm" variant="light" onPress={() => startEdit(path)}>
+                      <IconEdit size={18} />
+                    </Button>
+                    <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => askDelete(path._id)}>
+                      <IconTrash size={18} />
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
-            </Grid>
+            </div>
 
-            <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Tiny>
+            <div className="mt-4 flex justify-between items-center">
+              <span className="text-small text-default-400">
                 Affichage {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredPaths.length)} / {filteredPaths.length}
-              </Tiny>
+              </span>
               <Pagination 
                 page={page} 
                 pages={pages} 
@@ -221,13 +229,13 @@ export default function PathsPanel({ onOpenCreate }) {
             </div>
           </>
         ) : (
-          <EmptyState>
-            <h3>Aucun parcours</h3>
-            <p>Crée ton premier parcours.</p>
-            <ActionPrimary onClick={() => setModalOpen(true)}>
-              <FiPlus /> Nouveau parcours
-            </ActionPrimary>
-          </EmptyState>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <h3 className="text-lg font-semibold mb-2">Aucun parcours</h3>
+            <p className="text-default-500 mb-4">Crée ton premier parcours pour commencer.</p>
+            <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => setModalOpen(true)}>
+              Nouveau parcours
+            </Button>
+          </div>
         )}
       </div>
 
@@ -236,77 +244,60 @@ export default function PathsPanel({ onOpenCreate }) {
         title={editing ? 'Éditer parcours' : 'Nouveau parcours'} 
         onClose={() => setModalOpen(false)}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button onClick={() => setModalOpen(false)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #eef2ff' }}>
+          <div className="flex justify-end gap-2">
+            <Button variant="flat" color="default" onPress={() => setModalOpen(false)}>
               Annuler
-            </button>
-            <ActionPrimary onClick={handleSubmit}>
-              <FiPlus /> Sauvegarder
-            </ActionPrimary>
+            </Button>
+            <Button color="primary" onPress={handleSubmit}>
+              Sauvegarder
+            </Button>
           </div>
         }
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Catégorie</div>
-            <select 
-              value={form.category} 
-              onChange={e => setForm(f => ({ ...f, category: e.target.value }))} 
-              style={selectStyle()}
-            >
-              <option value="">Sélectionner</option>
-              {categories.map(cat => (
-                <option key={cat._id} value={cat._id}>
-                  {pickTitle(cat)}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="grid grid-cols-2 gap-4">
+          <Select 
+            label="Catégorie" 
+            placeholder="Sélectionner"
+            selectedKeys={form.category ? [form.category] : []}
+            onChange={e => setForm(f => ({ ...f, category: e.target.value }))}
+          >
+            {categories.map(cat => (
+              <SelectItem key={cat._id} value={cat._id}>
+                {pickTitle(cat)}
+              </SelectItem>
+            ))}
+          </Select>
 
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Ordre</div>
-            <input 
-              type="number" 
-              value={form.order} 
-              onChange={e => setForm(f => ({ ...f, order: +e.target.value }))} 
-              style={inputStyle()} 
-            />
-          </label>
+          <Input 
+            type="number" 
+            label="Ordre" 
+            value={form.order} 
+            onValueChange={v => setForm(f => ({ ...f, order: +v }))} 
+          />
 
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Français)</div>
-            <input 
-              value={form.fr_name} 
-              onChange={e => setForm(f => ({ ...f, fr_name: e.target.value }))} 
-              style={inputStyle()} 
-            />
-          </label>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Anglais)</div>
-            <input 
-              value={form.en_name} 
-              onChange={e => setForm(f => ({ ...f, en_name: e.target.value }))} 
-              style={inputStyle()} 
-            />
-          </label>
+          <Input 
+            label="Nom (Français)" 
+            value={form.fr_name} 
+            onValueChange={v => setForm(f => ({ ...f, fr_name: v }))} 
+          />
+          <Input 
+            label="Nom (Anglais)" 
+            value={form.en_name} 
+            onValueChange={v => setForm(f => ({ ...f, en_name: v }))} 
+          />
+          <Input 
+            label="Nom (Arabe)" 
+            value={form.ar_name} 
+            onValueChange={v => setForm(f => ({ ...f, ar_name: v }))} 
+          />
 
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Arabe)</div>
-            <input 
-              value={form.ar_name} 
-              onChange={e => setForm(f => ({ ...f, ar_name: e.target.value }))} 
-              style={inputStyle()} 
-            />
-          </label>
-
-          <label style={{ gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Description (Français)</div>
-            <textarea 
+          <div className="col-span-2">
+            <Textarea 
+              label="Description (Français)" 
               value={form.fr_description} 
-              onChange={e => setForm(f => ({ ...f, fr_description: e.target.value }))} 
-              style={textareaStyle()} 
+              onValueChange={v => setForm(f => ({ ...f, fr_description: v }))} 
             />
-          </label>
+          </div>
         </div>
       </FormModal>
 

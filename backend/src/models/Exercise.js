@@ -50,14 +50,14 @@ const exerciseSchema = new Schema({
     enum: [
       // Types existants
       'QCM',
-      'DragDrop', 
+      'DragDrop',
       'TextInput',
       'Code',
       'OrderBlocks',
       'FillInTheBlank',
       'SpotTheError',
       'Matching',
-      
+
       // Nouveaux types pour algorithmes et programmation
       'Algorithm',           // Conception d'algorithmes avec pseudo-code
       'FlowChart',          // Création/complétion d'organigrammes
@@ -72,7 +72,8 @@ const exerciseSchema = new Schema({
       'AlgorithmSteps',     // Ordonnancement d'étapes d'algorithme
       'ConceptMapping',     // Association concepts-définitions
       'CodeOutput',         // Prédiction de sortie de code
-      'Optimization'        // Optimisation de code/algorithme
+      'Optimization',       // Optimisation de code/algorithme
+      'Scratch'             // Programmation visuelle avec Blockly
     ],
     required: true
   },
@@ -97,7 +98,7 @@ const exerciseSchema = new Schema({
   language: { type: String },                              // Code (js, py, java...)
   prompts: { type: [matchingPairSchema], default: [] },    // Matching prompts
   matches: { type: [matchingPairSchema], default: [] },    // Matching matches
-  
+
   // Champs pour les nouveaux types d'exercices
   algorithmSteps: { type: [Schema.Types.Mixed], default: [] },     // Algorithm/AlgorithmSteps: étapes d'algorithme
   flowChartNodes: { type: [Schema.Types.Mixed], default: [] },     // FlowChart: nœuds d'organigramme
@@ -112,6 +113,7 @@ const exerciseSchema = new Schema({
   dataStructureType: { type: String },                            // DataStructure: type (array, list, tree...)
   dataStructureOperations: { type: [Schema.Types.Mixed], default: [] }, // DataStructure: opérations
   scratchBlocks: { type: [Schema.Types.Mixed], default: [] },     // ScratchBlocks: blocs Scratch
+  initialXml: { type: String },                                   // Scratch: XML initial pour Blockly
   scratchWorkspace: { type: Schema.Types.Mixed },                 // ScratchBlocks: configuration workspace
   visualElements: { type: [Schema.Types.Mixed], default: [] },    // VisualProgramming: éléments visuels
   concepts: { type: [matchingPairSchema], default: [] },          // ConceptMapping: concepts
@@ -133,11 +135,11 @@ exerciseSchema.index({ level: 1, type: 1 });
 exerciseSchema.index({ level: 1, createdAt: -1 });
 
 // Méthodes d'instance
-exerciseSchema.methods.getTranslation = function(lang = 'fr') {
+exerciseSchema.methods.getTranslation = function (lang = 'fr') {
   return this.translations[lang] || this.translations.fr;
 };
 
-exerciseSchema.methods.isValidAnswer = function(answer) {
+exerciseSchema.methods.isValidAnswer = function (answer) {
   // Validation basique selon le type
   switch (this.type) {
     case 'QCM':
@@ -157,11 +159,11 @@ exerciseSchema.methods.isValidAnswer = function(answer) {
 };
 
 // Méthodes statiques
-exerciseSchema.statics.findByLevel = function(levelId) {
+exerciseSchema.statics.findByLevel = function (levelId) {
   return this.find({ level: levelId }).sort({ createdAt: 1 });
 };
 
-exerciseSchema.statics.findByType = function(type) {
+exerciseSchema.statics.findByType = function (type) {
   return this.find({ type });
 };
 

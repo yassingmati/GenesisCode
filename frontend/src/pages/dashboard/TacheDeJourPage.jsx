@@ -1,348 +1,429 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardBody, Progress, Chip, Button, Spinner } from "@nextui-org/react";
+import { IconTrophy, IconCalendar, IconCheck, IconRefresh, IconTarget, IconClock, IconFlame } from '@tabler/icons-react';
+import { getApiUrl } from '../../utils/apiConfig';
 
-export default function DailyTasks() {
-  const [tasks, setTasks] = useState([
-    { id: 1, title: 'Complète le quiz du jour', status: 'Non commencé' },
-    { id: 2, title: 'Résous un puzzle de code', status: 'Non commencé' },
-    { id: 3, title: 'Révision des concepts clés', status: 'Terminé' },
-    { id: 4, title: 'Pratique avec un exercice', status: 'Non commencé' },
-  ]);
-  
-  const [newTask, setNewTask] = useState('');
+const API_BASE = getApiUrl('/api');
+
+export default function TacheDeJourPage() {
+  // States
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showReward, setShowReward] = useState(false);
-  
-  // Calculer le pourcentage de complétion
-  const completedCount = tasks.filter(task => task.status === 'Terminé').length;
-  const completionPercentage = Math.round((completedCount / tasks.length) * 100);
-  
-  // Basculer le statut d'une tâche
-  const toggleTaskStatus = (taskId) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, status: task.status === 'Non commencé' ? 'Terminé' : 'Non commencé' } 
-        : task
-    ));
-    
-    // Vérifier si toutes les tâches sont terminées
-    const allCompleted = tasks.filter(t => t.id !== taskId).every(t => t.status === 'Terminé') && 
-                         tasks.find(t => t.id === taskId).status === 'Non commencé';
-    
-    if (allCompleted) {
-      setShowReward(true);
-      setTimeout(() => setShowReward(false), 5000);
+  const [error, setError] = useState(null);
+
+  // Load tasks from API
+  const loadTasks = useCallback(async (showSpinner = true) => {
+    if (showSpinner) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    setError(null);
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Token d\'authentification manquant. Veuillez vous reconnecter.');
+      }
+
+      console.log('[TacheDeJourPage] Chargement des tâches...');
+
+      const response = await fetch(`${API_BASE}/assigned-tasks/my-tasks`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erreur ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('[TacheDeJourPage] Tâches reçues:', data.length);
+
+      // Filter for today's tasks
+      const today = new Date();
+      const activeTasks = Array.isArray(data) ? data.filter(task => {
+        const periodStart = new Date(task.periodStart);
+        const periodEnd = new Date(task.periodEnd);
+        return today >= periodStart && today <= periodEnd &&
+          (task.status === 'active' || task.status === 'pending' || task.status === 'completed');
+      }) : [];
+
+      console.log('[TacheDeJourPage] Tâches actives:', activeTasks.length);
+      setTasks(activeTasks);
+
+      // Check if all completed
+      if (activeTasks.length > 0 && activeTasks.every(t => t.status === 'completed')) {
+        setShowReward(true);
+        setTimeout(() => setShowReward(false), 5000);
+      }
+
+    } catch (err) {
+      console.error('[TacheDeJourPage] Erreur:', err);
+      setError(err.message);
+      setTasks([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('[TacheDeJourPage] Actualisation automatique...');
+      loadTasks(false);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [loadTasks]);
+
+  // Calculate completion percentage
+  const completedCount = tasks.filter(t => t.status === 'completed').length;
+  const completionPercentage = tasks.length > 0 ? Math.round((completedCount / tasks.length) * 100) : 0;
+
+  // Format target display
+  const formatTarget = (target) => {
+    if (!target) return 'Aucun objectif';
+    const parts = [];
+    if (target.exercises_submitted > 0) parts.push(`${target.exercises_submitted} exercice${target.exercises_submitted > 1 ? 's' : ''}`);
+    if (target.levels_completed > 0) parts.push(`${target.levels_completed} niveau${target.levels_completed > 1 ? 'x' : ''}`);
+    if (target.hours_spent > 0) parts.push(`${Math.round(target.hours_spent * 60)} min`);
+    return parts.join(', ') || 'Aucun objectif';
+  };
+
+  // Calculate progress percentage
+  const calculateProgress = (current, target) => {
+    if (!current || !target) return 0;
+
+    if (target.exercises_submitted > 0) {
+      return Math.min((current.exercises_submitted / target.exercises_submitted) * 100, 100);
+    }
+    if (target.levels_completed > 0) {
+      return Math.min((current.levels_completed / target.levels_completed) * 100, 100);
+    }
+    if (target.hours_spent > 0) {
+      return Math.min((current.hours_spent / target.hours_spent) * 100, 100);
+    }
+    return 0;
+  };
+
+  // Format current progress
+  const formatCurrent = (current, target) => {
+    if (!current || !target) return '0';
+
+    if (target.exercises_submitted > 0) {
+      return `${current.exercises_submitted || 0} / ${target.exercises_submitted}`;
+    }
+    if (target.levels_completed > 0) {
+      return `${current.levels_completed || 0} / ${target.levels_completed}`;
+    }
+    if (target.hours_spent > 0) {
+      const currentMin = Math.round((current.hours_spent || 0) * 60);
+      const targetMin = Math.round(target.hours_spent * 60);
+      return `${currentMin} / ${targetMin} min`;
+    }
+    return '0';
+  };
+
+  // Get status color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'active': return 'primary';
+      case 'pending': return 'warning';
+      default: return 'default';
     }
   };
-  
-  // Ajouter une nouvelle tâche
-  const addTask = () => {
-    if (newTask.trim()) {
-      setTasks([
-        ...tasks,
-        { id: tasks.length + 1, title: newTask, status: 'Non commencé' }
-      ]);
-      setNewTask('');
+
+  // Get status label
+  const getStatusLabel = (status) => {
+    switch (status) {
+      case 'completed': return 'Terminé';
+      case 'active': return 'En cours';
+      case 'pending': return 'En attente';
+      default: return status;
     }
   };
-  
-  return (
-    <div style={styles.container}>
-      {/* Récompense animée */}
-      {showReward && (
-        <div style={styles.rewardContainer}>
-          <div style={styles.rewardCard}>
-            <div style={styles.rewardIcon}>🏆</div>
-            <div style={styles.rewardText}>
-              <h3 style={styles.rewardTitle}>Félicitations!</h3>
-              <p style={styles.rewardDescription}>Vous avez complété toutes vos tâches quotidiennes</p>
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <Spinner size="lg" color="primary" />
+          <p className="mt-4 text-gray-600">Chargement de vos tâches...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 max-w-4xl mx-auto">
+        <Card className="bg-red-50 border-red-200">
+          <CardBody className="text-center p-8">
+            <p className="text-red-600 text-lg font-semibold mb-4">{error}</p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                color="primary"
+                onClick={() => loadTasks()}
+              >
+                Réessayer
+              </Button>
+              <Button
+                color="default"
+                variant="flat"
+                onClick={() => {
+                  localStorage.clear();
+                  window.location.href = '/login';
+                }}
+              >
+                Se reconnecter
+              </Button>
             </div>
-          </div>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 max-w-4xl mx-auto space-y-6 animate-fadeIn">
+      {/* Reward Overlay */}
+      {showReward && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-bounce-in">
+          <Card className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-2xl border-none">
+            <CardBody className="flex flex-row items-center gap-4 p-6">
+              <div className="p-3 bg-white/20 rounded-full">
+                <IconTrophy size={40} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Félicitations !</h3>
+                <p className="text-white/90">Toutes les tâches du jour sont terminées !</p>
+              </div>
+            </CardBody>
+          </Card>
         </div>
       )}
-      
-      <div style={styles.card}>
-        {/* En-tête avec progression */}
-        <div style={styles.header}>
-          <h1 style={styles.title}>Missions du jour</h1>
-          <p style={styles.subtitle}>Terminez vos tâches quotidiennes pour débloquer des récompenses</p>
-          
-          <div style={styles.progressContainer}>
-            <div style={styles.progressInfo}>
-              <span>Progression</span>
-              <span>{completionPercentage}%</span>
+
+      {/* Header Card */}
+      <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg border-none">
+        <CardBody className="p-8">
+          <div className="flex justify-between items-start mb-6">
+            <div>
+              <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                <IconCalendar size={32} />
+                Mes Missions du Jour
+              </h1>
+              <p className="text-blue-100 text-lg">
+                Voici tes objectifs pour aujourd'hui. Continue comme ça ! 🚀
+              </p>
             </div>
-            <div style={styles.progressBar}>
-              <div 
-                style={{
-                  ...styles.progressFill,
-                  width: `${completionPercentage}%`,
-                  background: `linear-gradient(90deg, #4CAF50 ${completionPercentage}%, #8BC34A 100%)`
-                }}
-              ></div>
-            </div>
-            <div style={styles.progressStats}>
-              {completedCount} sur {tasks.length} tâches complétées
+            <div className="flex flex-col gap-2 items-end">
+              <Chip
+                variant="flat"
+                classNames={{ base: "bg-white/20", content: "text-white font-bold" }}
+                size="lg"
+              >
+                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
+              </Chip>
+              <Button
+                size="sm"
+                variant="light"
+                className="text-white"
+                startContent={refreshing ? <Spinner size="sm" color="white" /> : <IconRefresh size={16} />}
+                onClick={() => loadTasks(false)}
+                isDisabled={refreshing}
+              >
+                {refreshing ? 'Actualisation...' : 'Actualiser'}
+              </Button>
             </div>
           </div>
-        </div>
-        
-        {/* Formulaire d'ajout de tâche */}
-        <div style={styles.addTaskContainer}>
-          <input
-            type="text"
-            value={newTask}
-            onChange={(e) => setNewTask(e.target.value)}
-            placeholder="Ajouter une nouvelle tâche..."
-            style={styles.taskInput}
-            onKeyPress={(e) => e.key === 'Enter' && addTask()}
-          />
-          <button onClick={addTask} style={styles.addButton}>
-            Ajouter
-          </button>
-        </div>
-        
-        {/* Liste des tâches */}
-        <ul style={styles.taskList}>
-          {tasks.map(task => (
-            <li 
-              key={task.id}
-              style={{
-                ...styles.taskItem,
-                background: task.status === 'Terminé' ? '#E8F5E9' : '#ffffff',
-                boxShadow: task.status === 'Terminé' ? '0 4px 12px rgba(76, 175, 80, 0.2)' : styles.taskItem.boxShadow
+
+          <div className="space-y-2">
+            <div className="flex justify-between text-sm font-medium">
+              <span>Progression globale</span>
+              <span>{completionPercentage}%</span>
+            </div>
+            <Progress
+              aria-label="Progression globale"
+              value={completionPercentage}
+              color="warning"
+              classNames={{
+                indicator: "bg-gradient-to-r from-yellow-400 to-orange-500",
+                track: "bg-white/20"
               }}
-              onClick={() => toggleTaskStatus(task.id)}
-            >
-              <div style={styles.taskCheckbox}>
-                <div style={{
-                  ...styles.checkbox,
-                  background: task.status === 'Terminé' ? '#4CAF50' : '#ffffff',
-                  borderColor: task.status === 'Terminé' ? '#4CAF50' : '#ddd'
-                }}>
-                  {task.status === 'Terminé' && (
-                    <span style={styles.checkmark}>✓</span>
-                  )}
+              size="lg"
+            />
+            <div className="flex justify-between items-center mt-2">
+              <p className="text-sm text-blue-100">
+                {completedCount} / {tasks.length} tâches complétées
+              </p>
+              {completedCount > 0 && (
+                <div className="flex items-center gap-1 text-yellow-300">
+                  <IconFlame size={16} />
+                  <span className="text-sm font-bold">{completedCount} 🔥</span>
                 </div>
-              </div>
-              
-              <div style={styles.taskContent}>
-                <h3 style={{
-                  ...styles.taskTitle,
-                  textDecoration: task.status === 'Terminé' ? 'line-through' : 'none',
-                  color: task.status === 'Terminé' ? '#777' : '#333'
-                }}>
-                  {task.title}
-                </h3>
-                <span style={{
-                  ...styles.taskStatus,
-                  background: task.status === 'Terminé' ? '#4CAF50' : '#2196F3',
-                  color: '#fff'
-                }}>
-                  {task.status}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
+              )}
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Tasks List */}
+      <div className="grid gap-4">
+        {tasks.map(task => {
+          const progress = calculateProgress(task.metricsCurrent, task.metricsTarget);
+          const isCompleted = task.status === 'completed';
+
+          return (
+            <Card
+              key={task._id}
+              className={`
+                border-l-4 transition-all duration-300 hover:shadow-lg
+                ${isCompleted
+                  ? 'border-green-500 bg-green-50/50 dark:bg-green-900/20'
+                  : 'border-blue-500 bg-white dark:bg-gray-800'
+                }
+              `}
+            >
+              <CardBody className="p-5">
+                <div className="flex items-start gap-4">
+                  {/* Completion Icon */}
+                  <div className={`
+                    w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all flex-shrink-0
+                    ${isCompleted
+                      ? 'bg-green-500 border-green-500 text-white scale-110'
+                      : 'border-gray-300 text-transparent hover:border-blue-400'
+                    }
+                  `}>
+                    <IconCheck size={24} strokeWidth={3} />
+                  </div>
+
+                  {/* Task Content */}
+                  <div className="flex-1 min-w-0">
+                    {/* Title and Status */}
+                    <div className="flex items-start justify-between gap-4 mb-2">
+                      <h3 className={`
+                        text-lg font-semibold transition-colors
+                        ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100'}
+                      `}>
+                        {task.templateId?.title || 'Tâche assignée'}
+                      </h3>
+                      <div className="flex gap-2">
+                        <Chip
+                          size="sm"
+                          color={getStatusColor(task.status)}
+                          variant="flat"
+                        >
+                          {getStatusLabel(task.status)}
+                        </Chip>
+                        {task.autoRenew && (
+                          <Chip
+                            size="sm"
+                            color="secondary"
+                            variant="flat"
+                            startContent={<IconRefresh size={12} />}
+                          >
+                            Quotidien
+                          </Chip>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    {task.templateId?.description && (
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        {task.templateId.description}
+                      </p>
+                    )}
+
+                    {/* Metrics */}
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        color="primary"
+                        startContent={<IconTarget size={14} />}
+                      >
+                        Objectif: {formatTarget(task.metricsTarget)}
+                      </Chip>
+                      <Chip size="sm" variant="flat" color="default">
+                        📅 {new Date(task.periodStart).toLocaleDateString('fr-FR')} - {new Date(task.periodEnd).toLocaleDateString('fr-FR')}
+                      </Chip>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                        <span className="font-medium">Progression</span>
+                        <span className="font-bold">{formatCurrent(task.metricsCurrent, task.metricsTarget)}</span>
+                      </div>
+                      <Progress
+                        aria-label="Progression de la tâche"
+                        size="md"
+                        value={progress}
+                        color={isCompleted ? "success" : "primary"}
+                        classNames={{
+                          indicator: isCompleted
+                            ? "bg-gradient-to-r from-green-400 to-green-600"
+                            : "bg-gradient-to-r from-blue-400 to-indigo-600"
+                        }}
+                      />
+                      <div className="flex justify-between text-xs text-gray-500">
+                        <span className="font-medium">{Math.round(progress)}% complété</span>
+                        {task.metricsCurrent?.hours_spent > 0 && (
+                          <span className="flex items-center gap-1">
+                            <IconClock size={12} />
+                            {Math.round(task.metricsCurrent.hours_spent * 60)} min
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          );
+        })}
+
+        {/* Empty State */}
+        {tasks.length === 0 && !error && (
+          <Card className="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900">
+            <CardBody className="text-center py-16">
+              <div className="text-8xl mb-6">📋</div>
+              <h3 className="text-2xl font-bold text-gray-700 dark:text-gray-300 mb-3">
+                Aucune tâche pour aujourd'hui
+              </h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto">
+                Profite de cette journée libre ! Tes parents ou un administrateur peuvent t'assigner de nouvelles missions.
+              </p>
+            </CardBody>
+          </Card>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div className="text-center text-gray-400 text-sm mt-8 space-y-1 pb-8">
+        <p className="flex items-center justify-center gap-2">
+          <IconRefresh size={14} />
+          Actualisation automatique toutes les 30 secondes
+        </p>
+        <p className="text-xs">
+          Ces tâches sont générées par tes parents ou un administrateur
+        </p>
       </div>
     </div>
   );
 }
-
-// Styles CSS en JavaScript
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: '20px',
-    fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
-  },
-  card: {
-    width: '100%',
-    maxWidth: '600px',
-    background: '#ffffff',
-    borderRadius: '20px',
-    boxShadow: '0 15px 30px rgba(0, 0, 0, 0.1)',
-    overflow: 'hidden'
-  },
-  header: {
-    background: 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)',
-    color: '#fff',
-    padding: '30px',
-    textAlign: 'center'
-  },
-  title: {
-    fontSize: '28px',
-    fontWeight: '700',
-    marginBottom: '10px'
-  },
-  subtitle: {
-    fontSize: '16px',
-    opacity: '0.9',
-    marginBottom: '20px'
-  },
-  progressContainer: {
-    marginTop: '20px'
-  },
-  progressInfo: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    marginBottom: '8px',
-    fontSize: '14px'
-  },
-  progressBar: {
-    height: '12px',
-    background: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: '10px',
-    overflow: 'hidden'
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: '10px',
-    transition: 'width 0.5s ease-in-out'
-  },
-  progressStats: {
-    textAlign: 'right',
-    marginTop: '8px',
-    fontSize: '14px',
-    opacity: '0.9'
-  },
-  addTaskContainer: {
-    display: 'flex',
-    padding: '20px',
-    borderBottom: '1px solid #eee'
-  },
-  taskInput: {
-    flex: '1',
-    padding: '12px 15px',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    fontSize: '16px',
-    outline: 'none',
-    transition: 'border 0.3s',
-    marginRight: '10px',
-    boxShadow: 'inset 0 1px 3px rgba(0, 0, 0, 0.1)',
-    ':focus': {
-      borderColor: '#4b6cb7',
-      boxShadow: '0 0 0 3px rgba(75, 108, 183, 0.2)'
-    }
-  },
-  addButton: {
-    background: '#4b6cb7',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '8px',
-    padding: '12px 20px',
-    fontSize: '16px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'background 0.3s',
-    ':hover': {
-      background: '#3a5a9c'
-    }
-  },
-  taskList: {
-    listStyle: 'none',
-    padding: '0',
-    margin: '0'
-  },
-  taskItem: {
-    display: 'flex',
-    alignItems: 'center',
-    padding: '18px 20px',
-    borderBottom: '1px solid #f0f0f0',
-    cursor: 'pointer',
-    transition: 'all 0.3s ease',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.03)',
-    ':hover': {
-      background: '#f9f9f9',
-      transform: 'translateY(-2px)',
-      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.08)'
-    },
-    ':last-child': {
-      borderBottom: 'none'
-    }
-  },
-  taskCheckbox: {
-    marginRight: '15px'
-  },
-  checkbox: {
-    width: '24px',
-    height: '24px',
-    borderRadius: '50%',
-    border: '2px solid #ddd',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'all 0.3s ease'
-  },
-  checkmark: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: '14px'
-  },
-  taskContent: {
-    flex: '1'
-  },
-  taskTitle: {
-    fontSize: '18px',
-    margin: '0 0 5px 0',
-    fontWeight: '600',
-    transition: 'color 0.3s'
-  },
-  taskStatus: {
-    display: 'inline-block',
-    padding: '4px 10px',
-    borderRadius: '12px',
-    fontSize: '12px',
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-  rewardContainer: {
-    position: 'fixed',
-    top: '20px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    zIndex: '1000',
-    animation: 'slideIn 0.5s, fadeOut 0.5s 4.5s forwards'
-  },
-  rewardCard: {
-    background: 'linear-gradient(135deg, #FFD700 0%, #FFA000 100%)',
-    color: '#333',
-    padding: '15px 25px',
-    borderRadius: '12px',
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.2)',
-    display: 'flex',
-    alignItems: 'center',
-    minWidth: '300px'
-  },
-  rewardIcon: {
-    fontSize: '32px',
-    marginRight: '15px'
-  },
-  rewardText: {
-    flex: '1'
-  },
-  rewardTitle: {
-    margin: '0',
-    fontSize: '18px',
-    fontWeight: '700'
-  },
-  rewardDescription: {
-    margin: '5px 0 0 0',
-    fontSize: '14px',
-    opacity: '0.9'
-  },
-  // Styles d'animation
-  '@keyframes slideIn': {
-    from: { top: '-100px', opacity: 0 },
-    to: { top: '20px', opacity: 1 }
-  },
-  '@keyframes fadeOut': {
-    from: { opacity: 1 },
-    to: { opacity: 0, visibility: 'hidden' }
-  }
-};

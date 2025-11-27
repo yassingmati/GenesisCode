@@ -81,7 +81,7 @@ const safeUnlink = async (relPath) => {
       // do not delete paths outside uploads folder
       return;
     }
-    await fsp.unlink(abs).catch(() => {});
+    await fsp.unlink(abs).catch(() => { });
   } catch (e) {
     // swallow errors, deletion is best-effort
   }
@@ -93,8 +93,8 @@ const validateExercise = (ex, partial = false) => {
     // Types existants
     'QCM', 'DragDrop', 'TextInput', 'Code', 'OrderBlocks', 'FillInTheBlank', 'SpotTheError', 'Matching',
     // Nouveaux types pour algorithmes et programmation
-    'Algorithm', 'FlowChart', 'Trace', 'Debug', 'CodeCompletion', 'PseudoCode', 'Complexity', 
-    'DataStructure', 'ScratchBlocks', 'VisualProgramming', 'AlgorithmSteps', 'ConceptMapping', 
+    'Algorithm', 'FlowChart', 'Trace', 'Debug', 'CodeCompletion', 'PseudoCode', 'Complexity',
+    'DataStructure', 'ScratchBlocks', 'VisualProgramming', 'AlgorithmSteps', 'ConceptMapping',
     'CodeOutput', 'Optimization'
   ];
 
@@ -181,8 +181,8 @@ const validateExercise = (ex, partial = false) => {
       // Validation des test cases
       if (!partial && ex.testCases) {
         for (const testCase of ex.testCases) {
-          if (testCase.input === undefined || testCase.input === null || 
-              testCase.expected === undefined || testCase.expected === null) {
+          if (testCase.input === undefined || testCase.input === null ||
+            testCase.expected === undefined || testCase.expected === null) {
             const err = new Error('Chaque test case doit avoir un input et un expected');
             err.status = 400;
             throw err;
@@ -535,7 +535,7 @@ class CourseController {
         name: tr.name || null,
         description: tr.description || '',
         order: p.order || 0,
-        levels: (levelsByPath[String(p._id)] || []).sort((a,b) => (a.order||0)-(b.order||0))
+        levels: (levelsByPath[String(p._id)] || []).sort((a, b) => (a.order || 0) - (b.order || 0))
       });
       return acc;
     }, {});
@@ -548,7 +548,7 @@ class CourseController {
         type: c.type,
         name: ctr.name || null,
         order: c.order || 0,
-        paths: (pathsByCategory[String(c._id)] || []).sort((a,b) => (a.order||0)-(b.order||0))
+        paths: (pathsByCategory[String(c._id)] || []).sort((a, b) => (a.order || 0) - (b.order || 0))
       };
     });
 
@@ -561,7 +561,7 @@ class CourseController {
     validateTranslations(req.body.translations);
     // Forcer une valeur par défaut si non fournie
     if (!req.body.type) req.body.type = 'classic';
-    if (!['classic','specific'].includes(req.body.type)) {
+    if (!['classic', 'specific'].includes(req.body.type)) {
       return res.status(400).json({ error: 'Type de catégorie invalide (classic|specific)' });
     }
     const category = await Category.create(req.body);
@@ -585,7 +585,7 @@ class CourseController {
 
   static updateCategory = catchErrors(async (req, res) => {
     if (req.body.translations) validateTranslations(req.body.translations);
-    if (req.body.type && !['classic','specific'].includes(req.body.type)) {
+    if (req.body.type && !['classic', 'specific'].includes(req.body.type)) {
       return res.status(400).json({ error: 'Type de catégorie invalide (classic|specific)' });
     }
     const category = await Category.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
@@ -720,7 +720,7 @@ class CourseController {
     };
 
     const level = await Level.create(payload);
-    await Path.findByIdAndUpdate(req.body.path, { $push: { levels: level._id } }).catch(() => {});
+    await Path.findByIdAndUpdate(req.body.path, { $push: { levels: level._id } }).catch(() => { });
     res.status(201).json(level);
   });
 
@@ -759,7 +759,7 @@ class CourseController {
     const translation = getTranslation(level, lang) || getTranslation(level, 'fr') || {};
     const exercises = (level.exercises || []).map(ex => {
       const exTrans = getTranslation(ex, lang) || getTranslation(ex, 'fr') || {};
-      
+
       // Créer l'objet exercice avec toutes les informations nécessaires
       const exerciseData = {
         _id: ex._id,
@@ -783,7 +783,25 @@ class CourseController {
         codeSnippet: ex.codeSnippet,
         language: ex.language,
         prompts: ex.prompts || [],
-        matches: ex.matches || []
+        matches: ex.matches || [],
+        // New fields for advanced exercises
+        scratchBlocks: ex.scratchBlocks || [],
+        initialXml: ex.initialXml,
+        algorithmSteps: ex.algorithmSteps || [],
+        codeGaps: ex.codeGaps || [],
+        codeTemplate: ex.codeTemplate,
+        pseudoCodeStructure: ex.pseudoCodeStructure,
+        complexityAnalysis: ex.complexityAnalysis,
+        expectedOutput: ex.expectedOutput,
+        optimizationCriteria: ex.optimizationCriteria || [],
+        traceVariables: ex.traceVariables || [],
+        debugErrors: ex.debugErrors || [],
+        flowChartNodes: ex.flowChartNodes || [],
+        dataStructureType: ex.dataStructureType,
+        dataStructureOperations: ex.dataStructureOperations || [],
+        visualElements: ex.visualElements || [],
+        concepts: ex.concepts || [],
+        definitions: ex.definitions || []
       };
 
       // Ajouter testCases mais filtrer les informations sensibles
@@ -830,7 +848,7 @@ class CourseController {
     if (level.videos) await Promise.all(Object.values(level.videos).map(v => safeUnlink(v)));
     if (level.pdfs) await Promise.all(Object.values(level.pdfs).map(pf => safeUnlink(pf)));
 
-    await Path.updateOne({ levels: req.params.id }, { $pull: { levels: req.params.id } }).catch(() => {});
+    await Path.updateOne({ levels: req.params.id }, { $pull: { levels: req.params.id } }).catch(() => { });
     await Level.findByIdAndDelete(req.params.id);
 
     res.json({ message: 'Niveau supprimé' });
@@ -847,12 +865,12 @@ class CourseController {
 
     console.log(`[createExercise] Création d'un exercice pour le niveau ${req.body.level} dans MongoDB Atlas...`);
     const exercise = await Exercise.create(req.body);
-    
+
     // S'assurer que l'exercice est ajouté au niveau dans MongoDB Atlas
-    await Level.findByIdAndUpdate(req.body.level, { 
+    await Level.findByIdAndUpdate(req.body.level, {
       $addToSet: { exercises: exercise._id } // Utiliser $addToSet pour éviter les doublons
     });
-    
+
     console.log(`[createExercise] Exercice ${exercise._id} créé et ajouté au niveau ${req.body.level} dans MongoDB Atlas`);
     res.status(201).json(exercise);
   });
@@ -870,7 +888,7 @@ class CourseController {
 
     const exercises = (level.exercises || []).map(ex => {
       const exTrans = getTranslation(ex, lang) || getTranslation(ex, 'fr') || {};
-      
+
       // Créer l'objet exercice avec toutes les informations nécessaires
       const exerciseData = {
         _id: ex._id,
@@ -921,7 +939,7 @@ class CourseController {
 
     const lang = getLang(req);
     const translation = getTranslation(exercise, lang) || getTranslation(exercise, 'fr') || {};
-    
+
     const result = {
       _id: exercise._id,
       translations: exercise.translations,
@@ -974,7 +992,7 @@ class CourseController {
     if (!exercise) return res.status(404).json({ error: 'Exercice non trouvé' });
 
     // remove from level.exercises
-    await Level.findByIdAndUpdate(exercise.level, { $pull: { exercises: exercise._id } }).catch(() => {});
+    await Level.findByIdAndUpdate(exercise.level, { $pull: { exercises: exercise._id } }).catch(() => { });
     await Exercise.findByIdAndDelete(exercise._id);
 
     res.status(204).end();
@@ -983,11 +1001,11 @@ class CourseController {
   // important: here we mark user progress + when level completed mark UserLevelProgress
   static submitExercise = catchErrors(async (req, res) => {
     const exerciseId = req.params.id;
-    
+
     // Validation de l'ID de l'exercice
     if (!isValidObjectId(exerciseId)) {
       console.warn('submitExercise: ID invalide', { exerciseId });
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'ID d\'exercice invalide',
         code: 'INVALID_EXERCISE_ID'
@@ -998,7 +1016,7 @@ class CourseController {
     const exercise = await Exercise.findById(exerciseId);
     if (!exercise) {
       console.warn('submitExercise: Exercice non trouvé', { exerciseId });
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
         error: 'Exercice non trouvé',
         code: 'EXERCISE_NOT_FOUND'
@@ -1011,7 +1029,7 @@ class CourseController {
     // Validation de userId
     if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
       console.warn('submitExercise: userId manquant ou invalide', { exerciseId, type, userId });
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: 'userId requis et doit être une chaîne non vide',
         code: 'INVALID_USER_ID'
@@ -1022,16 +1040,16 @@ class CourseController {
     const validation = ExerciseService.validateAnswer(exercise, answer, { passed, passedCount, totalCount, tests });
     if (!validation.valid) {
       console.warn('submitExercise: Validation échouée', { exerciseId, type, error: validation.error });
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: validation.error,
         code: 'INVALID_ANSWER'
       });
     }
 
-    console.log('submitExercise: Soumission d\'exercice', { 
-      exerciseId, 
-      type, 
+    console.log('submitExercise: Soumission d\'exercice', {
+      exerciseId,
+      type,
       userId,
       hasAnswer: !!answer,
       hasSolutions: (exercise.solutions || []).length > 0
@@ -1047,13 +1065,13 @@ class CourseController {
         tests
       });
     } catch (error) {
-      console.error('submitExercise: Erreur d\'évaluation', { 
-        exerciseId, 
-        type, 
+      console.error('submitExercise: Erreur d\'évaluation', {
+        exerciseId,
+        type,
         error: error.message,
         stack: error.stack
       });
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
         error: error.message || 'Erreur lors de l\'évaluation de la réponse',
         code: 'EVALUATION_ERROR'
@@ -1071,21 +1089,203 @@ class CourseController {
         completed: isCorrect,
         details
       });
-      console.log('submitExercise: Progrès enregistré', { 
-        exerciseId, 
-        userId, 
-        pointsEarned, 
-        isCorrect 
+      console.log('submitExercise: Progrès enregistré', {
+        exerciseId,
+        userId,
+        pointsEarned,
+        isCorrect
       });
     } catch (e) {
-      console.error('submitExercise: Erreur sauvegarde progrès', { 
+      console.error('submitExercise: Erreur sauvegarde progrès', {
         error: e.message,
         stack: e.stack,
         exerciseId,
-        userId 
+        userId
       });
       // Ne pas retourner d'erreur ici, on continue quand même pour retourner le résultat
       // mais on log l'erreur pour debugging
+    }
+
+    // Initialize task update debug tracking
+    let taskUpdateDebug = { executed: false, activeTasksFound: 0, tasksUpdated: 0, errors: [] };
+
+    // Mettre à jour automatiquement les tâches assignées si un exercice est soumis
+    try {
+      const AssignedTask = require('../models/AssignedTask');
+      const mongoose = require('mongoose');
+      const crypto = require('crypto');
+
+      // Convertir userId en ObjectId
+      // Convertir userId en ObjectId
+      let userObjectId;
+      if (mongoose.isValidObjectId(userId)) {
+        userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+        console.log('DEBUG: userId is valid ObjectId:', userObjectId);
+      } else {
+        // Tenter de trouver l'utilisateur par firebaseUid
+        const User = require('../models/User');
+        const user = await User.findOne({ firebaseUid: userId });
+
+        if (user) {
+          userObjectId = user._id;
+          console.log('DEBUG: User found by firebaseUid:', { userId, mongoId: userObjectId });
+        } else {
+          // Fallback au hash (comportement legacy, mais probablement incorrect pour les tâches)
+          console.warn('DEBUG: User NOT found by firebaseUid, using hash fallback', { userId });
+          const hash = crypto.createHash('md5').update(userId).digest('hex');
+          userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+        }
+      }
+
+      // Trouver toutes les tâches assignées actives pour cet utilisateur
+      const now = new Date();
+      console.log('DEBUG: Searching for active tasks for childId:', userObjectId, 'at time:', now);
+
+      const activeTasks = await AssignedTask.find({
+        childId: userObjectId,
+        status: { $in: ['active', 'pending'] },
+        periodStart: { $lte: now },
+        periodEnd: { $gte: now }
+      });
+
+      console.log('DEBUG: Found active tasks:', activeTasks.length);
+
+      // Update task debug info with detailed diagnostics
+      Object.assign(taskUpdateDebug, {
+        executed: true,
+        activeTasksFound: activeTasks.length,
+        userIdReceived: userId,
+        userObjectIdResolved: userObjectId.toString(),
+        queryTime: now.toISOString(),
+        activeTasks: activeTasks.map(t => ({
+          id: t._id.toString(),
+          childId: t.childId.toString(),
+          status: t.status,
+          periodStart: t.periodStart,
+          periodEnd: t.periodEnd
+        }))
+      });
+
+      // Mettre à jour les métriques pour chaque tâche
+      for (const task of activeTasks) {
+        try {
+          // Compter les exercices soumis dans la période
+          const UserProgress = require('../models/UserProgress');
+
+          console.log('DEBUG: Querying UserProgress with:', {
+            user: userObjectId,
+            completed: true,
+            periodStart: task.periodStart,
+            periodEnd: task.periodEnd
+          });
+
+          const exercisesSubmitted = await UserProgress.countDocuments({
+            user: userObjectId,
+            completed: true,
+            completedAt: { $gte: task.periodStart, $lte: task.periodEnd }
+          });
+
+          console.log('DEBUG: UserProgress count result:', exercisesSubmitted);
+
+          // Also log the actual documents for debugging
+          const progressDocs = await UserProgress.find({
+            user: userObjectId,
+            completed: true
+          }).limit(5).lean();
+
+          console.log('DEBUG: Sample UserProgress documents for user:', JSON.stringify(progressDocs, null, 2));
+
+          // Compter les niveaux complétés dans la période
+          const UserLevelProgress = require('../models/UserLevelProgress');
+          const levelsCompleted = await UserLevelProgress.countDocuments({
+            user: userObjectId,
+            completed: true,
+            completedAt: { $gte: task.periodStart, $lte: task.periodEnd }
+          });
+
+          // Calculer les heures passées (utiliser UserActivity si disponible)
+          const UserActivity = require('../models/UserActivity');
+          let hoursSpent = 0;
+          try {
+            const activities = await UserActivity.find({
+              user: userObjectId,
+              loginTime: { $gte: task.periodStart, $lte: task.periodEnd }
+            }).lean();
+
+            let totalMinutes = 0;
+            activities.forEach(activity => {
+              // Utiliser le champ duration (en minutes) si disponible
+              if (activity.duration && activity.duration > 0) {
+                totalMinutes += activity.duration;
+              } else if (activity.sessionStats && activity.sessionStats.timeSpent) {
+                // Utiliser sessionStats.timeSpent (en minutes)
+                totalMinutes += activity.sessionStats.timeSpent;
+              } else if (activity.logoutTime && activity.loginTime) {
+                // Calculer depuis loginTime et logoutTime
+                const duration = (new Date(activity.logoutTime) - new Date(activity.loginTime)) / (1000 * 60); // en minutes
+                totalMinutes += Math.max(0, duration);
+              } else if (activity.loginTime) {
+                // Session en cours, utiliser maintenant
+                const duration = (now - new Date(activity.loginTime)) / (1000 * 60); // en minutes
+                totalMinutes += Math.max(0, duration);
+              }
+            });
+            hoursSpent = parseFloat((totalMinutes / 60).toFixed(2));
+          } catch (activityError) {
+            console.error('submitExercise: Erreur calcul heures UserActivity', {
+              error: activityError.message
+            });
+            // Utiliser la valeur existante si le calcul échoue
+            hoursSpent = task.metricsCurrent?.hours_spent || 0;
+          }
+
+          // Mettre à jour les métriques
+          task.metricsCurrent = {
+            exercises_submitted: exercisesSubmitted,
+            levels_completed: levelsCompleted,
+            hours_spent: hoursSpent
+          };
+
+          // Vérifier si la tâche est complétée
+          let isCompleted = true;
+          if (task.metricsTarget.exercises_submitted > 0 && task.metricsCurrent.exercises_submitted < task.metricsTarget.exercises_submitted) {
+            isCompleted = false;
+          }
+          if (task.metricsTarget.levels_completed > 0 && task.metricsCurrent.levels_completed < task.metricsTarget.levels_completed) {
+            isCompleted = false;
+          }
+          if (task.metricsTarget.hours_spent > 0 && task.metricsCurrent.hours_spent < task.metricsTarget.hours_spent) {
+            isCompleted = false;
+          }
+
+          if (isCompleted && task.status !== 'completed') {
+            task.status = 'completed';
+            task.completedAt = now;
+          }
+
+          await task.save();
+          taskUpdateDebug.tasksUpdated++;
+          console.log('submitExercise: Tâche assignée mise à jour', {
+            taskId: task._id,
+            exercisesSubmitted,
+            levelsCompleted,
+            hoursSpent,
+            isCompleted
+          });
+        } catch (taskError) {
+          taskUpdateDebug.errors.push(taskError.message);
+          console.error('submitExercise: Erreur mise à jour tâche assignée', {
+            taskId: task._id,
+            error: taskError.message
+          });
+        }
+      }
+    } catch (taskUpdateError) {
+      console.error('submitExercise: Erreur lors de la mise à jour des tâches assignées', {
+        error: taskUpdateError.message,
+        stack: taskUpdateError.stack
+      });
+      // Ne pas bloquer la réponse si la mise à jour des tâches échoue
     }
 
     // Si l'utilisateur a complété cet exercice, vérifier si tous les exercices du niveau sont complétés
@@ -1098,7 +1298,7 @@ class CourseController {
           // Utiliser la même logique de conversion d'ObjectId
           const mongoose = require('mongoose');
           const crypto = require('crypto');
-          
+
           let userObjectId;
           if (mongoose.isValidObjectId(userId)) {
             userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
@@ -1117,14 +1317,14 @@ class CourseController {
           if (exerciseIds.length > 0 && completedExercisesCount === exerciseIds.length) {
             await UserLevelProgress.findOneAndUpdate(
               { user: userObjectId, level: level._id },
-              { 
-                completed: true, 
+              {
+                completed: true,
                 completedAt: new Date(),
                 $inc: { xp: 50 } // Bonus XP pour compléter un niveau
               },
               { upsert: true, new: true, setDefaultsOnInsert: true }
             );
-            
+
             // Débloquer automatiquement le niveau suivant
             try {
               const LevelUnlockService = require('../services/levelUnlockService');
@@ -1141,12 +1341,12 @@ class CourseController {
 
     const explanation = (getTranslation(exercise, getLang(req)) || getTranslation(exercise, 'fr'))?.explanation || null;
 
-    console.log('submitExercise: Résultat de soumission', { 
-      exerciseId, 
-      userId, 
-      isCorrect, 
-      pointsEarned, 
-      pointsMax: exercise.points || 10 
+    console.log('submitExercise: Résultat de soumission', {
+      exerciseId,
+      userId,
+      isCorrect,
+      pointsEarned,
+      pointsMax: exercise.points || 10
     });
 
     res.json({
@@ -1158,7 +1358,8 @@ class CourseController {
       explanation,
       details,
       message: isCorrect ? 'Exercice complété avec succès!' : 'Exercice soumis, mais la réponse n\'est pas correcte.',
-      ...( !isCorrect && { revealSolutions: false } ) // contrôlable selon policy
+      taskUpdateDebug, // Debug info for task updates
+      ...(!isCorrect && { revealSolutions: false }) // contrôlable selon policy
     });
   });
 
@@ -1169,14 +1370,14 @@ class CourseController {
   // Obtenir le progrès détaillé d'un utilisateur pour un exercice
   static getUserExerciseProgress = catchErrors(async (req, res) => {
     const { exerciseId, userId } = req.params;
-    
+
     if (!isValidObjectId(exerciseId)) return res.status(400).json({ error: 'ID exercice invalide' });
     if (!userId || typeof userId !== 'string') return res.status(400).json({ error: 'userId requis' });
 
     // Utiliser la même logique de conversion d'ObjectId que dans updateProgress
     const mongoose = require('mongoose');
     const crypto = require('crypto');
-    
+
     let userObjectId;
     if (mongoose.isValidObjectId(userId)) {
       userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
@@ -1184,10 +1385,10 @@ class CourseController {
       const hash = crypto.createHash('md5').update(userId).digest('hex');
       userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
     }
-    
-    const progress = await UserProgress.findOne({ 
-      user: userObjectId, 
-      exercise: exerciseId 
+
+    const progress = await UserProgress.findOne({
+      user: userObjectId,
+      exercise: exerciseId
     }).populate('exercise', 'type points');
 
     if (!progress) {
@@ -1219,7 +1420,7 @@ class CourseController {
   // Obtenir les statistiques globales d'un utilisateur
   static getUserStats = catchErrors(async (req, res) => {
     const { userId } = req.params;
-    
+
     if (!userId || typeof userId !== 'string') return res.status(400).json({ error: 'userId requis' });
 
     const stats = await UserProgress.getUserStats(userId);
@@ -1229,7 +1430,7 @@ class CourseController {
   // Obtenir le progrès d'un utilisateur pour un niveau complet
   static getUserLevelProgress = catchErrors(async (req, res) => {
     const { levelId, userId } = req.params;
-    
+
     if (!isValidObjectId(levelId)) return res.status(400).json({ error: 'ID niveau invalide' });
     if (!userId || typeof userId !== 'string') return res.status(400).json({ error: 'userId requis' });
 
@@ -1237,11 +1438,11 @@ class CourseController {
     if (!level) return res.status(404).json({ error: 'Niveau non trouvé' });
 
     const exerciseIds = level.exercises.map(e => e._id);
-    
+
     // Utiliser la même logique de conversion d'ObjectId
     const mongoose = require('mongoose');
     const crypto = require('crypto');
-    
+
     let userObjectId;
     if (mongoose.isValidObjectId(userId)) {
       userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
@@ -1249,7 +1450,7 @@ class CourseController {
       const hash = crypto.createHash('md5').update(userId).digest('hex');
       userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
     }
-    
+
     const progresses = await UserProgress.find({
       user: userObjectId,
       exercise: { $in: exerciseIds }
@@ -1426,11 +1627,11 @@ class CourseController {
     // Normaliser les backslashes Windows en slashes
     videoRel = videoRel.replace(/\\/g, '/');
     const videoPath = resolveAbsFromRel(videoRel);
-    
+
     // Log pour debug
     console.log('[streamVideo] Video rel:', videoRel);
     console.log('[streamVideo] Video abs:', videoPath);
-    
+
     try {
       await fsp.access(videoPath);
     } catch (err) {
@@ -1510,13 +1711,13 @@ class CourseController {
     // Normaliser les backslashes Windows en slashes
     pdfRel = pdfRel.replace(/\\/g, '/');
     const pdfPath = resolveAbsFromRel(pdfRel);
-    
+
     // Log pour debug
     console.log('[streamPDF] PDF rel:', pdfRel);
     console.log('[streamPDF] PDF abs:', pdfPath);
     console.log('[streamPDF] __dirname:', __dirname);
     console.log('[streamPDF] uploadsBaseDir:', uploadsBaseDir);
-    
+
     try {
       await fsp.access(pdfPath);
     } catch (err) {
@@ -1533,9 +1734,9 @@ class CourseController {
       } catch (checkErr) {
         console.error('[streamPDF] Error checking uploads dir:', checkErr.message);
       }
-      return res.status(404).json({ 
-        error: 'Fichier PDF manquant', 
-        path: pdfPath, 
+      return res.status(404).json({
+        error: 'Fichier PDF manquant',
+        path: pdfPath,
         relPath: pdfRel,
         message: 'Le fichier n\'existe pas sur le serveur. Veuillez le ré-uploader via l\'interface admin.'
       });

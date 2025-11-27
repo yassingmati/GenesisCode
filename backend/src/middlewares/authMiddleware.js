@@ -83,6 +83,26 @@ exports.protect = async (req, res, next) => {
 // alias pour compatibilité (certaines routes attendent userProtect)
 exports.userProtect = exports.protect;
 
+// Middleware pour vérifier que l'utilisateur est admin
+exports.adminOnly = (req, res, next) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentification requise' });
+    }
+    const userRoles = Array.isArray(req.user.roles) ? req.user.roles : (req.user.role ? [req.user.role] : []);
+    if (!userRoles.includes('admin')) {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Permissions administrateur requises' 
+      });
+    }
+    next();
+  } catch (err) {
+    console.error('adminOnly error:', err);
+    return res.status(500).json({ success: false, message: 'Erreur serveur' });
+  }
+};
+
 exports.roleMiddleware = (...rolesAllowed) => {
   return (req, res, next) => {
     try {

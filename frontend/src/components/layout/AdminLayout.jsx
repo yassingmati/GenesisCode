@@ -286,17 +286,18 @@ const pageTitles = {
   '/admin/payments': 'Gestion des Paiements',
   '/admin/Subscription': 'Gestion du Subscription',
   '/admin/category-plans': 'Plans de Catégories',
+  '/admin/tasks': 'Gestion des Tâches',
   '/admin/settings': 'Paramètres Administrateur',
 };
 
 export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
-  
+
   const toggleSidebar = () => {
     setSidebarCollapsed(!sidebarCollapsed);
   };
-  
+
   // Obtenir le titre de la page en fonction de l'URL
   const getPageTitle = () => {
     return pageTitles[location.pathname] || 'Dashboard Administrateur';
@@ -311,56 +312,61 @@ export default function AdminLayout() {
             {!sidebarCollapsed && <LogoText>Admin Panel</LogoText>}
           </Logo>
         </SidebarHeader>
-        
+
         <NavItems>
           <LinkItem to="/admin/dashboard">
             <LinkIcon>📊</LinkIcon>
             {!sidebarCollapsed && <LinkText>Dashboard</LinkText>}
           </LinkItem>
-          
+
           <LinkItem to="/admin/users">
             <LinkIcon>👥</LinkIcon>
             {!sidebarCollapsed && <LinkText>User Management</LinkText>}
           </LinkItem>
-          
+
           <LinkItem to="/admin/courses">
             <LinkIcon>📚</LinkIcon>
             {!sidebarCollapsed && <LinkText>Course Management</LinkText>}
           </LinkItem>
-          
+
           <LinkItem to="/admin/payments">
             <LinkIcon>💳</LinkIcon>
             {!sidebarCollapsed && <LinkText>Payment Management</LinkText>}
           </LinkItem>
-          
+
           <LinkItem to="/admin/Subscription">
             <LinkIcon>📝</LinkIcon>
             {!sidebarCollapsed && <LinkText>Subscription Management</LinkText>}
           </LinkItem>
-          
+
           <LinkItem to="/admin/category-plans">
             <LinkIcon>🏷️</LinkIcon>
             {!sidebarCollapsed && <LinkText>Plans de Catégories</LinkText>}
           </LinkItem>
-          
+
+          <LinkItem to="/admin/tasks">
+            <LinkIcon>✅</LinkIcon>
+            {!sidebarCollapsed && <LinkText>Task Management</LinkText>}
+          </LinkItem>
+
           <LinkItem to="/admin/settings">
             <LinkIcon>⚙️</LinkIcon>
             {!sidebarCollapsed && <LinkText>Settings</LinkText>}
           </LinkItem>
         </NavItems>
-        
+
         {!sidebarCollapsed && (
           <SidebarFooter>
             Admin Panel v2.0<br />
             © 2023 - Tous droits réservés
           </SidebarFooter>
         )}
-        
+
         <CollapseButton onClick={toggleSidebar}>
           {sidebarCollapsed ? '➡️' : '⬅️'}
         </CollapseButton>
       </Sidebar>
-      
+
       <Content>
         <Header>
           <PageTitle>{getPageTitle()}</PageTitle>
@@ -372,7 +378,7 @@ export default function AdminLayout() {
             <Avatar>AM</Avatar>
           </UserProfile>
         </Header>
-        
+
         <ContentArea>
           {/* Le contenu spécifique à chaque page sera injecté ici */}
           <Outlet />

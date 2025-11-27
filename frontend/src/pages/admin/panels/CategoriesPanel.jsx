@@ -1,25 +1,28 @@
-// src/pages/CourseManagement/panels/CategoriesPanel.jsx
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
-import { api, pickTitle, inputStyle, selectStyle } from '../components/common';
-import { Grid, Card, CardHeader, CardTitle, CardMeta, CardActions, IconButton, EmptyState, Tiny } from '../styles';
+import {
+  Card, CardHeader, CardBody, CardFooter,
+  Button, Input, Skeleton,
+  Chip, Select, SelectItem
+} from "@nextui-org/react";
+import { IconEdit, IconTrash, IconPlus } from '@tabler/icons-react';
+import { api, pickTitle } from '../components/common';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
-import { ActionPrimary } from '../styles';
 
 export default function CategoriesPanel({ onOpenCreate }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
+  const [filterType, setFilterType] = useState('');
   const [page, setPage] = useState(1);
   const perPage = 8;
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState({ fr: '', en: '', ar: '', order: 0 });
+  const [form, setForm] = useState({ fr: '', en: '', ar: '', order: 0, type: 'classic' });
   const [confirm, setConfirm] = useState({ open: false, id: null });
 
   useEffect(() => {
@@ -30,7 +33,7 @@ export default function CategoriesPanel({ onOpenCreate }) {
     if (onOpenCreate) {
       onOpenCreate(() => {
         setEditing(null);
-        setForm({ fr: '', en: '', ar: '', order: 0 });
+        setForm({ fr: '', en: '', ar: '', order: 0, type: 'classic' });
         setModalOpen(true);
       });
     }
@@ -39,8 +42,13 @@ export default function CategoriesPanel({ onOpenCreate }) {
   const fetchCategories = async () => {
     setLoading(true);
     try {
-      const { data } = await api.get('/categories');
-      setCategories(Array.isArray(data) ? data : []);
+      const [classicRes, specificRes] = await Promise.all([
+        api.get('/categories?type=classic'),
+        api.get('/categories?type=specific')
+      ]);
+      const classic = Array.isArray(classicRes?.data) ? classicRes.data : [];
+      const specific = Array.isArray(specificRes?.data) ? specificRes.data : [];
+      setCategories([...classic, ...specific]);
     } catch (err) {
       console.error(err);
       toast.error('Impossible de charger les catégories');
@@ -51,11 +59,15 @@ export default function CategoriesPanel({ onOpenCreate }) {
 
   const filteredCategories = useMemo(() => {
     const q = (query || '').trim().toLowerCase();
-    return categories.filter(cat => {
+    let filtered = categories.filter(cat => {
       const name = pickTitle(cat).toLowerCase();
       return !q || name.includes(q) || String(cat._id).includes(q);
     });
-  }, [categories, query]);
+    if (filterType) {
+      filtered = filtered.filter(cat => cat.type === filterType);
+    }
+    return filtered;
+  }, [categories, query, filterType]);
 
   const pages = Math.max(1, Math.ceil(filteredCategories.length / perPage));
   const pagedCategories = filteredCategories.slice((page - 1) * perPage, page * perPage);
@@ -73,7 +85,8 @@ export default function CategoriesPanel({ onOpenCreate }) {
           en: { name: form.en },
           ar: { name: form.ar }
         },
-        order: form.order
+        order: form.order,
+        type: form.type || 'classic'
       };
 
       if (editing) {
@@ -97,7 +110,8 @@ export default function CategoriesPanel({ onOpenCreate }) {
       fr: category.translations?.fr?.name || '',
       en: category.translations?.en?.name || '',
       ar: category.translations?.ar?.name || '',
-      order: category.order || 0
+      order: category.order || 0,
+      type: category.type || 'classic'
     });
     setModalOpen(true);
   };
@@ -117,141 +131,181 @@ export default function CategoriesPanel({ onOpenCreate }) {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <SearchBar 
-          value={query} 
-          onChange={v => { setQuery(v); setPage(1); }} 
-          placeholder="Rechercher catégories..." 
-        />
-        <ActionPrimary onClick={() => setModalOpen(true)}>
-          <FiPlus /> Nouvelle catégorie
-        </ActionPrimary>
+      <div className="flex justify-between items-center mb-4 gap-4">
+        <div className="flex gap-4 flex-1">
+          <SearchBar
+            value={query}
+            onChange={v => { setQuery(v); setPage(1); }}
+            placeholder="Rechercher catégories..."
+          />
+          <Select
+            placeholder="Tous les types"
+            selectedKeys={filterType ? [filterType] : []}
+            onChange={e => { setFilterType(e.target.value); setPage(1); }}
+            className="max-w-xs"
+            size="sm"
+          >
+            <SelectItem key="classic" value="classic">Classique</SelectItem>
+            <SelectItem key="specific" value="specific">Spécifique</SelectItem>
+          </Select>
+        </div>
+        <Button
+          color="primary"
+          startContent={<IconPlus size={18} />}
+          onPress={() => setModalOpen(true)}
+        >
+          Nouvelle catégorie
+        </Button>
       </div>
 
-      <div style={{ marginTop: '14px' }}>
+      <div className="mt-4">
         {loading ? (
-          <Grid>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
               <Card key={i}>
-                <div style={{ height: '18px', background: '#f3f4f6', borderRadius: '4px', marginBottom: '8px' }} />
-                <div style={{ height: '10px', background: '#f3f4f6', borderRadius: '4px', marginBottom: '8px' }} />
-                <div style={{ height: '12px', background: '#f3f4f6', borderRadius: '4px', width: '60%' }} />
+                <CardBody className="gap-2">
+                  <Skeleton className="h-4 w-3/4 rounded-lg" />
+                  <Skeleton className="h-3 w-1/2 rounded-lg" />
+                  <Skeleton className="h-3 w-2/3 rounded-lg" />
+                </CardBody>
               </Card>
             ))}
-          </Grid>
+          </div>
         ) : pagedCategories.length ? (
           <>
-            <Grid>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {pagedCategories.map(cat => (
-                <Card key={cat._id}>
-                  <CardHeader>
-                    <div>
-                      <CardTitle>{pickTitle(cat) || 'Sans nom'}</CardTitle>
-                      <CardMeta>Ordre: {cat.order || 0}</CardMeta>
+                <Card key={cat._id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="flex-col items-start gap-2">
+                    <div className="flex justify-between w-full">
+                      <h4 className="text-lg font-semibold">{pickTitle(cat) || 'Sans nom'}</h4>
+                      <Chip size="sm" variant="flat" color={cat.type === 'specific' ? 'secondary' : 'default'}>
+                        {cat.type || 'classic'}
+                      </Chip>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <Tiny>ID</Tiny>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
-                        {String(cat._id).slice(0, 8)}
-                      </div>
-                    </div>
+                    <p className="text-sm text-default-500">Ordre: {cat.order || 0}</p>
                   </CardHeader>
-                  <CardActions>
-                    <IconButton onClick={() => startEdit(cat)}>
-                      <FiEdit />
-                    </IconButton>
-                    <IconButton danger onClick={() => askDelete(cat._id)}>
-                      <FiTrash2 />
-                    </IconButton>
-                  </CardActions>
+                  <CardFooter className="gap-2">
+                    <Button
+                      size="sm"
+                      variant="flat"
+                      startContent={<IconEdit size={16} />}
+                      onPress={() => startEdit(cat)}
+                      className="flex-1"
+                    >
+                      Éditer
+                    </Button>
+                    <Button
+                      size="sm"
+                      color="danger"
+                      variant="flat"
+                      startContent={<IconTrash size={16} />}
+                      onPress={() => askDelete(cat._id)}
+                      className="flex-1"
+                    >
+                      Supprimer
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
-            </Grid>
+            </div>
 
-            <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Tiny>
+            <div className="mt-4 flex justify-between items-center">
+              <p className="text-sm text-default-500">
                 Affichage {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredCategories.length)} / {filteredCategories.length}
-              </Tiny>
-              <Pagination 
-                page={page} 
-                pages={pages} 
-                onPrev={() => setPage(p => Math.max(1, p - 1))} 
-                onNext={() => setPage(p => Math.min(pages, p + 1))} 
+              </p>
+              <Pagination
+                page={page}
+                pages={pages}
+                onPrev={() => setPage(p => Math.max(1, p - 1))}
+                onNext={() => setPage(p => Math.min(pages, p + 1))}
               />
             </div>
           </>
         ) : (
-          <EmptyState>
-            <h3>Aucune catégorie</h3>
-            <p>Crée la première catégorie pour démarrer.</p>
-            <ActionPrimary onClick={() => setModalOpen(true)}>
-              <FiPlus /> Nouvelle catégorie
-            </ActionPrimary>
-          </EmptyState>
+          <Card>
+            <CardBody className="text-center py-12">
+              <h3 className="text-xl font-semibold mb-2">Aucune catégorie</h3>
+              <p className="text-default-500 mb-4">Crée la première catégorie pour démarrer.</p>
+              <Button
+                color="primary"
+                startContent={<IconPlus size={18} />}
+                onPress={() => setModalOpen(true)}
+              >
+                Nouvelle catégorie
+              </Button>
+            </CardBody>
+          </Card>
         )}
       </div>
 
-      <FormModal 
-        open={modalOpen} 
-        title={editing ? 'Éditer catégorie' : 'Nouvelle catégorie'} 
+      <FormModal
+        open={modalOpen}
+        title={editing ? 'Éditer catégorie' : 'Nouvelle catégorie'}
         onClose={() => setModalOpen(false)}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button onClick={() => setModalOpen(false)} style={{ padding: '8px 12px', borderRadius: '8px', background: '#fff', border: '1px solid #eef2ff' }}>
+          <div className="flex justify-end gap-2">
+            <Button variant="light" onPress={() => setModalOpen(false)}>
               Annuler
-            </button>
-            <ActionPrimary onClick={handleSubmit}>
-              <FiPlus /> {editing ? 'Sauvegarder' : 'Créer'}
-            </ActionPrimary>
+            </Button>
+            <Button
+              color="primary"
+              startContent={<IconPlus size={18} />}
+              onPress={handleSubmit}
+            >
+              {editing ? 'Sauvegarder' : 'Créer'}
+            </Button>
           </div>
         }
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Français)</div>
-            <input 
-              value={form.fr} 
-              onChange={e => setForm(f => ({ ...f, fr: e.target.value }))} 
-              required 
-              style={inputStyle()} 
-            />
-          </label>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Anglais)</div>
-            <input 
-              value={form.en} 
-              onChange={e => setForm(f => ({ ...f, en: e.target.value }))} 
-              required 
-              style={inputStyle()} 
-            />
-          </label>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Nom (Arabe)</div>
-            <input 
-              value={form.ar} 
-              onChange={e => setForm(f => ({ ...f, ar: e.target.value }))} 
-              required 
-              style={inputStyle()} 
-            />
-          </label>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Ordre</div>
-            <input 
-              type="number" 
-              value={form.order} 
-              onChange={e => setForm(f => ({ ...f, order: +e.target.value }))} 
-              style={inputStyle()} 
-            />
-          </label>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Select
+            label="Type"
+            selectedKeys={form.type ? [form.type] : []}
+            onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+          >
+            <SelectItem key="classic" value="classic">Classique</SelectItem>
+            <SelectItem key="specific" value="specific">Spécifique</SelectItem>
+          </Select>
+
+          <Input
+            label="Ordre"
+            type="number"
+            value={String(form.order)}
+            onValueChange={v => setForm(f => ({ ...f, order: +v }))}
+            variant="bordered"
+          />
+
+          <Input
+            label="Nom (Français)"
+            value={form.fr}
+            onValueChange={v => setForm(f => ({ ...f, fr: v }))}
+            required
+            variant="bordered"
+          />
+          <Input
+            label="Nom (Anglais)"
+            value={form.en}
+            onValueChange={v => setForm(f => ({ ...f, en: v }))}
+            required
+            variant="bordered"
+          />
+          <Input
+            label="Nom (Arabe)"
+            value={form.ar}
+            onValueChange={v => setForm(f => ({ ...f, ar: v }))}
+            required
+            variant="bordered"
+          />
         </div>
       </FormModal>
 
-      <ConfirmDialog 
-        open={confirm.open} 
-        title="Confirmer suppression" 
+      <ConfirmDialog
+        open={confirm.open}
+        title="Confirmer suppression"
         message="La suppression est définitive et supprimera tout le contenu lié. Continuer ?"
-        onCancel={() => setConfirm({ open: false, id: null })} 
-        onConfirm={confirmDelete} 
+        onCancel={() => setConfirm({ open: false, id: null })}
+        onConfirm={confirmDelete}
       />
     </>
   );

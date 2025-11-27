@@ -2,10 +2,17 @@ import API_CONFIG from '../config/api';
 
 const base = `${API_CONFIG.BASE_URL}/api/courses`;
 
-const headers = () => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-});
+const headers = () => {
+  // Try adminToken first, then user token
+  const adminToken = localStorage.getItem('adminToken');
+  const userToken = localStorage.getItem('token');
+  const token = adminToken || userToken || '';
+  
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': token ? `Bearer ${token}` : ''
+  };
+};
 
 export async function getCategories(type) {
   const url = type ? `${base}/categories?type=${encodeURIComponent(type)}` : `${base}/categories`;

@@ -34,7 +34,7 @@ import ModernDashboard from './pages/dashboard/ModernDashboard';
 import DebutantMap from './pages/course/DebutantMap';
 import LevelPage from './pages/course/LevelPage';
 import ExercisePage from './pages/course/ExercisePage';
-import SingleExercisePage from './pages/course/SingleExercisePage';
+import ExerciseWorkspace from './pages/course/ExerciseWorkspace';
 import TestExerciseInterface from './components/TestExerciseInterface';
 
 // Import des pages parent
@@ -69,6 +69,8 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CourseManagement from './pages/admin/CourseManagement';
 import PaymentManagement from './pages/admin/PaymentManagement';
+import TaskManagement from './pages/admin/TaskManagement';
+import ChildTasks from './pages/parent/ChildTasks';
 import SubscriptionManagement from './pages/admin/SubscriptionManagementSimple';
 import CategoryPlanManagement from './pages/admin/CategoryPlanManagement';
 
@@ -191,16 +193,16 @@ function PrivateRoute({ children, role }) {
     const backendToken = localStorage.getItem('token');
     const backendUser = localStorage.getItem('user');
     const hasBackendAuth = backendToken && backendUser;
-    
+
     if (!currentUser && !hasBackendAuth) {
       return <Navigate to="/login" replace />;
     }
   }
-  
+
   if (role === 'admin' && !admin) {
     return <Navigate to="/admin/login" replace />;
   }
-  
+
   return children;
 }
 
@@ -227,7 +229,7 @@ function PageTitleUpdater() {
     else if (p.startsWith('/payments/konnect-return')) document.title = 'Retour paiement';
     else if (p.startsWith('/admin/login')) document.title = 'Admin – Connexion';
     else if (p.startsWith('/admin')) document.title = 'Admin – Tableau de bord';
-    
+
     // NOUVEAU ROUTAGE - Pages de cours
     else if (p === '/courses') document.title = 'Parcours';
     else if (p.startsWith('/courses/levels/') && p.includes('/exercises/')) document.title = 'Exercice — Pratique';
@@ -268,25 +270,25 @@ export default function AppRouter() {
                 <DebutantMap />
               </AuthGuard>
             } />
-            
+
             {/* Niveau - Page principale avec contenu et exercices */}
             <Route path="/courses/levels/:levelId" element={
               <AuthGuard>
                 <LevelPage />
               </AuthGuard>
             } />
-            
+
             {/* Liste des exercices du niveau */}
             <Route path="/courses/levels/:levelId/exercises" element={
               <AuthGuard>
                 <ExercisePage />
               </AuthGuard>
             } />
-            
-            {/* Exercice individuel */}
+
+            {/* Exercice individuel - WORKSPACE */}
             <Route path="/courses/levels/:levelId/exercises/:exerciseId" element={
               <AuthGuard>
-                <SingleExercisePage />
+                <ExerciseWorkspace />
               </AuthGuard>
             } />
 
@@ -302,7 +304,7 @@ export default function AppRouter() {
             <Route path="/test-subscription" element={<TestSubscriptionSystem />} />
             <Route path="/test-payment" element={<TestPayment />} />
             <Route path="/test-konnect" element={<TestKonnectIntegration />} />
-            
+
             {/* Nouveau système de paiement par catégorie */}
             <Route path="/category-plans" element={<CategoryPlans />} />
 
@@ -352,6 +354,13 @@ export default function AppRouter() {
                 </ParentAuthGuard>
               </AuthGuard>
             } />
+            <Route path="/parent/child/:childId/tasks" element={
+              <AuthGuard>
+                <ParentAuthGuard>
+                  <ChildTasks />
+                </ParentAuthGuard>
+              </AuthGuard>
+            } />
 
             {/* CLIENT PRIVATE */}
             <Route
@@ -388,7 +397,8 @@ export default function AppRouter() {
               <Route path="users" element={<UserManagement />} />
               <Route path="courses" element={<CourseManagement />} />
               <Route path="payments" element={<PaymentManagement />} />
-              <Route path="Subscription" element={<SubscriptionManagement />} />
+              <Route path="tasks" element={<TaskManagement />} />
+              <Route path="subscriptions" element={<SubscriptionManagement />} />
               <Route path="category-plans" element={<CategoryPlanManagement />} />
             </Route>
 

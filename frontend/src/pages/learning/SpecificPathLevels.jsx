@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import '../../styles/courseTheme.css';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getLevelsByPath, getPathsByCategory, getCategories } from '../../services/courseService';
-import LoadingSpinner from '../../components/LoadingSpinner';
-import LevelCard from '../../components/LevelCard';
-// Access control removed for specific-language flow
+import ClientPageLayout from '../../components/layout/ClientPageLayout';
+import {
+  Card, CardBody, CardFooter, Button, Progress, Chip
+} from "@nextui-org/react";
+import { IconChevronRight, IconLock, IconLockOpen, IconTrophy } from '@tabler/icons-react';
 
 export default function SpecificPathLevels() {
   const navigate = useNavigate();
@@ -14,7 +15,6 @@ export default function SpecificPathLevels() {
   const [category, setCategory] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // Access control removed
 
   useEffect(() => {
     (async () => {
@@ -24,14 +24,12 @@ export default function SpecificPathLevels() {
           getPathsByCategory(categoryId),
           getCategories('specific')
         ]);
-        
+
         setLevels(levelsData || []);
         const currentPath = pathsData?.find(p => p._id === pathId);
         const currentCategory = categoriesData?.find(cat => cat._id === categoryId);
         setPath(currentPath);
         setCategory(currentCategory);
-
-        // Access control removed
       } catch (e) {
         setError('Erreur lors du chargement des niveaux');
       } finally {
@@ -40,280 +38,114 @@ export default function SpecificPathLevels() {
     })();
   }, [categoryId, pathId]);
 
-  if (loading) {
-    return (
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        minHeight: '50vh',
-        flexDirection: 'column',
-        gap: 16
-      }}>
-        <LoadingSpinner />
-        <p style={{ color: '#6b7280', fontSize: 16 }}>Chargement des niveaux...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div style={{ 
-        padding: 24, 
-        textAlign: 'center',
-        maxWidth: 600,
-        margin: '0 auto'
-      }}>
-        <div style={{ 
-          color: '#dc2626', 
-          fontSize: 18, 
-          marginBottom: 16,
-          fontWeight: 600
-        }}>
-          {error}
-        </div>
-        <button 
-          onClick={() => window.location.reload()}
-          style={{
-            padding: '12px 24px',
-            background: '#3b82f6',
-            color: 'white',
-            border: 'none',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontSize: 16,
-            fontWeight: 600
-          }}
-        >
-          Réessayer
-        </button>
-      </div>
-    );
-  }
-
   const categoryName = category?.translations?.fr?.name || 'Langage';
   const pathName = path?.translations?.fr?.name || 'Parcours';
 
+  // Calculate progress (mock logic for now, can be connected to real user progress later)
+  const progress = 0;
+
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-      <div className="container-responsive">
-      {/* Breadcrumb Navigation */}
-      <div style={{ 
-        marginBottom: 32,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 8,
-        flexWrap: 'wrap'
-      }}>
-        <button
-          onClick={() => navigate('/learning/choose-language')}
-          style={{
-            padding: '8px 16px',
-            background: 'rgba(255,255,255,0.2)',
-            color: 'white',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontSize: 14,
-            fontWeight: 500,
-            transition: 'all 0.3s ease',
-            backdropFilter: 'blur(10px)'
-          }}
-        >
-          ← Langages
-        </button>
-        <span style={{ color: 'white', opacity: 0.7 }}>›</span>
-        <button
-          onClick={() => navigate(`/learning/specific/${categoryId}`)}
-          style={{
-            padding: '8px 16px',
-            background: 'rgba(255,255,255,0.2)',
-            color: 'white',
-            border: '1px solid rgba(255,255,255,0.3)',
-            borderRadius: 8,
-            cursor: 'pointer',
-            fontSize: 14,
-            fontWeight: 500,
-            transition: 'all 0.3s ease',
-            backdropFilter: 'blur(10px)'
-          }}
-        >
-          {categoryName}
-        </button>
-        <span style={{ color: 'white', opacity: 0.7 }}>›</span>
-        <span style={{ 
-          color: 'white', 
-          fontSize: 16, 
-          fontWeight: 600,
-          background: 'rgba(255,255,255,0.2)',
-          padding: '8px 16px',
-          borderRadius: 8,
-          backdropFilter: 'blur(10px)'
-        }}>
-          {pathName}
-        </span>
-      </div>
-
-      {/* Header Section */}
-      <div style={{ 
-        textAlign: 'center', 
-        marginBottom: 40,
-        color: 'white'
-      }}>
-        <h1 style={{ 
-          fontSize: 32, 
-          fontWeight: 800, 
-          marginBottom: 12,
-          textShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          Niveaux {pathName}
-        </h1>
-        <p style={{ 
-          fontSize: 18, 
-          opacity: 0.9,
-          maxWidth: 600,
-          margin: '0 auto',
-          lineHeight: 1.6
-        }}>
-          Progresse étape par étape dans ton apprentissage de {categoryName}
-        </p>
-      </div>
-
+    <ClientPageLayout
+      title={pathName}
+      subtitle={`Progresse étape par étape dans ton apprentissage de ${categoryName}.`}
+      breadcrumbs={[
+        { label: 'Langages', path: '/learning/choose-language' },
+        { label: categoryName, path: `/learning/specific/${categoryId}` },
+        { label: pathName }
+      ]}
+      loading={loading}
+      error={error}
+      onRetry={() => window.location.reload()}
+      backPath={`/learning/specific/${categoryId}`}
+      backLabel="Retour aux parcours"
+    >
       {/* Progress Overview */}
-      <div style={{
-        background: 'rgba(255,255,255,0.1)',
-        borderRadius: 16,
-        padding: 24,
-        marginBottom: 32,
-        backdropFilter: 'blur(10px)',
-        border: '1px solid rgba(255,255,255,0.2)'
-      }}>
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          marginBottom: 16
-        }}>
-          <h3 style={{ 
-            color: 'white', 
-            fontSize: 20, 
-            fontWeight: 700,
-            margin: 0
-          }}>
-            Progression
-          </h3>
-          <div style={{
-            background: 'rgba(255,255,255,0.2)',
-            padding: '8px 16px',
-            borderRadius: 20,
-            color: 'white',
-            fontSize: 14,
-            fontWeight: 600
-          }}>
-            {levels.length} niveaux
+      <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-none shadow-sm">
+        <CardBody className="flex flex-row items-center justify-between p-6">
+          <div className="flex flex-col gap-2 w-full max-w-md">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                <IconTrophy size={20} className="text-yellow-500" />
+                Progression
+              </h3>
+              <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{levels.length} niveaux</span>
+            </div>
+            <Progress
+              value={progress}
+              className="max-w-md"
+              color="success"
+              size="sm"
+              classNames={{
+                indicator: "bg-gradient-to-r from-green-400 to-emerald-600",
+                track: "bg-gray-200 dark:bg-slate-700"
+              }}
+            />
           </div>
-        </div>
-        
-        <div style={{
-          background: 'rgba(255,255,255,0.2)',
-          borderRadius: 10,
-          height: 8,
-          overflow: 'hidden'
-        }}>
-          <div style={{
-            background: 'linear-gradient(90deg, #4facfe, #00f2fe)',
-            height: '100%',
-            width: '0%', // TODO: Calculate actual progress
-            transition: 'width 0.3s ease'
-          }} />
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
       {/* Levels Grid */}
-      <div className="levels-grid">
-        {levels.map((level, index) => {
-          const isUnlocked = true; // access control removed; all levels clickable
-          
-          return (
-            <div key={level._id} style={{ position: 'relative' }}>
-              {/* Level number badge */}
-              <div style={{
-                position: 'absolute',
-                top: -12,
-                left: 20,
-                zIndex: 10,
-                background: isUnlocked 
-                  ? 'linear-gradient(135deg, #4facfe, #00f2fe)' 
-                  : 'linear-gradient(135deg, #9ca3af, #6b7280)',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: 20,
-                fontSize: 14,
-                fontWeight: 700,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-              }}>
-                Niveau {index + 1}
-              </div>
+      {levels.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 dark:text-gray-400 text-lg">Aucun niveau disponible pour ce parcours.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {levels.map((level, index) => {
+            const isUnlocked = true; // All levels unlocked for now
 
-              {/* Level card */}
-              <div className="card-surface" style={{ padding: 24 }}>
-                <LevelCard 
-                  level={level}
-                  onLevelClick={() => {
-                    navigate(`/courses/levels/${level._id}`, { state: { fromSpecific: true, categoryId, pathId } });
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <Card
+                key={level._id}
+                isPressable={isUnlocked}
+                onPress={() => isUnlocked && navigate(`/courses/levels/${level._id}`, { state: { fromSpecific: true, categoryId, pathId } })}
+                className={`border-none shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-800 ${!isUnlocked ? 'opacity-75 grayscale' : 'hover:-translate-y-1'}`}
+              >
+                <CardBody className="p-0">
+                  <div className={`h-2 bg-gradient-to-r ${isUnlocked ? 'from-blue-400 to-indigo-500' : 'from-gray-300 to-gray-400 dark:from-slate-600 dark:to-slate-500'}`} />
+                  <div className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        color={isUnlocked ? "primary" : "default"}
+                        className="font-bold"
+                      >
+                        Niveau {index + 1}
+                      </Chip>
+                      {isUnlocked ? (
+                        <IconLockOpen size={20} className="text-green-500" />
+                      ) : (
+                        <IconLock size={20} className="text-gray-400 dark:text-gray-500" />
+                      )}
+                    </div>
 
-      {/* No levels message */}
-      {levels.length === 0 && (
-        <div style={{ 
-          textAlign: 'center', 
-          padding: 40,
-          color: 'white'
-        }}>
-          <h3 style={{ fontSize: 20, marginBottom: 8 }}>Aucun niveau disponible</h3>
-          <p style={{ opacity: 0.8 }}>Les niveaux pour ce parcours seront bientôt disponibles</p>
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-2 line-clamp-2 min-h-[3.5rem]">
+                      {level?.translations?.fr?.title || level.name}
+                    </h3>
+
+                    <p className="text-gray-500 dark:text-gray-400 text-sm line-clamp-3 mb-4">
+                      {level?.translations?.fr?.description || 'Complète ce niveau pour avancer.'}
+                    </p>
+                  </div>
+                </CardBody>
+
+                <CardFooter className="px-6 pb-6 pt-0 bg-transparent border-none">
+                  <Button
+                    className="w-full font-semibold"
+                    color={isUnlocked ? "primary" : "default"}
+                    variant={isUnlocked ? "solid" : "flat"}
+                    isDisabled={!isUnlocked}
+                    endContent={isUnlocked && <IconChevronRight size={18} />}
+                  >
+                    {isUnlocked ? "Commencer" : "Verrouillé"}
+                  </Button>
+                </CardFooter>
+              </Card>
+            );
+          })}
         </div>
       )}
-
-      {/* Navigation buttons */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
-        <button
-          onClick={() => navigate(`/learning/specific/${categoryId}`)}
-          className="btn-ghost"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.3)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-          }}
-        >
-          ← Retour aux parcours
-        </button>
-
-        <button
-          onClick={() => navigate('/learning/choose-language')}
-          className="btn-ghost"
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-          }}
-        >
-          Tous les langages
-        </button>
-      </div>
-      </div>
-    </div>
+    </ClientPageLayout>
   );
 }

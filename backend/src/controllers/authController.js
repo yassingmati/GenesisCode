@@ -6,28 +6,28 @@ const admin = require('../utils/firebaseAdmin');
 
 // Vérifier si Firebase est disponible
 const isFirebaseAvailable = () => {
-  try {
-    return admin.apps.length > 0;
-  } catch (error) {
-    return false;
-  }
+    try {
+        return admin.apps.length > 0;
+    } catch (error) {
+        return false;
+    }
 };
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../utils/emailService');
 
 // Initialize Firestore seulement si Firebase est disponible
 let db, usersCollection;
 const isFirestoreAvailable = () => {
-  if (!isFirebaseAvailable()) return false;
-  try {
-    if (!db) {
-      db = admin.firestore();
-      usersCollection = db.collection('users');
+    if (!isFirebaseAvailable()) return false;
+    try {
+        if (!db) {
+            db = admin.firestore();
+            usersCollection = db.collection('users');
+        }
+        return true;
+    } catch (error) {
+        console.warn('Firestore non disponible:', error.message);
+        return false;
     }
-    return true;
-  } catch (error) {
-    console.warn('Firestore non disponible:', error.message);
-    return false;
-  }
 };
 
 /**
@@ -62,26 +62,26 @@ exports.register = async (req, res) => {
         // Si Firebase n'est pas disponible, créer directement dans MongoDB
         if (!isFirebaseAvailable()) {
             console.warn('Firebase non disponible - création directe dans MongoDB');
-            
+
             // Vérifier si MongoDB est connecté
             const mongoose = require('mongoose');
             if (mongoose.connection.readyState !== 1) {
-                return res.status(503).json({ 
-                    message: 'Service temporairement indisponible. La base de données n\'est pas connectée. Veuillez réessayer plus tard.' 
+                return res.status(503).json({
+                    message: 'Service temporairement indisponible. La base de données n\'est pas connectée. Veuillez réessayer plus tard.'
                 });
             }
-            
+
             // Vérifier si l'utilisateur existe déjà
             let existingUser;
             try {
                 existingUser = await User.findOne({ email });
             } catch (dbError) {
                 console.error('Erreur MongoDB lors de la recherche utilisateur:', dbError);
-                return res.status(503).json({ 
-                    message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.' 
+                return res.status(503).json({
+                    message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.'
                 });
             }
-            
+
             if (existingUser) {
                 return res.status(409).json({ message: 'This email is already in use.' });
             }
@@ -126,7 +126,7 @@ exports.register = async (req, res) => {
             userType: 'student', // Default userType
         });
         await newUser.save();
-        
+
         // Note: Firestore creation is removed here as it's handled on login/Google sign-in.
 
         // Generate JWT
@@ -135,6 +135,30 @@ exports.register = async (req, res) => {
             process.env.JWT_SECRET || 'devsecret',
             { expiresIn: '1d' }
         );
+
+        // Créer une entrée UserActivity pour suivre le temps passé
+        try {
+            const UserActivity = require('../models/UserActivity');
+            const crypto = require('crypto');
+            const sessionId = crypto.randomBytes(16).toString('hex');
+
+            await UserActivity.create({
+                user: newUser._id,
+                sessionId,
+                loginTime: new Date(),
+                activities: [{
+                    type: 'login',
+                    timestamp: new Date(),
+                    metadata: {
+                        userAgent: req.headers['user-agent'],
+                        action: 'register'
+                    }
+                }]
+            });
+            console.log('✅ UserActivity créée pour la session (register):', sessionId);
+        } catch (activityError) {
+            console.error('⚠️ Erreur création UserActivity:', activityError.message);
+        }
 
         res.status(201).json({
             token,
@@ -173,41 +197,41 @@ exports.loginWithEmail = async (req, res) => {
         // Si Firebase n'est pas disponible, utiliser une authentification simple
         if (!isFirebaseAvailable() || !process.env.FIREBASE_WEB_API_KEY) {
             console.warn('Firebase non disponible - utilisation de l\'authentification simple');
-            
+
             // Vérifier si MongoDB est connecté
             const mongoose = require('mongoose');
             if (mongoose.connection.readyState !== 1) {
-                return res.status(503).json({ 
-                    message: 'Service temporairement indisponible. La base de données n\'est pas connectée. Veuillez réessayer plus tard.' 
+                return res.status(503).json({
+                    message: 'Service temporairement indisponible. La base de données n\'est pas connectée. Veuillez réessayer plus tard.'
                 });
             }
-            
+
             // Authentification simple avec MongoDB uniquement
             let dbUser;
             try {
                 dbUser = await User.findOne({ email });
             } catch (dbError) {
                 console.error('Erreur MongoDB lors de la recherche utilisateur:', dbError);
-                return res.status(503).json({ 
-                    message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.' 
+                return res.status(503).json({
+                    message: 'Erreur de connexion à la base de données. Veuillez réessayer plus tard.'
                 });
             }
-            
+
             if (!dbUser) {
                 return res.status(404).json({ message: 'No account is associated with this email.' });
             }
 
             // Vérifier le type d'utilisateur si spécifié
             if (userType && dbUser.userType !== userType) {
-                return res.status(403).json({ 
-                    message: `Accès refusé. Ce compte est de type "${dbUser.userType}" mais vous essayez de vous connecter en tant que "${userType}".` 
+                return res.status(403).json({
+                    message: `Accès refusé. Ce compte est de type "${dbUser.userType}" mais vous essayez de vous connecter en tant que "${userType}".`
                 });
             }
-            
+
             // Pour la démo, on accepte n'importe quel mot de passe
             // En production, vous devriez utiliser bcrypt pour comparer les mots de passe
             console.warn('ATTENTION: Authentification simple activée - pas de vérification du mot de passe');
-            
+
             // Generate JWT
             const token = jwt.sign(
                 { id: dbUser._id, email: dbUser.email },
@@ -252,7 +276,7 @@ exports.loginWithEmail = async (req, res) => {
         } else {
             // User doesn't exist - try to find by firebaseUid
             dbUser = await User.findOne({ firebaseUid: uid });
-            
+
             if (!dbUser) {
                 // User doesn't exist at all - create new user
                 try {
@@ -299,6 +323,30 @@ exports.loginWithEmail = async (req, res) => {
             { expiresIn: '1d' }
         );
 
+        // Créer une entrée UserActivity pour suivre le temps passé
+        try {
+            const UserActivity = require('../models/UserActivity');
+            const crypto = require('crypto');
+            const sessionId = crypto.randomBytes(16).toString('hex');
+
+            await UserActivity.create({
+                user: dbUser._id,
+                sessionId,
+                loginTime: new Date(),
+                activities: [{
+                    type: 'login',
+                    timestamp: new Date(),
+                    metadata: {
+                        userAgent: req.headers['user-agent']
+                    }
+                }]
+            });
+            console.log('✅ UserActivity créée pour la session:', sessionId);
+        } catch (activityError) {
+            console.error('⚠️ Erreur création UserActivity:', activityError.message);
+            // Ne pas bloquer le login pour ça
+        }
+
         res.json({
             token,
             user: formatUserResponse(dbUser),
@@ -337,9 +385,9 @@ exports.loginWithGoogle = async (req, res) => {
         console.log('🔵 Authentification Google - Token reçu:', idToken ? idToken.substring(0, 50) + '...' : 'AUCUN');
 
         if (!idToken || typeof idToken !== 'string') {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Google ID token is missing or invalid.' 
+                message: 'Google ID token is missing or invalid.'
             });
         }
 
@@ -349,7 +397,7 @@ exports.loginWithGoogle = async (req, res) => {
         if (isFirebaseAvailable()) {
             try {
                 console.log('🔵 Tentative de vérification avec Firebase Admin...');
-        const decodedToken = await admin.auth().verifyIdToken(idToken);
+                const decodedToken = await admin.auth().verifyIdToken(idToken);
                 uid = decodedToken.uid;
                 email = decodedToken.email;
                 name = decodedToken.name;
@@ -364,7 +412,7 @@ exports.loginWithGoogle = async (req, res) => {
         // Utilisé si Firebase Admin n'est pas disponible ou si la vérification échoue
         if (!uid || !email) {
             console.log('🔵 Décodage manuel du token JWT...');
-            
+
             try {
                 // Vérifier le format du token (JWT = 3 parties séparées par des points)
                 const parts = idToken.split('.');
@@ -378,11 +426,11 @@ exports.loginWithGoogle = async (req, res) => {
                     // Remplacer les caractères base64url par base64
                     const base64Url = parts[1];
                     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    
+
                     // Ajouter le padding si nécessaire
                     const padding = base64.length % 4;
                     const paddedBase64 = padding ? base64 + '='.repeat(4 - padding) : base64;
-                    
+
                     // Décoder en UTF-8
                     const jsonPayload = Buffer.from(paddedBase64, 'base64').toString('utf-8');
                     payload = JSON.parse(jsonPayload);
@@ -399,7 +447,7 @@ exports.loginWithGoogle = async (req, res) => {
                 // Extraire les données du payload
                 // Le champ 'sub' contient l'UID Firebase
                 uid = payload.sub;
-                
+
                 // L'email peut être dans plusieurs endroits
                 email = payload.email;
                 if (!email && payload.firebase && payload.firebase.identities) {
@@ -421,7 +469,7 @@ exports.loginWithGoogle = async (req, res) => {
                 console.error('   Message:', decodeError.message);
                 console.error('   Token length:', idToken.length);
                 console.error('   Token parts:', idToken.split('.').length);
-                return res.status(401).json({ 
+                return res.status(401).json({
                     success: false,
                     message: 'Google token is invalid or malformed.',
                     error: decodeError.message
@@ -432,7 +480,7 @@ exports.loginWithGoogle = async (req, res) => {
         // Vérifications finales
         if (!email) {
             console.error('❌ Email non trouvé dans le token');
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
                 message: 'Email not found in Google token.',
                 debug: { hasUid: !!uid, hasName: !!name }
@@ -502,6 +550,30 @@ exports.loginWithGoogle = async (req, res) => {
             { expiresIn: '1d' }
         );
 
+        // Créer une entrée UserActivity pour suivre le temps passé
+        try {
+            const UserActivity = require('../models/UserActivity');
+            const crypto = require('crypto');
+            const sessionId = crypto.randomBytes(16).toString('hex');
+
+            await UserActivity.create({
+                user: dbUser._id,
+                sessionId,
+                loginTime: new Date(),
+                activities: [{
+                    type: 'login',
+                    timestamp: new Date(),
+                    metadata: {
+                        userAgent: req.headers['user-agent'],
+                        provider: 'google'
+                    }
+                }]
+            });
+            console.log('✅ UserActivity créée pour la session Google:', sessionId);
+        } catch (activityError) {
+            console.error('⚠️ Erreur création UserActivity:', activityError.message);
+        }
+
         console.log('✅ Authentification Google réussie');
         console.log('   User ID:', dbUser._id.toString());
         console.log('   Email:', email);
@@ -520,9 +592,9 @@ exports.loginWithGoogle = async (req, res) => {
         if (error.stack) {
             console.error('   Stack:', error.stack.substring(0, 500));
         }
-        return res.status(401).json({ 
+        return res.status(401).json({
             success: false,
-            message: 'Google authentication failed.', 
+            message: 'Google authentication failed.',
             error: error.message
         });
     }
@@ -555,9 +627,9 @@ exports.sendVerification = async (req, res) => {
             process.env.JWT_SECRET || 'devsecret',
             { expiresIn: '24h' }
         );
-        
+
         await sendVerificationEmail(user.email, verificationToken);
-        
+
         res.json({ message: 'Verification email sent.' });
 
     } catch (error) {
@@ -677,36 +749,36 @@ exports.forgotPassword = async (req, res) => {
         const { email } = req.body;
 
         if (!email) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Email is required.' 
+                message: 'Email is required.'
             });
         }
 
         // Trouver l'utilisateur
         const user = await User.findOne({ email });
-        
+
         // Pour la sécurité, on ne révèle pas si l'email existe ou non
         // On retourne toujours un succès pour éviter l'énumération d'emails
         if (!user) {
             console.log('⚠️ Tentative de reset pour email inexistant:', email);
-            return res.json({ 
+            return res.json({
                 success: true,
-                message: 'If an account with that email exists, a password reset link has been sent.' 
+                message: 'If an account with that email exists, a password reset link has been sent.'
             });
         }
 
         // Générer un token de réinitialisation
         const crypto = require('crypto');
         const resetToken = crypto.randomBytes(32).toString('hex');
-        
+
         // Créer ou mettre à jour le token de reset
         const PasswordResetToken = require('../models/PasswordResetToken');
-        
+
         // Supprimer les anciens tokens non utilisés pour cet utilisateur
-        await PasswordResetToken.deleteMany({ 
-            userId: user._id, 
-            used: false 
+        await PasswordResetToken.deleteMany({
+            userId: user._id,
+            used: false
         });
 
         // Créer un nouveau token
@@ -725,48 +797,48 @@ exports.forgotPassword = async (req, res) => {
             console.error('❌ Erreur envoi email de réinitialisation:', emailError);
             console.error('   Message:', emailError.message);
             console.error('   Stack:', emailError.stack);
-            
+
             const code = emailError && (emailError.code || '').toUpperCase();
             const msg = (emailError.message || '').toLowerCase();
             const isTimeout = code === 'ETIMEDOUT' || msg.includes('timeout') || msg.includes('timed out');
-            
+
             // Si timeout SMTP en production: NE PAS supprimer le token, répondre succès générique
             if (isTimeout) {
                 console.warn('⚠️ Timeout SMTP - conservation du token et réponse générique au client');
-                return res.json({ 
+                return res.json({
                     success: true,
-                    message: 'If an account with that email exists, a password reset link has been sent.' 
+                    message: 'If an account with that email exists, a password reset link has been sent.'
                 });
             }
 
             // Pour les autres erreurs: nettoyage du token et renvoi erreur claire
             await PasswordResetToken.deleteOne({ _id: resetTokenDoc._id });
-            
+
             if (emailError.message && emailError.message.includes('Email service not configured')) {
-                return res.status(500).json({ 
+                return res.status(500).json({
                     success: false,
                     message: 'Le service email n\'est pas configuré. Veuillez contacter le support.',
                     error: 'EMAIL_SERVICE_NOT_CONFIGURED'
                 });
             }
-            
-            return res.status(500).json({ 
+
+            return res.status(500).json({
                 success: false,
                 message: 'Failed to send reset email. Please try again later.',
                 error: emailError.message
             });
         }
 
-        res.json({ 
+        res.json({
             success: true,
-            message: 'If an account with that email exists, a password reset link has been sent.' 
+            message: 'If an account with that email exists, a password reset link has been sent.'
         });
 
     } catch (error) {
         console.error('Forgot Password Error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            message: 'Failed to process password reset request.' 
+            message: 'Failed to process password reset request.'
         });
     }
 };
@@ -781,39 +853,39 @@ exports.resetPassword = async (req, res) => {
         const { token, password } = req.body;
 
         if (!token || !password) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Token and password are required.' 
+                message: 'Token and password are required.'
             });
         }
 
         if (password.length < 6) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Password must be at least 6 characters long.' 
+                message: 'Password must be at least 6 characters long.'
             });
         }
 
         // Trouver le token de réinitialisation
         const PasswordResetToken = require('../models/PasswordResetToken');
-        const resetTokenDoc = await PasswordResetToken.findOne({ 
-            token, 
-            used: false 
+        const resetTokenDoc = await PasswordResetToken.findOne({
+            token,
+            used: false
         });
 
         if (!resetTokenDoc) {
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Invalid or expired reset token.' 
+                message: 'Invalid or expired reset token.'
             });
         }
 
         // Vérifier si le token a expiré
         if (resetTokenDoc.expires < new Date()) {
             await PasswordResetToken.deleteOne({ _id: resetTokenDoc._id });
-            return res.status(400).json({ 
+            return res.status(400).json({
                 success: false,
-                message: 'Reset token has expired. Please request a new one.' 
+                message: 'Reset token has expired. Please request a new one.'
             });
         }
 
@@ -821,16 +893,16 @@ exports.resetPassword = async (req, res) => {
         const user = await User.findById(resetTokenDoc.userId);
         if (!user) {
             await PasswordResetToken.deleteOne({ _id: resetTokenDoc._id });
-            return res.status(404).json({ 
+            return res.status(404).json({
                 success: false,
-                message: 'User not found.' 
+                message: 'User not found.'
             });
         }
 
         // Mettre à jour le mot de passe
         // Note: Si Firebase est disponible, on peut aussi mettre à jour Firebase Auth
         // Pour l'instant, on stocke le hash dans MongoDB si nécessaire
-        
+
         // Si Firebase est disponible, mettre à jour le mot de passe dans Firebase
         if (isFirebaseAvailable() && user.firebaseUid && !user.firebaseUid.startsWith('local-')) {
             try {
@@ -849,23 +921,23 @@ exports.resetPassword = async (req, res) => {
         await resetTokenDoc.save();
 
         // Supprimer tous les autres tokens non utilisés pour cet utilisateur
-        await PasswordResetToken.deleteMany({ 
-            userId: user._id, 
-            used: false 
+        await PasswordResetToken.deleteMany({
+            userId: user._id,
+            used: false
         });
 
         console.log('✅ Mot de passe réinitialisé pour:', user.email);
 
-        res.json({ 
+        res.json({
             success: true,
-            message: 'Password has been reset successfully. You can now log in with your new password.' 
+            message: 'Password has been reset successfully. You can now log in with your new password.'
         });
 
     } catch (error) {
         console.error('Reset Password Error:', error);
-        res.status(500).json({ 
+        res.status(500).json({
             success: false,
-            message: 'Failed to reset password.' 
+            message: 'Failed to reset password.'
         });
     }
 };

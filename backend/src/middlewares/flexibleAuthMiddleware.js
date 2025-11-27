@@ -11,7 +11,10 @@ function extractToken(req) {
   }
   // Vérifier le header Authorization
   if (req.headers?.authorization && req.headers.authorization.startsWith('Bearer ')) {
-    return { token: req.headers.authorization.split(' ')[1], isAdminToken: false };
+    const token = req.headers.authorization.split(' ')[1];
+    // Pour l'instant, on ne peut pas déterminer si c'est un token admin sans le décoder
+    // On laissera protectUserOrAdmin essayer les deux secrets
+    return { token, isAdminToken: false };
   }
   // Vérifier paramètre token (utile pour prévisualisation fichiers via URL directe)
   if (req.query?.token) {
@@ -26,8 +29,13 @@ function extractToken(req) {
 
 exports.protectUserOrAdmin = async (req, res, next) => {
   try {
+    console.log('🔒 protectUserOrAdmin - Début de vérification');
+    console.log('   URL:', req.originalUrl || req.url);
+    console.log('   Method:', req.method);
+    console.log('   Authorization header:', req.headers.authorization ? 'Present' : 'Missing');
+
     const tokenInfo = extractToken(req);
-    
+
     if (!tokenInfo || !tokenInfo.token) {
       console.log('❌ protectUserOrAdmin: Token manquant');
       return res.status(401).json({ success: false, message: 'Veuillez vous connecter pour accéder à cette ressource' });
@@ -36,11 +44,11 @@ exports.protectUserOrAdmin = async (req, res, next) => {
     const token = tokenInfo.token;
     const userSecret = process.env.JWT_SECRET || 'devsecret';
     const adminSecret = process.env.JWT_ADMIN_SECRET || process.env.JWT_SECRET || 'devsecret';
-    
+
     let decoded;
     let isAdmin = false;
     let secretUsed = null;
-    
+
     // Si les secrets sont différents, essayer les deux secrets pour déterminer le type
     if (adminSecret !== userSecret) {
       // Essayer d'abord avec adminSecret (priorité pour les admins)
@@ -63,9 +71,9 @@ exports.protectUserOrAdmin = async (req, res, next) => {
           console.error('   Token (premiers 50 chars):', token.substring(0, 50));
           console.error('   Admin Secret:', adminSecret.substring(0, 10) + '...');
           console.error('   User Secret:', userSecret.substring(0, 10) + '...');
-          return res.status(401).json({ 
-            success: false, 
-            message: error?.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide' 
+          return res.status(401).json({
+            success: false,
+            message: error?.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide'
           });
         }
       }
@@ -80,9 +88,9 @@ exports.protectUserOrAdmin = async (req, res, next) => {
       } catch (err) {
         console.error('❌ JWT verification failed:', err?.message || err);
         console.error('   Token (premiers 50 chars):', token.substring(0, 50));
-        return res.status(401).json({ 
-          success: false, 
-          message: err?.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide' 
+        return res.status(401).json({
+          success: false,
+          message: err?.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide'
         });
       }
     }
@@ -96,18 +104,19 @@ exports.protectUserOrAdmin = async (req, res, next) => {
           .exec();
         if (admin) {
           req.admin = { id: admin._id, email: admin.email, roles: ['admin'] };
-          req.user = { 
-            id: admin._id, 
-            email: admin.email, 
-            roles: ['admin'], 
-            role: 'admin', 
-            isProfileComplete: true, 
-            isVerified: true, 
-            subscription: null 
+          req.user = {
+            id: admin._id,
+            email: admin.email,
+            roles: ['admin'],
+            role: 'admin',
+            isProfileComplete: true,
+            isVerified: true,
+            subscription: null
           };
           return next();
         }
         // Si admin pas trouvé, essayer User (fallback pour les users avec rôle admin)
+        console.log('⚠️ Admin non trouvé avec ID:', decoded.id, '- Recherche dans User...');
         const currentUser = await User.findById(decoded.id)
           .select('email roles role subscription isVerified isProfileComplete')
           .lean()
@@ -125,16 +134,20 @@ exports.protectUserOrAdmin = async (req, res, next) => {
           };
           if (roles.includes('admin')) {
             req.admin = { id: currentUser._id, email: currentUser.email, roles: ['admin'] };
+            console.log('✅ User avec rôle admin trouvé:', currentUser.email);
+          } else {
+            console.log('⚠️ User trouvé mais sans rôle admin:', currentUser.email);
           }
           return next();
         }
-        return res.status(401).json({ success: false, message: "L'admin associé à ce token n'existe plus" });
+        console.error('❌ Ni Admin ni User trouvé avec ID:', decoded.id);
+        return res.status(401).json({ success: false, message: "Admin ou utilisateur introuvable pour ce token" });
       } catch (err) {
         console.error('Error finding admin in protectUserOrAdmin:', err);
         return res.status(500).json({ success: false, message: "Erreur lors de la récupération de l'admin" });
       }
     }
-    
+
     // Si les secrets sont identiques, essayer d'abord dans Admin puis dans User
     if (adminSecret === userSecret) {
       // Essayer d'abord dans Admin
@@ -145,14 +158,14 @@ exports.protectUserOrAdmin = async (req, res, next) => {
           .exec();
         if (admin) {
           req.admin = { id: admin._id, email: admin.email, roles: ['admin'] };
-          req.user = { 
-            id: admin._id, 
-            email: admin.email, 
-            roles: ['admin'], 
-            role: 'admin', 
-            isProfileComplete: true, 
-            isVerified: true, 
-            subscription: null 
+          req.user = {
+            id: admin._id,
+            email: admin.email,
+            roles: ['admin'],
+            role: 'admin',
+            isProfileComplete: true,
+            isVerified: true,
+            subscription: null
           };
           return next();
         }
@@ -161,15 +174,15 @@ exports.protectUserOrAdmin = async (req, res, next) => {
         // Continue to try User
       }
     }
-    
+
     // Sinon, chercher dans User
     const currentUser = await User.findById(decoded.id)
       .select('email roles role subscription isVerified isProfileComplete')
       .lean()
       .exec();
-    
+
     if (!currentUser) {
-      return res.status(401).json({ success: false, message: "L'utilisateur associé à ce token n'existe plus" });
+      return res.status(401).json({ success: false, message: "L'utilisateur associé à ce token n'existe plus (ID: " + decoded.id + ")" });
     }
 
     // Construire req.user avec compatibilité roles/role
@@ -183,7 +196,7 @@ exports.protectUserOrAdmin = async (req, res, next) => {
       isVerified: !!currentUser.isVerified,
       subscription: currentUser.subscription || null
     };
-    
+
     // Si l'utilisateur a le rôle admin, définir aussi req.admin
     if (roles.includes('admin')) {
       req.admin = {

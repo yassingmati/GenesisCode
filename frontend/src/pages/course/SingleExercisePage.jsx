@@ -12,11 +12,13 @@ const API_BASE = getApiUrl('/api/courses');
 
 // Fonctions helper
 const getUserId = () => {
-  const stored = localStorage.getItem('userId');
-  if (stored) return stored;
-  const newId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-  localStorage.setItem('userId', newId);
-  return newId;
+  // Récupérer le vrai ID utilisateur du localStorage (défini lors du login)
+  const userId = localStorage.getItem('userId');
+  if (!userId) {
+    console.warn('[getUserId] Aucun userId trouvé dans localStorage. L\'utilisateur doit se connecter.');
+    return null;
+  }
+  return userId;
 };
 
 const markExerciseCompleted = (exerciseId, result) => {
@@ -115,21 +117,21 @@ export default function SingleExercisePage() {
           'Content-Type': 'application/json',
           ...options.headers
         };
-        
+
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
-        
+
         const response = await fetch(url, {
           ...options,
           headers,
           credentials: 'include'
         });
-        
+
         // Si 401 et on a encore des tentatives, essayer de rafraîchir le token
         if (response.status === 401 && attempt < retries) {
           console.log('[SingleExercisePage] Token expiré, tentative de rafraîchissement...', { attempt, retries });
-          
+
           // Essayer de rafraîchir le token via l'API auth
           try {
             const refreshToken = localStorage.getItem('refreshToken');
@@ -140,7 +142,7 @@ export default function SingleExercisePage() {
                 body: JSON.stringify({ refreshToken }),
                 credentials: 'include'
               });
-              
+
               if (refreshResponse.ok) {
                 const refreshData = await refreshResponse.json();
                 if (refreshData.token) {
@@ -154,13 +156,13 @@ export default function SingleExercisePage() {
           } catch (refreshError) {
             console.warn('[SingleExercisePage] Erreur lors du rafraîchissement du token:', refreshError);
           }
-          
+
           // Si le rafraîchissement échoue, rediriger vers la connexion
           if (attempt === retries - 1) {
             throw new Error('Session expirée. Veuillez vous reconnecter.');
           }
         }
-        
+
         return response;
       } catch (error) {
         if (attempt < retries && error.message.includes('Session expirée')) {
@@ -174,7 +176,7 @@ export default function SingleExercisePage() {
         throw error;
       }
     };
-    
+
     return makeRequest();
   }, []);
 
@@ -185,11 +187,11 @@ export default function SingleExercisePage() {
       setError(null);
 
       const token = localStorage.getItem('token');
-      console.log('[SingleExercisePage] Fetching level data:', { 
-        levelId, 
+      console.log('[SingleExercisePage] Fetching level data:', {
+        levelId,
         exerciseId,
-        API_BASE, 
-        hasToken: !!token 
+        API_BASE,
+        hasToken: !!token
       });
 
       // Essayer d'abord de charger le level individuellement
@@ -207,15 +209,15 @@ export default function SingleExercisePage() {
           credentials: 'include'
         });
       }
-      
+
       console.log('[SingleExercisePage] Response status:', levelResponse.status, levelResponse.statusText);
-      
+
       let levelData;
-      
+
       if (!levelResponse.ok) {
         const errorData = await levelResponse.json().catch(() => ({}));
         console.error('[SingleExercisePage] Error response:', errorData);
-        
+
         if (levelResponse.status === 401) {
           // Rediriger vers la page de connexion
           setTimeout(() => {
@@ -226,7 +228,7 @@ export default function SingleExercisePage() {
           // Si accès refusé, essayer de trouver le level dans les paths accessibles
           console.log('[SingleExercisePage] Level non accessible directement (403), recherche dans les paths...');
           const levelFromPaths = await findLevelInAccessiblePaths(levelId, token);
-          
+
           if (levelFromPaths) {
             console.log('[SingleExercisePage] Level trouvé via paths accessibles');
             levelData = levelFromPaths;
@@ -244,10 +246,10 @@ export default function SingleExercisePage() {
         levelData = await levelResponse.json();
       }
 
-      console.log('[SingleExercisePage] Level data received:', { 
-        levelId: levelData._id, 
-        title: levelData.title || levelData.translations?.fr?.title, 
-        exercisesCount: levelData.exercises?.length || 0 
+      console.log('[SingleExercisePage] Level data received:', {
+        levelId: levelData._id,
+        title: levelData.title || levelData.translations?.fr?.title,
+        exercisesCount: levelData.exercises?.length || 0
       });
 
       setLevel(levelData);
@@ -295,7 +297,7 @@ export default function SingleExercisePage() {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('[SingleExercisePage] Submission error:', errorData);
-        
+
         if (response.status === 401) {
           throw new Error('Session expirée. Veuillez vous reconnecter.');
         } else if (response.status === 403) {
@@ -307,10 +309,10 @@ export default function SingleExercisePage() {
 
       const result = await response.json();
       console.log('[SingleExercisePage] Submission result:', result);
-      
+
       setSubmissionResult(result);
       setAttempts(prev => prev + 1);
-      
+
       // Marquer comme complété localement
       markExerciseCompleted(exercise._id, result);
 
@@ -387,14 +389,14 @@ export default function SingleExercisePage() {
             <span className="icon">←</span>
             <span className="text">Retour au niveau</span>
           </button>
-          
+
           <div className="breadcrumb">
             <span className="level-name">{level?.title || 'Niveau'}</span>
             <span className="separator"> / </span>
             <span className="exercise-name">{exercise.name}</span>
           </div>
         </div>
-        
+
         <div className="header-right">
           <div className="exercise-meta">
             <span className="type-badge">{exercise.type}</span>
@@ -405,8 +407,8 @@ export default function SingleExercisePage() {
               </span>
             )}
           </div>
-          
-          <button 
+
+          <button
             className="btn-secondary"
             onClick={() => navigate(`/courses/levels/${levelId}/exercises`)}
             style={{
@@ -452,7 +454,7 @@ export default function SingleExercisePage() {
             setError(error.message);
           }}
         />
-        
+
         {/* Affichage des erreurs */}
         {error && (
           <div className="error-message">
@@ -460,7 +462,7 @@ export default function SingleExercisePage() {
             {error}
           </div>
         )}
-        
+
         {/* Résultat de soumission */}
         {submissionResult && (
           <SubmissionResult result={submissionResult} />
@@ -476,9 +478,9 @@ export default function SingleExercisePage() {
 
 function SubmissionResult({ result }) {
   const scorePercentage = result.pointsMax > 0 ? Math.round((result.pointsEarned / result.pointsMax) * 100) : 0;
-  
+
   return (
-    <motion.div 
+    <motion.div
       className={`submission-result ${result.correct ? 'correct' : 'incorrect'}`}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -493,20 +495,20 @@ function SubmissionResult({ result }) {
           <span className="percentage">({scorePercentage}%)</span>
         </div>
       </div>
-      
+
       {result.xpEarned > 0 && (
         <div className="xp-earned">
           🌟 +{result.xpEarned} XP gagné !
         </div>
       )}
-      
+
       {result.explanation && (
         <div className="explanation">
           <h4>Explication :</h4>
           <p>{result.explanation}</p>
         </div>
       )}
-      
+
       {result.details && result.details.type === 'QCM' && (
         <div className="qcm-details">
           <h4>Détails QCM :</h4>
@@ -516,13 +518,13 @@ function SubmissionResult({ result }) {
           </div>
         </div>
       )}
-      
+
       {result.details && result.details.tests && (
         <div className="tests-results">
           <h4>Résultats des tests :</h4>
           {result.details.tests.map((test, i) => (
             <div key={i} className={`test-result ${test.passed ? 'passed' : 'failed'}`}>
-              <strong>{test.name || `Test ${i+1}`}</strong>
+              <strong>{test.name || `Test ${i + 1}`}</strong>
               <span className="test-status">
                 {test.passed ? '✅ Réussi' : '❌ Échec'}
                 {test.points && ` (+${test.points} pts)`}

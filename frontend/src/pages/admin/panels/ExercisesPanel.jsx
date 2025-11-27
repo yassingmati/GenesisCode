@@ -1,13 +1,17 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
-import { FiEdit, FiTrash2, FiPlus } from 'react-icons/fi';
-import { api, pickTitle, inputStyle, selectStyle, textareaStyle } from '../components/common';
-import { Grid, Card, CardTitle, CardMeta, CardActions, IconButton, EmptyState, Tiny } from '../styles';
+import {
+  Card, CardHeader, CardBody, CardFooter,
+  Button, Input, Skeleton,
+  Chip, Select, SelectItem, Textarea,
+  Checkbox, Divider
+} from "@nextui-org/react";
+import { IconEdit, IconTrash, IconPlus, IconX } from '@tabler/icons-react';
+import { api, pickTitle } from '../components/common';
 import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
-import { ActionPrimary } from '../styles';
 
 export default function ExercisesPanel({ onOpenCreate }) {
   const [paths, setPaths] = useState([]);
@@ -31,7 +35,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
     solutions: [],
     elements: [],
     targets: [],
-    testCases: []
+    testCases: [],
+    initialXml: '',
+    scratchBlocks: []
   });
   const [confirm, setConfirm] = useState({ open: false, id: null });
 
@@ -117,7 +123,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
       solutions: [],
       elements: [],
       targets: [],
-      testCases: []
+      testCases: [],
+      initialXml: '',
+      scratchBlocks: []
     });
     setModalOpen(true);
   };
@@ -139,7 +147,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
         solutions: data.solutions || [],
         elements: data.elements || [],
         targets: data.targets || [],
-        testCases: data.testCases || []
+        testCases: data.testCases || [],
+        initialXml: data.initialXml || '',
+        scratchBlocks: data.scratchBlocks || []
       });
       setModalOpen(true);
     } catch (err) {
@@ -166,6 +176,7 @@ export default function ExercisesPanel({ onOpenCreate }) {
         ar: { question: form.ar_question, explanation: form.ar_explanation }
       }
     };
+
     if (form.type === 'QCM') {
       payload.options = form.options.filter(opt => opt.trim() !== '');
       payload.solutions = form.solutions;
@@ -177,7 +188,14 @@ export default function ExercisesPanel({ onOpenCreate }) {
       payload.testCases = form.testCases;
     } else if (form.type === 'TextInput') {
       payload.solutions = form.solutions;
+    } else if (form.type === 'Scratch') {
+      payload.initialXml = form.initialXml;
+      payload.scratchBlocks = form.scratchBlocks; // Optional: expected blocks
+    } else if (form.type === 'ScratchBlocks') {
+      payload.scratchBlocks = form.scratchBlocks;
+      payload.solutions = form.solutions; // Optional: if order matters
     }
+
     try {
       if (editing) {
         await api.put(`/exercises/${editing._id}`, payload);
@@ -207,7 +225,7 @@ export default function ExercisesPanel({ onOpenCreate }) {
   }));
   const toggleSolution = (idx) => setForm(f => ({
     ...f,
-    solutions: f.solutions.includes(idx) 
+    solutions: f.solutions.includes(idx)
       ? f.solutions.filter(s => s !== idx)
       : [...f.solutions, idx]
   }));
@@ -231,7 +249,7 @@ export default function ExercisesPanel({ onOpenCreate }) {
   }));
   const updateTestCase = (idx, field, value) => setForm(f => ({
     ...f,
-    testCases: f.testCases.map((tc, i) => 
+    testCases: f.testCases.map((tc, i) =>
       i === idx ? { ...tc, [field]: value } : tc
     )
   }));
@@ -240,211 +258,215 @@ export default function ExercisesPanel({ onOpenCreate }) {
     testCases: f.testCases.filter((_, i) => i !== idx)
   }));
 
+  // ScratchBlocks helpers
+  const addScratchBlock = () => setForm(f => ({ ...f, scratchBlocks: [...f.scratchBlocks, ''] }));
+  const updateScratchBlock = (idx, value) => setForm(f => ({
+    ...f,
+    scratchBlocks: f.scratchBlocks.map((b, i) => i === idx ? value : b)
+  }));
+  const removeScratchBlock = (idx) => setForm(f => ({
+    ...f,
+    scratchBlocks: f.scratchBlocks.filter((_, i) => i !== idx)
+  }));
+
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <select 
-            value={selectedPath} 
-            onChange={e => setSelectedPath(e.target.value)} 
-            style={selectStyle()}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4 flex-1 w-full">
+          <Select
+            placeholder="Sélectionner un parcours"
+            selectedKeys={selectedPath ? [selectedPath] : []}
+            onChange={e => setSelectedPath(e.target.value)}
+            className="max-w-xs"
+            size="sm"
           >
-            <option value="">Sélectionner un parcours</option>
             {paths.map(path => (
-              <option key={path._id} value={path._id}>
+              <SelectItem key={path._id} value={path._id}>
                 {pickTitle(path)}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </Select>
 
-          <select 
-            value={selectedLevel} 
-            onChange={e => setSelectedLevel(e.target.value)} 
-            style={selectStyle()}
+          <Select
+            placeholder="Sélectionner un niveau"
+            selectedKeys={selectedLevel ? [selectedLevel] : []}
+            onChange={e => setSelectedLevel(e.target.value)}
+            className="max-w-xs"
+            size="sm"
+            isDisabled={!selectedPath}
           >
-            <option value="">Sélectionner un niveau</option>
             {levels.map(level => (
-              <option key={level._id} value={level._id}>
+              <SelectItem key={level._id} value={level._id}>
                 {pickTitle(level) || `Niveau ${level.order}`}
-              </option>
+              </SelectItem>
             ))}
-          </select>
+          </Select>
 
-          <SearchBar 
-            value={query} 
-            onChange={v => setQuery(v)} 
-            placeholder="Rechercher exercices..." 
+          <SearchBar
+            value={query}
+            onChange={v => setQuery(v)}
+            placeholder="Rechercher exercices..."
           />
         </div>
-        <ActionPrimary onClick={() => openCreate()}>
-          <FiPlus /> Nouvel exercice
-        </ActionPrimary>
+        <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => openCreate()}>
+          Nouvel exercice
+        </Button>
       </div>
 
-      <div style={{ marginTop: '16px' }}>
+      <div className="mt-4">
         {loading ? (
-          <Grid>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <div style={{ height: '18px', background: '#f3f4f6', borderRadius: '4px' }} />
+              <Card key={i} className="h-[140px]">
+                <Skeleton className="rounded-lg">
+                  <div className="h-full rounded-lg bg-default-300"></div>
+                </Skeleton>
               </Card>
             ))}
-          </Grid>
+          </div>
         ) : pagedExercises.length ? (
           <>
-            <Grid>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {pagedExercises.map(exercise => (
-                <Card key={exercise._id}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <div>
-                      <CardTitle>{pickTitle(exercise) || 'Sans question'}</CardTitle>
-                      <CardMeta>{exercise.type}</CardMeta>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <Tiny>Niveau</Tiny>
-                      <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                <Card key={exercise._id} className="h-full">
+                  <CardHeader className="flex justify-between items-start pb-0">
+                    <div className="flex flex-col">
+                      <h4 className="text-md font-bold">{pickTitle(exercise) || 'Sans question'}</h4>
+                      <p className="text-small text-default-500">
                         {String(exercise._id).slice(0, 8)}
-                      </div>
+                      </p>
                     </div>
-                  </div>
-                  <CardActions>
-                    <IconButton onClick={() => startEdit(exercise)}>
-                      <FiEdit />
-                    </IconButton>
-                    <IconButton danger>
-                      <FiTrash2 />
-                    </IconButton>
-                  </CardActions>
+                    <Chip size="sm" variant="flat" color="primary">
+                      {exercise.type}
+                    </Chip>
+                  </CardHeader>
+                  <CardBody className="py-2">
+                    {/* Additional content */}
+                  </CardBody>
+                  <CardFooter className="justify-end gap-2 pt-0">
+                    <Button isIconOnly size="sm" variant="light" onPress={() => startEdit(exercise)}>
+                      <IconEdit size={18} />
+                    </Button>
+                    <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => setConfirm({ open: true, id: exercise._id })}>
+                      <IconTrash size={18} />
+                    </Button>
+                  </CardFooter>
                 </Card>
               ))}
-            </Grid>
+            </div>
 
-            <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Tiny>
+            <div className="mt-4 flex justify-between items-center">
+              <span className="text-small text-default-400">
                 Affichage {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredExercises.length)} / {filteredExercises.length}
-              </Tiny>
-              <Pagination 
-                page={page} 
-                pages={pages} 
-                onPrev={() => setPage(p => Math.max(1, p - 1))} 
-                onNext={() => setPage(p => Math.min(pages, p + 1))} 
+              </span>
+              <Pagination
+                page={page}
+                pages={pages}
+                onPrev={() => setPage(p => Math.max(1, p - 1))}
+                onNext={() => setPage(p => Math.min(pages, p + 1))}
               />
             </div>
           </>
         ) : (
-          <EmptyState>
-            <h3>Aucun exercice</h3>
-            <p>Sélectionne un niveau pour commencer.</p>
-            <ActionPrimary onClick={() => openCreate()}>
-              <FiPlus /> Nouvel exercice
-            </ActionPrimary>
-          </EmptyState>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <h3 className="text-lg font-semibold mb-2">Aucun exercice</h3>
+            <p className="text-default-500 mb-4">Sélectionne un niveau pour commencer.</p>
+            <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => openCreate()}>
+              Nouvel exercice
+            </Button>
+          </div>
         )}
       </div>
 
-      <FormModal 
-        open={modalOpen} 
-        title={editing ? 'Éditer exercice' : 'Nouvel exercice'} 
+      <FormModal
+        open={modalOpen}
+        title={editing ? 'Éditer exercice' : 'Nouvel exercice'}
         onClose={() => setModalOpen(false)}
         footer={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
-            <button onClick={() => setModalOpen(false)} style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #eef2ff' }}>
+          <div className="flex justify-end gap-2">
+            <Button variant="flat" color="default" onPress={() => setModalOpen(false)}>
               Annuler
-            </button>
-            <ActionPrimary onClick={handleSubmit}>
-              <FiPlus /> Sauvegarder
-            </ActionPrimary>
+            </Button>
+            <Button color="primary" onPress={handleSubmit}>
+              Sauvegarder
+            </Button>
           </div>
         }
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Niveau</div>
-            <select 
-              value={form.level} 
-              onChange={e => setForm(f => ({ ...f, level: e.target.value }))} 
-              style={selectStyle()}
-            >
-              <option value="">Sélectionner un niveau</option>
-              {levels.map(level => (
-                <option key={level._id} value={level._id}>
-                  {pickTitle(level) || `Niveau ${level.order}`}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            label="Niveau"
+            placeholder="Sélectionner"
+            selectedKeys={form.level ? [form.level] : []}
+            onChange={e => setForm(f => ({ ...f, level: e.target.value }))}
+          >
+            {levels.map(level => (
+              <SelectItem key={level._id} value={level._id}>
+                {pickTitle(level) || `Niveau ${level.order}`}
+              </SelectItem>
+            ))}
+          </Select>
 
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Type</div>
-            <select 
-              value={form.type} 
-              onChange={e => setForm(f => ({ ...f, type: e.target.value }))} 
-              style={selectStyle()}
-            >
-              <option value="QCM">QCM</option>
-              <option value="TextInput">Réponse texte</option>
-              <option value="DragDrop">Glisser-déposer</option>
-              <option value="Code">Code</option>
-            </select>
-          </label>
+          <Select
+            label="Type"
+            selectedKeys={form.type ? [form.type] : []}
+            onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+          >
+            <SelectItem key="QCM" value="QCM">QCM</SelectItem>
+            <SelectItem key="TextInput" value="TextInput">Réponse texte</SelectItem>
+            <SelectItem key="DragDrop" value="DragDrop">Glisser-déposer</SelectItem>
+            <SelectItem key="Code" value="Code">Code</SelectItem>
+            <SelectItem key="Scratch" value="Scratch">Scratch</SelectItem>
+            <SelectItem key="ScratchBlocks" value="ScratchBlocks">Scratch Blocks</SelectItem>
+          </Select>
 
-          <label style={{ gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Question (Français)</div>
-            <textarea 
-              value={form.fr_question} 
-              onChange={e => setForm(f => ({ ...f, fr_question: e.target.value }))} 
-              style={textareaStyle()} 
+          <div className="col-span-2">
+            <Textarea
+              label="Question (Français)"
+              value={form.fr_question}
+              onValueChange={v => setForm(f => ({ ...f, fr_question: v }))}
             />
-          </label>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Question (Anglais)</div>
-            <textarea 
-              value={form.en_question} 
-              onChange={e => setForm(f => ({ ...f, en_question: e.target.value }))} 
-              style={textareaStyle()} 
+          </div>
+          <div className="col-span-2">
+            <Textarea
+              label="Question (Anglais)"
+              value={form.en_question}
+              onValueChange={v => setForm(f => ({ ...f, en_question: v }))}
             />
-          </label>
-          <label>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Question (Arabe)</div>
-            <textarea 
-              value={form.ar_question} 
-              onChange={e => setForm(f => ({ ...f, ar_question: e.target.value }))} 
-              style={textareaStyle()} 
+          </div>
+          <div className="col-span-2">
+            <Textarea
+              label="Question (Arabe)"
+              value={form.ar_question}
+              onValueChange={v => setForm(f => ({ ...f, ar_question: v }))}
             />
-          </label>
+          </div>
 
           {/* Type-specific fields */}
           {form.type === 'QCM' && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <div style={{ fontSize: '13px' }}>Options (QCM)</div>
-                <button onClick={addOption} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #eef2ff' }}>
-                  Ajouter option
-                </button>
+            <div className="col-span-2 border p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-small font-bold">Options (QCM)</span>
+                <Button size="sm" variant="flat" onPress={addOption}>Ajouter option</Button>
               </div>
               {form.options.map((option, idx) => (
-                <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
-                  <input 
-                    value={option} 
-                    onChange={e => updateOption(idx, e.target.value)} 
+                <div key={idx} className="flex gap-2 items-center mb-2">
+                  <Input
+                    value={option}
+                    onValueChange={v => updateOption(idx, v)}
                     placeholder={`Option ${idx + 1}`}
-                    style={inputStyle()} 
+                    size="sm"
                   />
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}>
-                    <input 
-                      type="checkbox" 
-                      checked={form.solutions.includes(idx)} 
-                      onChange={() => toggleSolution(idx)} 
-                    />
+                  <Checkbox
+                    isSelected={form.solutions.includes(idx)}
+                    onValueChange={() => toggleSolution(idx)}
+                  >
                     Solution
-                  </label>
+                  </Checkbox>
                   {form.options.length > 2 && (
-                    <button 
-                      onClick={() => removeOption(idx)} 
-                      style={{ padding: '6px', borderRadius: '6px', border: '1px solid #eef2ff' }}
-                    >
-                      Suppr
-                    </button>
+                    <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeOption(idx)}>
+                      <IconX size={16} />
+                    </Button>
                   )}
                 </div>
               ))}
@@ -452,94 +474,139 @@ export default function ExercisesPanel({ onOpenCreate }) {
           )}
 
           {form.type === 'DragDrop' && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <div style={{ fontSize: '13px', marginBottom: '8px' }}>Éléments</div>
-                  {form.elements.map((element, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                      <input 
-                        value={element} 
-                        onChange={e => updateElement(idx, e.target.value)} 
-                        placeholder={`Élément ${idx + 1}`}
-                        style={inputStyle()} 
-                      />
-                    </div>
-                  ))}
-                  <button onClick={addElement} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #eef2ff' }}>
-                    Ajouter élément
-                  </button>
+            <div className="col-span-2 border p-4 rounded-lg grid grid-cols-2 gap-4">
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-small font-bold">Éléments</span>
+                  <Button size="sm" variant="flat" onPress={addElement}>Ajouter</Button>
                 </div>
-                <div>
-                  <div style={{ fontSize: '13px', marginBottom: '8px' }}>Cibles</div>
-                  {form.targets.map((target, idx) => (
-                    <div key={idx} style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                      <input 
-                        value={target} 
-                        onChange={e => updateTarget(idx, e.target.value)} 
-                        placeholder={`Cible ${idx + 1}`}
-                        style={inputStyle()} 
-                      />
-                    </div>
-                  ))}
-                  <button onClick={addTarget} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #eef2ff' }}>
-                    Ajouter cible
-                  </button>
+                {form.elements.map((element, idx) => (
+                  <div key={idx} className="mb-2">
+                    <Input
+                      value={element}
+                      onValueChange={v => updateElement(idx, v)}
+                      placeholder={`Élément ${idx + 1}`}
+                      size="sm"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-small font-bold">Cibles</span>
+                  <Button size="sm" variant="flat" onPress={addTarget}>Ajouter</Button>
                 </div>
+                {form.targets.map((target, idx) => (
+                  <div key={idx} className="mb-2">
+                    <Input
+                      value={target}
+                      onValueChange={v => updateTarget(idx, v)}
+                      placeholder={`Cible ${idx + 1}`}
+                      size="sm"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
           )}
 
           {form.type === 'Code' && (
-            <div style={{ gridColumn: '1 / -1' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <div style={{ fontSize: '13px' }}>Tests</div>
-                <button onClick={addTestCase} style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #eef2ff' }}>
-                  Ajouter test
-                </button>
+            <div className="col-span-2 border p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-small font-bold">Tests</span>
+                <Button size="sm" variant="flat" onPress={addTestCase}>Ajouter test</Button>
               </div>
               {form.testCases.map((testCase, idx) => (
-                <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px auto', gap: '8px', marginBottom: '8px' }}>
-                  <input 
-                    value={testCase.input} 
-                    onChange={e => updateTestCase(idx, 'input', e.target.value)} 
+                <div key={idx} className="grid grid-cols-[1fr_1fr_80px_auto] gap-2 items-center mb-2">
+                  <Input
+                    value={testCase.input}
+                    onValueChange={v => updateTestCase(idx, 'input', v)}
                     placeholder="Input"
-                    style={inputStyle()} 
+                    size="sm"
                   />
-                  <input 
-                    value={testCase.expected} 
-                    onChange={e => updateTestCase(idx, 'expected', e.target.value)} 
+                  <Input
+                    value={testCase.expected}
+                    onValueChange={v => updateTestCase(idx, 'expected', v)}
                     placeholder="Expected"
-                    style={inputStyle()} 
+                    size="sm"
                   />
-                  <input 
-                    type="number" 
-                    value={testCase.points} 
-                    onChange={e => updateTestCase(idx, 'points', +e.target.value)} 
-                    placeholder="Points"
-                    style={inputStyle()} 
+                  <Input
+                    type="number"
+                    value={testCase.points}
+                    onValueChange={v => updateTestCase(idx, 'points', +v)}
+                    placeholder="Pts"
+                    size="sm"
                   />
-                  <button 
-                    onClick={() => removeTestCase(idx)} 
-                    style={{ padding: '6px', borderRadius: '6px', border: '1px solid #eef2ff' }}
-                  >
-                    Suppr
-                  </button>
+                  <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeTestCase(idx)}>
+                    <IconX size={16} />
+                  </Button>
                 </div>
               ))}
             </div>
           )}
 
-          <label style={{ gridColumn: '1 / -1' }}>
-            <div style={{ fontSize: '13px', marginBottom: '6px' }}>Explication (Français)</div>
-            <textarea 
-              value={form.fr_explanation} 
-              onChange={e => setForm(f => ({ ...f, fr_explanation: e.target.value }))} 
-              style={textareaStyle()} 
+          {form.type === 'Scratch' && (
+            <div className="col-span-2 border p-4 rounded-lg">
+              <span className="text-small font-bold block mb-2">Configuration Scratch</span>
+              <Textarea
+                label="XML Initial"
+                placeholder="<xml>...</xml>"
+                value={form.initialXml}
+                onValueChange={v => setForm(f => ({ ...f, initialXml: v }))}
+                minRows={5}
+              />
+            </div>
+          )}
+
+          {form.type === 'ScratchBlocks' && (
+            <div className="col-span-2 border p-4 rounded-lg">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-small font-bold">Blocs disponibles</span>
+                <Button size="sm" variant="flat" onPress={addScratchBlock}>Ajouter bloc</Button>
+              </div>
+              {form.scratchBlocks.map((block, idx) => (
+                <div key={idx} className="flex gap-2 items-center mb-2">
+                  <Input
+                    value={block}
+                    onValueChange={v => updateScratchBlock(idx, v)}
+                    placeholder="Type de bloc (ex: event_whenflagclicked)"
+                    size="sm"
+                  />
+                  <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeScratchBlock(idx)}>
+                    <IconX size={16} />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="col-span-2">
+            <Textarea
+              label="Explication (Français)"
+              value={form.fr_explanation}
+              onValueChange={v => setForm(f => ({ ...f, fr_explanation: v }))}
             />
-          </label>
+          </div>
         </div>
       </FormModal>
+
+      <ConfirmDialog
+        open={confirm.open}
+        title="Supprimer l'exercice"
+        message="Es-tu sûr de vouloir supprimer cet exercice ? Cette action est irréversible."
+        onConfirm={async () => {
+          try {
+            await api.delete(`/exercises/${confirm.id}`);
+            toast.success('Exercice supprimé');
+            setConfirm({ open: false, id: null });
+            if (selectedLevel) fetchExercises(selectedLevel);
+          } catch (err) {
+            console.error(err);
+            toast.error('Erreur lors de la suppression');
+          }
+        }}
+        onCancel={() => setConfirm({ open: false, id: null })}
+      />
     </>
   );
 }

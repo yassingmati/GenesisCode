@@ -22,7 +22,7 @@ const userProgressSchema = new mongoose.Schema({
 userProgressSchema.index({ user: 1, exercise: 1 }, { unique: true });
 
 // Méthode statique pour ajouter XP atomiquement (upsert) - DEPRECATED, utiliser updateProgress
-userProgressSchema.statics.addXp = async function(userId, exerciseId, xpToAdd = 0) {
+userProgressSchema.statics.addXp = async function (userId, exerciseId, xpToAdd = 0) {
   console.warn('addXp is deprecated, use updateProgress instead');
   const filter = { user: userId, exercise: exerciseId };
   const update = {
@@ -36,7 +36,7 @@ userProgressSchema.statics.addXp = async function(userId, exerciseId, xpToAdd = 
 };
 
 // Méthode statique améliorée pour mettre à jour le progrès avec scoring détaillé
-userProgressSchema.statics.updateProgress = async function(userId, exerciseId, progressData) {
+userProgressSchema.statics.updateProgress = async function (userId, exerciseId, progressData) {
   const {
     xp = 0,
     pointsEarned = 0,
@@ -49,16 +49,31 @@ userProgressSchema.statics.updateProgress = async function(userId, exerciseId, p
   const mongoose = require('mongoose');
   const crypto = require('crypto');
   let userObjectId, exerciseObjectId;
-  
+
+  // Pour userId : s'il n'est pas un ObjectId valide, créer un ObjectId déterministe
   // Pour userId : s'il n'est pas un ObjectId valide, créer un ObjectId déterministe
   if (mongoose.isValidObjectId(userId)) {
     userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
   } else {
-    // Créer un ObjectId déterministe à partir du userId string
-    const hash = crypto.createHash('md5').update(userId).digest('hex');
-    userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+    // Tenter de trouver l'utilisateur par firebaseUid
+    // Note: On utilise require ici pour éviter les dépendances circulaires au chargement
+    try {
+      const User = mongoose.model('User');
+      const user = await User.findOne({ firebaseUid: userId });
+      if (user) {
+        userObjectId = user._id;
+      } else {
+        // Fallback au hash
+        const hash = crypto.createHash('md5').update(userId).digest('hex');
+        userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+      }
+    } catch (e) {
+      // Si le modèle User n'est pas encore enregistré ou autre erreur
+      const hash = crypto.createHash('md5').update(userId).digest('hex');
+      userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+    }
   }
-  
+
   // Pour exerciseId : doit être un ObjectId valide
   if (!mongoose.isValidObjectId(exerciseId)) {
     throw new Error(`exerciseId invalide: ${exerciseId}`);
@@ -74,11 +89,11 @@ userProgressSchema.statics.updateProgress = async function(userId, exerciseId, p
   const newBestScore = Math.max(currentBestScore, pointsEarned);
 
   const update = {
-    $inc: { 
+    $inc: {
       xp,
       attempts: 1
     },
-    $set: { 
+    $set: {
       lastAttempt: now,
       pointsEarned,
       pointsMax,
@@ -98,10 +113,10 @@ userProgressSchema.statics.updateProgress = async function(userId, exerciseId, p
 };
 
 // Méthode statique pour obtenir les statistiques d'un utilisateur
-userProgressSchema.statics.getUserStats = async function(userId) {
+userProgressSchema.statics.getUserStats = async function (userId) {
   const mongoose = require('mongoose');
   const crypto = require('crypto');
-  
+
   // Utiliser la même logique de conversion que updateProgress
   let userObjectId;
   if (mongoose.isValidObjectId(userId)) {
@@ -111,7 +126,7 @@ userProgressSchema.statics.getUserStats = async function(userId) {
     const hash = crypto.createHash('md5').update(userId).digest('hex');
     userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
   }
-  
+
   const pipeline = [
     { $match: { user: userObjectId } },
     {

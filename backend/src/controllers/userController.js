@@ -82,7 +82,7 @@ exports.updateProfile = async (req, res) => {
     if (!targetId) return res.status(400).json({ error: 'Aucun id utilisateur fourni' });
 
     // fields autorisés à la MAJ
-    const allowed = ['firstName','lastName','phone','isProfileComplete','badges','roles','subscription','totalXP','isVerified','userType'];
+    const allowed = ['firstName', 'lastName', 'phone', 'isProfileComplete', 'badges', 'roles', 'subscription', 'totalXP', 'isVerified', 'userType'];
     const updates = {};
     allowed.forEach(field => {
       if (field in req.body) updates[field] = req.body[field];
@@ -148,6 +148,17 @@ exports.getLeaderboard = async (req, res) => {
       .lean();
 
     res.json(leaderboard);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+/**
+ * Récupérer tous les utilisateurs (Admin seulement)
+ */
+exports.getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find().select('-password').lean();
+    res.json(users);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

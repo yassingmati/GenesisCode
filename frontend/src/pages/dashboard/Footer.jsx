@@ -1,70 +1,31 @@
 import React from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
+import { Link } from '@nextui-org/react';
 
 export default function Footer() {
   const { t } = useTranslation();
-  
+
   return (
-    <footer style={styles.footer}>
-      <div style={styles.container}>
-        <div style={styles.copyright}>
-          <p>&copy; {new Date().getFullYear()} GenesisCode. {t('allRightsReserved')}</p>
+    <footer className="bg-gray-900 text-white py-8 mt-auto border-t border-gray-800">
+      <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="text-center md:text-left">
+          <p className="text-gray-400 text-sm">
+            &copy; {new Date().getFullYear()} <span className="text-white font-semibold">GenesisCode</span>. {t('allRightsReserved')}
+          </p>
         </div>
-        <div style={styles.links}>
-          <a href="#" style={styles.link}>{t('legalNotice')}</a>
-          <a href="#" style={styles.link}>{t('contact')}</a>
-          <a href="#" style={styles.link}>{t('support')}</a>
+
+        <div className="flex gap-6">
+          <Link href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
+            {t('legalNotice')}
+          </Link>
+          <Link href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
+            {t('contact')}
+          </Link>
+          <Link href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
+            {t('support')}
+          </Link>
         </div>
       </div>
     </footer>
   );
 }
-
-const styles = {
-  footer: {
-    backgroundColor: '#1f2937',
-    color: 'white',
-    padding: '24px',
-  },
-  container: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-  },
-  copyright: {
-    marginBottom: '16px',
-    textAlign: 'center',
-  },
-  links: {
-    display: 'flex',
-    gap: '16px',
-  },
-  link: {
-    color: 'white',
-    textDecoration: 'none',
-    transition: 'color 0.3s ease',
-  },
-};
-
-// Media queries and hover effects
-const styleSheet = document.styleSheets[0];
-styleSheet.insertRule(`
-  @media (min-width: 768px) {
-    .container {
-      flex-direction: row !important;
-      justify-content: space-between !important;
-      align-items: center !important;
-    }
-    .copyright {
-      margin-bottom: 0 !important;
-    }
-  }
-`, styleSheet.cssRules.length);
-
-styleSheet.insertRule(`
-  .link:hover {
-    color: #a5b4fc !important;
-  }
-`, styleSheet.cssRules.length);

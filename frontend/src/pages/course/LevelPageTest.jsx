@@ -92,7 +92,7 @@ const testLevel = {
 const LevelPageTest = () => {
   const navigate = useNavigate();
   const { levelId } = useParams();
-  
+
   // États pour les exercices
   const [exercises] = useState(testLevel.exercises);
   const [activeExercise, setActiveExercise] = useState(null);
@@ -105,11 +105,12 @@ const LevelPageTest = () => {
 
   // Get user ID helper
   const getUserId = () => {
-    const stored = localStorage.getItem('userId');
-    if (stored) return stored;
-    const newId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('userId', newId);
-    return newId;
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      console.warn('[LevelPageTest] No userId found in localStorage. User must login.');
+      return null;
+    }
+    return userId;
   };
 
   // Submit exercise (simulation)
@@ -120,11 +121,11 @@ const LevelPageTest = () => {
 
       // Simulation d'une soumission
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Simulation d'un résultat
       const isCorrect = Math.random() > 0.3; // 70% de chance de réussite
       const pointsEarned = isCorrect ? (activeExercise?.points || 10) : Math.floor((activeExercise?.points || 10) * 0.3);
-      
+
       const result = {
         correct: isCorrect,
         pointsEarned,
@@ -137,9 +138,9 @@ const LevelPageTest = () => {
           correct: activeExercise?.solutions?.[0]
         }
       };
-      
+
       setSubmissionResult(result);
-      
+
       // Mark as completed locally
       const updated = { ...completedExercises };
       updated[exerciseId] = {
@@ -164,7 +165,7 @@ const LevelPageTest = () => {
   // Handle exercise submission
   const handleSubmitExercise = async () => {
     if (!activeExercise || (!userAnswer && activeExercise.type !== 'Code')) return;
-    
+
     try {
       let submissionData = userAnswer;
       let extraData = {};
@@ -194,7 +195,7 @@ const LevelPageTest = () => {
   };
 
   return (
-    <div style={{ 
+    <div style={{
       minHeight: '100vh',
       background: 'linear-gradient(135deg, #f5f7ff 0%, #eef2ff 100%)',
       fontFamily: 'Inter, system-ui'
@@ -213,7 +214,7 @@ const LevelPageTest = () => {
         zIndex: 100
       }}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <div 
+          <div
             onClick={() => navigate('/dashboard')}
             style={{
               cursor: 'pointer',
@@ -224,16 +225,16 @@ const LevelPageTest = () => {
             }}
           >
             <div style={{ fontSize: '24px' }}>🚀</div>
-            <span style={{ 
-              color: 'white', 
-              fontWeight: '700', 
-              fontSize: '18px' 
+            <span style={{
+              color: 'white',
+              fontWeight: '700',
+              fontSize: '18px'
             }}>
               GenesisCode - Test
             </span>
           </div>
-          <h1 style={{ 
-            margin: 0, 
+          <h1 style={{
+            margin: 0,
             fontSize: '1.15rem',
             color: '#FFFFFFFF',
             fontWeight: 700
@@ -241,9 +242,9 @@ const LevelPageTest = () => {
             {testLevel.translations.fr.title}
           </h1>
         </div>
-        
+
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <button 
+          <button
             onClick={() => setShowExercises(!showExercises)}
             style={{
               background: showExercises ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #10b981, #06b6d4)',
@@ -262,13 +263,13 @@ const LevelPageTest = () => {
       </div>
 
       {/* Main Content */}
-      <div style={{ 
-        display: 'grid', 
+      <div style={{
+        display: 'grid',
         gridTemplateColumns: showExercises ? '1fr 1fr' : '1fr',
         height: 'calc(100vh - 64px)'
       }}>
         {/* Content Section */}
-        <section style={{ 
+        <section style={{
           position: 'relative',
           background: '#fff',
           margin: 0,
@@ -285,8 +286,8 @@ const LevelPageTest = () => {
               {testLevel.translations.fr.title}
             </h2>
             <p style={{ color: '#6b7280', marginBottom: 24 }}>
-              Cette page de test démontre l'intégration des composants d'exercices 
-              avec la page LevelPage. Cliquez sur "Afficher Exercices" pour voir 
+              Cette page de test démontre l'intégration des composants d'exercices
+              avec la page LevelPage. Cliquez sur "Afficher Exercices" pour voir
               les exercices en action.
             </p>
             <div style={{
@@ -337,7 +338,7 @@ const LevelPageTest = () => {
                 {exercises.map((exercise, index) => {
                   const isCompleted = completedExercises[exercise._id]?.completed || false;
                   const progress = completedExercises[exercise._id];
-                  
+
                   return (
                     <button
                       key={exercise._id}
@@ -348,8 +349,8 @@ const LevelPageTest = () => {
                         setExerciseError(null);
                       }}
                       style={{
-                        background: isCompleted 
-                          ? 'linear-gradient(135deg, #10b981, #06b6d4)' 
+                        background: isCompleted
+                          ? 'linear-gradient(135deg, #10b981, #06b6d4)'
                           : 'linear-gradient(135deg, #667eea, #764ba2)',
                         color: 'white',
                         border: 'none',

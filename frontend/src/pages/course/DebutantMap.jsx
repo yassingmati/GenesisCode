@@ -1,18 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useTranslation } from '../../hooks/useTranslation';
 import API_CONFIG from '../../config/api';
+import ClientPageLayout from '../../components/layout/ClientPageLayout';
 import {
-  Navbar,
-  NavbarBrand,
-  NavbarContent,
-  NavbarItem,
   Button,
-  Input,
-  Select,
-  SelectItem,
   Card,
   CardBody,
   CardHeader,
@@ -24,36 +18,21 @@ import {
   ModalFooter,
   useDisclosure,
   Chip,
-  Badge,
-  ScrollShadow,
-  Spacer,
-  Divider,
-  Image,
   Tooltip,
-  Checkbox
+  Divider,
+  Progress
 } from "@nextui-org/react";
 import {
-  IconSearch,
-  IconFilter,
-  IconGridDots,
-  IconList,
-  IconTimeline,
   IconPlayerPlay,
   IconFileText,
-  IconX,
   IconArrowRight,
   IconBook,
-  IconFolder,
-  IconChartBar
+  IconLock,
+  IconLockOpen,
+  IconCheck
 } from '@tabler/icons-react';
 
 const API_BASE = `${API_CONFIG.BASE_URL}/api/courses`;
-
-const LANGS = [
-  { code: 'fr', label: 'Français', flag: '🇫🇷' },
-  { code: 'en', label: 'English', flag: '🇺🇸' },
-  { code: 'ar', label: 'العربية', flag: '🇸🇦' }
-];
 
 export default function DebutantMap() {
   const navigate = useNavigate();
@@ -61,13 +40,10 @@ export default function DebutantMap() {
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
   // États de l'interface
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const lang = language;
-  const [query, setQuery] = useState(() => localStorage.getItem('dm_q') || '');
-  const [videoOnly, setVideoOnly] = useState(() => localStorage.getItem('dm_video') === '1');
-  const [pdfOnly, setPdfOnly] = useState(() => localStorage.getItem('dm_pdf') === '1');
-  const [activeCategory, setActiveCategory] = useState(() => localStorage.getItem('dm_cat') || null);
-  const [viewMode, setViewMode] = useState(() => localStorage.getItem('dm_view') || 'grid');
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [previewLevel, setPreviewLevel] = useState(null);
 
   // États des données
   const [categories, setCategories] = useState([]);
@@ -75,28 +51,7 @@ export default function DebutantMap() {
   const [levelsByPath, setLevelsByPath] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // États de l'interface
-  const [showFilters, setShowFilters] = useState(false);
-  const [previewLevel, setPreviewLevel] = useState(null);
-
-  // Recherche avec debounce
-  const [debouncedQ, setDebouncedQ] = useState(query);
-  const qTimer = useRef(null);
-
-  // Sauvegarde des préférences
-  useEffect(() => { localStorage.setItem('dm_q', query); }, [query]);
-  useEffect(() => { localStorage.setItem('dm_video', videoOnly ? '1' : '0'); }, [videoOnly]);
-  useEffect(() => { localStorage.setItem('dm_pdf', pdfOnly ? '1' : '0'); }, [pdfOnly]);
-  useEffect(() => { localStorage.setItem('dm_cat', activeCategory || ''); }, [activeCategory]);
-  useEffect(() => { localStorage.setItem('dm_view', viewMode); }, [viewMode]);
-
-  // Debounce de la recherche
-  useEffect(() => {
-    if (qTimer.current) clearTimeout(qTimer.current);
-    qTimer.current = setTimeout(() => setDebouncedQ((query || '').trim().toLowerCase()), 300);
-    return () => clearTimeout(qTimer.current);
-  }, [query]);
+  const [userProgress, setUserProgress] = useState({ completedLevels: [] });
 
   // Chargement des données
   useEffect(() => {
@@ -107,45 +62,85 @@ export default function DebutantMap() {
       setError(null);
 
       try {
+        // 1. Load Categories (Classic only)
         const rc = await fetch(`${API_BASE}/categories`, { headers: API_CONFIG.getDefaultHeaders() });
         if (!rc.ok) throw new Error(`Erreur catégories: ${rc.status}`);
-        const cats = await rc.json();
+        const allCats = await rc.json();
+        const classicCats = allCats.filter(c => c.type === 'classic');
 
         if (!mounted) return;
-        console.log('[DebutantMap] Categories fetched:', cats.length, cats);
-        setCategories(cats || []);
+        setCategories(classicCats || []);
 
+        // 2. Load Paths for these categories
         const pmap = {};
-        await Promise.all((cats || []).map(async (cat) => {
+        await Promise.all(classicCats.map(async (cat) => {
           try {
             const rp = await fetch(`${API_BASE}/categories/${cat._id}/paths`, { headers: API_CONFIG.getDefaultHeaders() });
             pmap[cat._id] = rp.ok ? (await rp.json()) : [];
-            console.log(`[DebutantMap] Paths for category ${cat.translations?.fr?.name}:`, pmap[cat._id].length);
           } catch { pmap[cat._id] = []; }
         }));
 
         if (!mounted) return;
-        console.log('[DebutantMap] Total paths by category:', pmap);
         setPathsByCategory(pmap);
 
+        // 3. Load Levels for these paths
         const allPaths = Object.values(pmap).flat();
-        console.log('[DebutantMap] Total paths:', allPaths.length);
         const lmap = {};
         await Promise.all(allPaths.map(async p => {
           try {
             const rl = await fetch(`${API_BASE}/paths/${p._id}/levels`, { headers: API_CONFIG.getDefaultHeaders() });
             lmap[p._id] = rl.ok ? (await rl.json()) : [];
-            console.log(`[DebutantMap] Levels for path ${p.translations?.fr?.name}:`, lmap[p._id].length);
           } catch { lmap[p._id] = []; }
         }));
 
         if (!mounted) return;
-        console.log('[DebutantMap] Total levels by path:', lmap);
         setLevelsByPath(lmap);
 
-        // if (mounted && !activeCategory && cats && cats.length) {
-        //   setActiveCategory(cats[0]._id);
-        // }
+        // 4. Load User Progress from backend API
+        const token = localStorage.getItem('token');
+        const userId = localStorage.getItem('userId');
+
+        if (userId && token) {
+          try {
+            // Get all level IDs from the loaded levels
+            const allLevelIds = Object.values(lmap).flat().map(level => level._id);
+
+            // Fetch completion status for each level
+            const completedLevelIds = [];
+            await Promise.all(allLevelIds.map(async (levelId) => {
+              try {
+                const progressRes = await fetch(`${API_BASE}/users/${userId}/levels/${levelId}/progress`, {
+                  headers: API_CONFIG.getDefaultHeaders()
+                });
+
+                if (progressRes.ok) {
+                  const progressData = await progressRes.json();
+                  // Check if all exercises are completed
+                  if (progressData.completedExercises === progressData.totalExercises && progressData.totalExercises > 0) {
+                    completedLevelIds.push(levelId);
+                  }
+                }
+              } catch (err) {
+                console.error(`Failed to check level ${levelId}:`, err);
+              }
+            }));
+
+            console.log('Completed level IDs:', completedLevelIds); // Debug log
+            setUserProgress({ completedLevels: completedLevelIds });
+          } catch (progressErr) {
+            console.error('Failed to load user progress:', progressErr);
+            // Fallback to localStorage
+            const storedProgress = localStorage.getItem('userProgress');
+            if (storedProgress) {
+              setUserProgress(JSON.parse(storedProgress));
+            } else {
+              setUserProgress({ completedLevels: [] });
+            }
+          }
+        } else {
+          setUserProgress({ completedLevels: [] });
+        }
+
       } catch (e) {
         console.error(e);
         if (mounted) setError(e.message || 'Erreur de chargement');
@@ -161,50 +156,8 @@ export default function DebutantMap() {
   const hasAnyVideo = lvl => lvl && lvl.videos && Object.values(lvl.videos).some(Boolean);
   const hasAnyPdf = lvl => lvl && lvl.pdfs && Object.values(lvl.pdfs).some(Boolean);
 
-  const seqList = useMemo(() => {
-    const list = [];
-    for (const c of categories) {
-      const paths = (pathsByCategory[c._id] || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
-      for (const p of paths) {
-        const lvls = (levelsByPath[p._id] || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
-        for (const l of lvls) list.push(l._id);
-      }
-    }
-    return list;
-  }, [categories, pathsByCategory, levelsByPath]);
-
-  const seqMap = useMemo(() => {
-    const m = {};
-    let n = 1;
-    for (const id of seqList) m[id] = n++;
-    return m;
-  }, [seqList]);
-
-  const filteredCategories = useMemo(() => {
-    const q = debouncedQ || '';
-    return categories.filter(cat => {
-      const paths = (pathsByCategory[cat._id] || []);
-      if (!q && !videoOnly && !pdfOnly) return true; // Show all if no filter
-
-      return paths.some(path => {
-        const lvls = (levelsByPath[path._id] || []);
-        if (lvls.length === 0 && !q && !videoOnly && !pdfOnly) return true; // Show empty paths if no filter
-
-        return lvls.some(l => {
-          if (videoOnly && !hasAnyVideo(l)) return false;
-          if (pdfOnly && !hasAnyPdf(l)) return false;
-          if (!q) return true;
-          const title = (l.translations?.[lang]?.title || l.translations?.fr?.title || '').toLowerCase();
-          const pname = (path.translations?.[lang]?.name || path.translations?.fr?.name || '').toLowerCase();
-          const cname = (cat.translations?.[lang]?.name || cat.translations?.fr?.name || '').toLowerCase();
-          return title.includes(q) || pname.includes(q) || cname.includes(q);
-        });
-      });
-    });
-  }, [categories, pathsByCategory, levelsByPath, debouncedQ, videoOnly, pdfOnly, lang]);
-
-  const openLevel = (id) => {
-    if (!id) return;
+  const openLevel = (id, isUnlocked) => {
+    if (!id || !isUnlocked) return;
     navigate(`/courses/levels/${id}`);
   };
 
@@ -213,186 +166,51 @@ export default function DebutantMap() {
     onOpen();
   };
 
-  const stats = useMemo(() => {
-    const allLevels = Object.values(levelsByPath).flat();
-    return {
-      totalLevels: allLevels.length,
-      withVideo: allLevels.filter(hasAnyVideo).length,
-      withPdf: allLevels.filter(hasAnyPdf).length,
-      totalPaths: Object.values(pathsByCategory).flat().length
-    };
-  }, [levelsByPath, pathsByCategory]);
+  // Helper to check if level is unlocked
+  // Logic: Level is unlocked if it's the first one OR if the previous one is completed
+  const isLevelUnlocked = (level, index, allLevelsInPath) => {
+    if (index === 0) return true;
+    const prevLevel = allLevelsInPath[index - 1];
+    return userProgress.completedLevels.includes(prevLevel._id);
+  };
 
-  if (loading) return <div className="flex justify-center items-center h-screen"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div></div>;
-  if (error) return <div className="flex justify-center items-center h-screen text-danger">Erreur: {error}</div>;
+  const isLevelCompleted = (levelId) => {
+    return userProgress.completedLevels.includes(levelId);
+  };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar isBordered maxWidth="full" className="bg-background/70 backdrop-blur-md">
-        <NavbarBrand className="cursor-pointer" onClick={() => navigate('/dashboard')}>
-          <p className="font-bold text-inherit text-xl bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">GenesisCode</p>
-        </NavbarBrand>
-
-        <NavbarContent className="hidden sm:flex gap-4" justify="center">
-          <Input
-            classNames={{
-              base: "max-w-full sm:max-w-[20rem] h-10",
-              mainWrapper: "h-full",
-              input: "text-small",
-              inputWrapper: "h-full font-normal text-default-500 bg-default-400/20 dark:bg-default-500/20",
-            }}
-            placeholder="Rechercher..."
-            size="sm"
-            startContent={<IconSearch size={18} />}
-            value={query}
-            onValueChange={setQuery}
-            isClearable
-            onClear={() => setQuery('')}
-          />
-        </NavbarContent>
-
-        <NavbarContent justify="end">
-          <NavbarItem>
-            <Button
-              isIconOnly
-              variant={viewMode === 'grid' ? "solid" : "light"}
-              color={viewMode === 'grid' ? "primary" : "default"}
-              onClick={() => setViewMode('grid')}
-            >
-              <IconGridDots size={20} />
-            </Button>
-          </NavbarItem>
-          <NavbarItem>
-            <Button
-              isIconOnly
-              variant={viewMode === 'list' ? "solid" : "light"}
-              color={viewMode === 'list' ? "primary" : "default"}
-              onClick={() => setViewMode('list')}
-            >
-              <IconList size={20} />
-            </Button>
-          </NavbarItem>
-          <NavbarItem>
-            <Select
-              className="w-32"
-              defaultSelectedKeys={[lang]}
-              onChange={(e) => setLanguage(e.target.value)}
-              size="sm"
-            >
-              {LANGS.map(l => (
-                <SelectItem key={l.code} value={l.code} startContent={<span className="text-lg">{l.flag}</span>}>
-                  {l.label}
-                </SelectItem>
-              ))}
-            </Select>
-          </NavbarItem>
-        </NavbarContent>
-      </Navbar>
-
-      <div className="flex h-[calc(100vh-64px)]">
-        {/* Sidebar */}
-        <Card className="w-80 h-full rounded-none border-r border-divider hidden md:flex flex-col">
-          <CardBody className="p-4 gap-6">
-            <div>
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <IconFolder size={20} className="text-primary" />
-                Catégories
-              </h3>
-              <div className="flex flex-col gap-2">
-                <Button
-                  variant={activeCategory === null ? "flat" : "light"}
-                  color={activeCategory === null ? "primary" : "default"}
-                  className="justify-start"
-                  onClick={() => setActiveCategory(null)}
-                >
-                  Toutes les catégories
-                </Button>
-                {categories.map(c => (
-                  <Button
-                    key={c._id}
-                    variant={activeCategory === c._id ? "flat" : "light"}
-                    color={activeCategory === c._id ? "primary" : "default"}
-                    className="justify-start"
-                    onClick={() => setActiveCategory(activeCategory === c._id ? null : c._id)}
-                  >
-                    {c.translations?.[lang]?.name || c.translations?.fr?.name || 'Sans nom'}
-                  </Button>
-                ))}
-              </div>
-            </div>
-
-            <Divider />
-
-            <div>
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <IconFilter size={20} className="text-primary" />
-                Filtres
-              </h3>
-              <div className="flex flex-col gap-3">
-                <Checkbox isSelected={videoOnly} onValueChange={setVideoOnly}>
-                  Avec vidéo
-                </Checkbox>
-                <Checkbox isSelected={pdfOnly} onValueChange={setPdfOnly}>
-                  Avec PDF
-                </Checkbox>
-              </div>
-            </div>
-
-            <Divider />
-
-            <div>
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <IconChartBar size={20} className="text-primary" />
-                Statistiques
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-default-100 p-3 rounded-lg">
-                  <div className="text-2xl font-bold text-primary">{stats.totalLevels}</div>
-                  <div className="text-xs text-default-500">Niveaux</div>
-                </div>
-                <div className="bg-default-100 p-3 rounded-lg">
-                  <div className="text-2xl font-bold text-secondary">{stats.totalPaths}</div>
-                  <div className="text-xs text-default-500">Parcours</div>
-                </div>
-              </div>
-            </div>
-          </CardBody>
-        </Card>
-
-        {/* Main Content */}
-        <ScrollShadow className="flex-1 p-6 bg-default-50">
-          <div className="max-w-7xl mx-auto">
-            {filteredCategories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-96 text-default-400">
-                <IconSearch size={64} className="mb-4 opacity-50" />
-                <h3 className="text-xl font-semibold">Aucun contenu trouvé</h3>
-                <p>Essayez de modifier vos filtres</p>
-              </div>
-            ) : (
-              <div className="space-y-12">
-                {filteredCategories.map(cat => (
-                  <CategorySection
-                    key={cat._id}
-                    category={cat}
-                    paths={pathsByCategory[cat._id] || []}
-                    levelsByPath={levelsByPath}
-                    activeCategory={activeCategory}
-                    lang={lang}
-                    viewMode={viewMode}
-                    openLevel={openLevel}
-                    seqMap={seqMap}
-                    hasAnyVideo={hasAnyVideo}
-                    hasAnyPdf={hasAnyPdf}
-                    debouncedQ={debouncedQ}
-                    videoOnly={videoOnly}
-                    pdfOnly={pdfOnly}
-                    onPreview={handlePreview}
-                  />
-                ))}
-              </div>
-            )}
+    <ClientPageLayout
+      title={t('courses.title') || "Parcours d'apprentissage"}
+      subtitle={t('courses.subtitle') || "Explorez nos parcours classiques et progressez étape par étape."}
+      loading={loading}
+      error={error}
+      onRetry={() => window.location.reload()}
+      showBackButton={true}
+      backPath="/dashboard"
+      backLabel="Tableau de bord"
+    >
+      <div className="space-y-16 pb-12">
+        {categories.length === 0 && !loading ? (
+          <div className="text-center py-12 text-gray-500">
+            Aucun parcours classique disponible pour le moment.
           </div>
-        </ScrollShadow>
+        ) : (
+          categories.map(cat => (
+            <CategorySection
+              key={cat._id}
+              category={cat}
+              paths={pathsByCategory[cat._id] || []}
+              levelsByPath={levelsByPath}
+              lang={lang}
+              openLevel={openLevel}
+              hasAnyVideo={hasAnyVideo}
+              hasAnyPdf={hasAnyPdf}
+              onPreview={handlePreview}
+              isLevelUnlocked={isLevelUnlocked}
+              isLevelCompleted={isLevelCompleted}
+            />
+          ))
+        )}
       </div>
 
       {/* Preview Modal */}
@@ -436,7 +254,7 @@ export default function DebutantMap() {
                 <Button
                   color="primary"
                   onPress={() => {
-                    openLevel(previewLevel._id);
+                    openLevel(previewLevel._id, true); // Preview implies access or just info
                     onClose();
                   }}
                   endContent={<IconArrowRight size={16} />}
@@ -448,7 +266,7 @@ export default function DebutantMap() {
           )}
         </ModalContent>
       </Modal>
-    </div>
+    </ClientPageLayout>
   );
 }
 
@@ -456,56 +274,42 @@ function CategorySection({
   category,
   paths,
   levelsByPath,
-  activeCategory,
   lang,
-  viewMode,
   openLevel,
-  seqMap,
   hasAnyVideo,
   hasAnyPdf,
-  debouncedQ,
-  videoOnly,
-  pdfOnly,
-  onPreview
+  onPreview,
+  isLevelUnlocked,
+  isLevelCompleted
 }) {
-  if (activeCategory && activeCategory !== category._id) return null;
+  if (paths.length === 0) return null;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4 mb-6">
-        <h2 className="text-3xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+    <div className="space-y-8">
+      <div className="flex items-center gap-4 border-b border-gray-200 dark:border-gray-700 pb-4">
+        <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400 bg-clip-text text-transparent">
           {category.translations?.[lang]?.name || category.translations?.fr?.name || 'Sans nom'}
         </h2>
-        <Chip variant="flat" size="sm">{paths.length} parcours</Chip>
+        <Chip variant="flat" color="primary" size="sm">{paths.length} parcours</Chip>
       </div>
 
-      <div className="space-y-8">
+      <div className="grid gap-8">
         {paths.map(path => {
           const lvls = (levelsByPath[path._id] || []).slice().sort((a, b) => (a.order || 0) - (b.order || 0));
-          const visibleLvls = lvls.filter(l => {
-            if (videoOnly && !hasAnyVideo(l)) return false;
-            if (pdfOnly && !hasAnyPdf(l)) return false;
-            if (!debouncedQ) return true;
-            const q = debouncedQ;
-            const title = (l.translations?.[lang]?.title || l.translations?.fr?.title || '').toLowerCase();
-            const pname = (path.translations?.[lang]?.name || path.translations?.fr?.name || '').toLowerCase();
-            return title.includes(q) || pname.includes(q) || (category.translations?.[lang]?.name || category.translations?.fr?.name || '').toLowerCase().includes(q);
-          });
-
-          if (visibleLvls.length === 0 && (debouncedQ || videoOnly || pdfOnly)) return null;
+          if (lvls.length === 0) return null;
 
           return (
             <PathSection
               key={path._id}
               path={path}
-              levels={visibleLvls}
+              levels={lvls}
               lang={lang}
-              viewMode={viewMode}
               openLevel={openLevel}
-              seqMap={seqMap}
               hasAnyVideo={hasAnyVideo}
               hasAnyPdf={hasAnyPdf}
               onPreview={onPreview}
+              isLevelUnlocked={isLevelUnlocked}
+              isLevelCompleted={isLevelCompleted}
             />
           );
         })}
@@ -514,44 +318,62 @@ function CategorySection({
   );
 }
 
-function PathSection({ path, levels, lang, viewMode, openLevel, seqMap, hasAnyVideo, hasAnyPdf, onPreview }) {
+function PathSection({ path, levels, lang, openLevel, hasAnyVideo, hasAnyPdf, onPreview, isLevelUnlocked, isLevelCompleted }) {
+  // Calculate progress for this path
+  const completedCount = levels.filter(l => isLevelCompleted(l._id)).length;
+  const progress = levels.length > 0 ? (completedCount / levels.length) * 100 : 0;
+
   return (
-    <Card className="bg-content1/50 backdrop-blur-sm border border-white/10">
-      <CardHeader className="flex justify-between items-center px-6 py-4">
+    <Card className="bg-white dark:bg-slate-800 shadow-md border border-gray-100 dark:border-slate-700 overflow-visible">
+      <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center px-6 py-5 gap-4 bg-gray-50/50 dark:bg-slate-800/50 border-b border-gray-100 dark:border-slate-700">
         <div>
-          <h3 className="text-xl font-semibold">
+          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
             {path.translations?.[lang]?.name || path.translations?.fr?.name || 'Sans nom'}
           </h3>
-          <p className="text-small text-default-500">
-            {levels.length} niveau(s) • ordre {path.order ?? '—'}
+          <p className="text-small text-gray-500 dark:text-gray-400 mt-1">
+            {levels.length} niveaux • {completedCount} complété(s)
           </p>
         </div>
+        <div className="w-full sm:w-48">
+          <Progress
+            value={progress}
+            color="success"
+            size="sm"
+            classNames={{
+              indicator: "bg-gradient-to-r from-green-400 to-emerald-600",
+            }}
+            aria-label="Progression du parcours"
+          />
+        </div>
       </CardHeader>
-      <Divider />
       <CardBody className="p-6">
-        <div className={`grid gap-4 ${viewMode === 'list' ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
-          {levels.map((lvl, index) => (
-            <LevelCard
-              key={lvl._id}
-              level={lvl}
-              pathId={path._id}
-              index={index}
-              seqNumber={seqMap[lvl._id]}
-              lang={lang}
-              viewMode={viewMode}
-              openLevel={openLevel}
-              hasAnyVideo={hasAnyVideo}
-              hasAnyPdf={hasAnyPdf}
-              onPreview={onPreview}
-            />
-          ))}
+        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {levels.map((lvl, index) => {
+            const unlocked = isLevelUnlocked(lvl, index, levels);
+            const completed = isLevelCompleted(lvl._id);
+
+            return (
+              <LevelCard
+                key={lvl._id}
+                level={lvl}
+                index={index}
+                lang={lang}
+                openLevel={openLevel}
+                hasAnyVideo={hasAnyVideo}
+                hasAnyPdf={hasAnyPdf}
+                onPreview={onPreview}
+                isUnlocked={unlocked}
+                isCompleted={completed}
+              />
+            );
+          })}
         </div>
       </CardBody>
     </Card>
   );
 }
 
-function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel, hasAnyVideo, hasAnyPdf, onPreview }) {
+function LevelCard({ level, index, lang, openLevel, hasAnyVideo, hasAnyPdf, onPreview, isUnlocked, isCompleted }) {
   const hasVideo = hasAnyVideo(level);
   const hasPdf = hasAnyPdf(level);
 
@@ -562,40 +384,53 @@ function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel,
       transition={{ delay: index * 0.05 }}
     >
       <Card
-        isPressable
-        onPress={() => openLevel(level._id)}
-        className="h-full hover:scale-[1.02] transition-transform"
+        isPressable={isUnlocked}
+        onPress={() => openLevel(level._id, isUnlocked)}
+        className={`h-full transition-all duration-300 border-none shadow-sm hover:shadow-md ${!isUnlocked ? 'opacity-70 bg-gray-50 dark:bg-slate-900' : 'hover:-translate-y-1 bg-white dark:bg-slate-800'
+          }`}
       >
-        <CardBody className="p-4">
-          <div className="flex justify-between items-start mb-3">
+        <CardBody className="p-5 relative overflow-hidden">
+          {/* Status Indicator */}
+          <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800" />
+          {isCompleted && <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-green-400 to-emerald-500" />}
+          {isUnlocked && !isCompleted && <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-400 to-indigo-500" />}
+
+          <div className="flex justify-between items-start mb-4 pl-3">
             <Chip
               size="sm"
-              color="primary"
-              variant="shadow"
+              variant={isCompleted ? "solid" : "flat"}
+              color={isCompleted ? "success" : isUnlocked ? "primary" : "default"}
               classNames={{ content: "font-bold" }}
             >
-              {seqNumber || '-'}
+              Niveau {index + 1}
             </Chip>
             <div className="flex gap-1">
-              {hasVideo && <Tooltip content="Vidéo"><Chip size="sm" variant="flat" color="secondary" className="px-0 min-w-unit-6 h-6"><IconPlayerPlay size={12} /></Chip></Tooltip>}
-              {hasPdf && <Tooltip content="PDF"><Chip size="sm" variant="flat" color="warning" className="px-0 min-w-unit-6 h-6"><IconFileText size={12} /></Chip></Tooltip>}
+              {isCompleted ? (
+                <IconCheck size={20} className="text-green-500" />
+              ) : isUnlocked ? (
+                <IconLockOpen size={20} className="text-blue-500" />
+              ) : (
+                <IconLock size={20} className="text-gray-400" />
+              )}
             </div>
           </div>
 
-          <h4 className="font-semibold text-lg mb-2 line-clamp-2">
+          <h4 className={`font-bold text-lg mb-2 line-clamp-2 pl-3 ${!isUnlocked ? 'text-gray-500' : 'text-gray-800 dark:text-white'}`}>
             {level.translations?.[lang]?.title || level.translations?.fr?.title || 'Sans titre'}
           </h4>
 
-          <p className="text-small text-default-500 mb-4">
-            {(level.exercises || []).length} exercice(s)
-          </p>
+          <div className="flex gap-2 mt-auto pl-3">
+            {hasVideo && <IconPlayerPlay size={16} className={isUnlocked ? "text-secondary" : "text-gray-300"} />}
+            {hasPdf && <IconFileText size={16} className={isUnlocked ? "text-warning" : "text-gray-300"} />}
+          </div>
         </CardBody>
 
-        <CardFooter className="pt-0 gap-2">
+        <CardFooter className="pt-0 pb-4 px-5 gap-2 pl-8">
           <Button
             size="sm"
             variant="light"
             fullWidth
+            isDisabled={!isUnlocked}
             onPress={(e) => {
               e.continuePropagation();
               onPreview(level);
@@ -605,11 +440,13 @@ function LevelCard({ level, pathId, index, seqNumber, lang, viewMode, openLevel,
           </Button>
           <Button
             size="sm"
-            color="primary"
+            color={isUnlocked ? "primary" : "default"}
+            variant={isUnlocked ? "solid" : "flat"}
             fullWidth
-            endContent={<IconArrowRight size={14} />}
+            isDisabled={!isUnlocked}
+            endContent={isUnlocked && <IconArrowRight size={14} />}
           >
-            Go
+            {isUnlocked ? "Go" : "Bloqué"}
           </Button>
         </CardFooter>
       </Card>

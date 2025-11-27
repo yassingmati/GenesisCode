@@ -2,19 +2,26 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { FcGoogle } from 'react-icons/fc';
-import { FaEye, FaEyeSlash, FaEnvelope, FaLock } from 'react-icons/fa';
+import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaUserGraduate, FaUserTie, FaArrowLeft } from 'react-icons/fa';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
 import axios from 'axios';
 import { getApiUrl } from '../../utils/apiConfig';
+import { motion, AnimatePresence } from 'framer-motion';
+import ThemeToggle from '../../components/ThemeToggle';
+import LanguageSelector from '../../components/LanguageSelector';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const auth = getAuth(app);
 // En production, utiliser URL relative (même domaine) pour éviter CORS
 // En développement, utiliser localhost
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
   (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
+(process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
+
 const Auth = ({ type }) => {
+  const { t } = useTranslation();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,7 +29,7 @@ const Auth = ({ type }) => {
     rememberMe: false,
     userType: 'student' // Nouveau champ pour le type d'utilisateur
   });
-  
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -42,53 +49,53 @@ const Auth = ({ type }) => {
     e.preventDefault();
     setIsSubmitting(true);
     setErrors({});
-    
+
     // Validation
     const newErrors = {};
-    
+
     if (!formData.email) {
       newErrors.email = 'L\'email est requis';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = 'Email invalide';
     }
-    
+
     if (!formData.password) {
       newErrors.password = 'Le mot de passe est requis';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
     }
-    
+
     if (type === 'register' && formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
     }
-    
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       setIsSubmitting(false);
       return;
     }
-    
+
     try {
       // Appel API avec URL absolue
-      const endpoint = type === 'register' 
-        ? `${API_BASE_URL}/api/auth/register` 
+      const endpoint = type === 'register'
+        ? `${API_BASE_URL}/api/auth/register`
         : `${API_BASE_URL}/api/auth/login`;
-      
+
       const response = await axios.post(endpoint, {
         email: formData.email,
         password: formData.password,
         userType: formData.userType // Inclure le type d'utilisateur
       });
-      
+
       // Stockage du token et des données utilisateur
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      
-      setSuccessMessage(type === 'register' 
-        ? 'Compte créé! Vérifiez votre email' 
+
+      setSuccessMessage(type === 'register'
+        ? 'Compte créé! Vérifiez votre email'
         : 'Connexion réussie!'
       );
-      
+
       // Redirection basée sur le type et l'état du profil
       setTimeout(() => {
         if (type === 'register') {
@@ -98,10 +105,10 @@ const Auth = ({ type }) => {
           const user = response.data.user;
           const isVerified = user.isVerified ?? false;
           const isProfileComplete = user.isProfileComplete ?? false;
-          
+
           if (!isVerified) {
             navigate('/verify-email-reminder');
-          } 
+          }
           else if (!isProfileComplete) {
             navigate('/complete-profile');
           } else {
@@ -114,11 +121,11 @@ const Auth = ({ type }) => {
           }
         }
       }, 1500);
-      
+
     } catch (error) {
       console.error('Erreur:', error);
       let errorMessage = 'Une erreur est survenue';
-      
+
       if (error.response) {
         if (error.response.data && error.response.data.message) {
           errorMessage = error.response.data.message;
@@ -130,7 +137,7 @@ const Auth = ({ type }) => {
       } else {
         errorMessage = error.message;
       }
-      
+
       setErrors({ general: errorMessage });
     } finally {
       setIsSubmitting(false);
@@ -142,45 +149,45 @@ const Auth = ({ type }) => {
       setIsSubmitting(true);
       setErrors({});
       setSuccessMessage('');
-      
+
       console.log('🔵 Début authentification Google...');
-      
+
       // Configurer le provider Google
       const provider = new GoogleAuthProvider();
       provider.addScope('email');
       provider.addScope('profile');
-      
+
       // Authentifier avec Google via Firebase
       console.log('🔵 Ouverture popup Google...');
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      
+
       console.log('✅ Authentification Firebase réussie:', {
         email: user.email,
         uid: user.uid,
         displayName: user.displayName
       });
-      
+
       // Obtenir le token ID
       console.log('🔵 Récupération du token ID...');
       const idToken = await user.getIdToken();
-      
+
       if (!idToken) {
         throw new Error('Token ID non disponible');
       }
-      
+
       console.log('✅ Token ID obtenu:', idToken.substring(0, 50) + '...');
-      
+
       // Envoyer le token au backend
       console.log('🔵 Envoi du token au backend...');
-          const response = await axios.post(`${API_BASE_URL}/api/auth/login/google`, {
-            idToken
-          }, {
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            timeout: Number(process.env.REACT_APP_GOOGLE_LOGIN_TIMEOUT_MS || 20000)
-          });
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login/google`, {
+        idToken
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: Number(process.env.REACT_APP_GOOGLE_LOGIN_TIMEOUT_MS || 20000)
+      });
 
       if (!response.data || !response.data.token) {
         throw new Error('Réponse invalide du serveur');
@@ -195,18 +202,24 @@ const Auth = ({ type }) => {
       // Stocker le token et les données utilisateur
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
-      
+
       setSuccessMessage('Connexion Google réussie!');
-      
+
       setTimeout(() => {
         // Vérification robuste des propriétés avec valeurs par défaut
         const user = response.data.user;
         const isVerified = user.isVerified ?? false;
         const isProfileComplete = user.isProfileComplete ?? false;
-        
+
+        // Si l'utilisateur n'a pas de rôle défini, rediriger vers la complétion de profil
+        if (!user.userType || user.userType === 'undefined') {
+          navigate('/complete-profile');
+          return;
+        }
+
         if (!isVerified) {
           navigate('/verify-email-reminder');
-        } 
+        }
         else if (!isProfileComplete) {
           navigate('/complete-profile');
         } else {
@@ -218,12 +231,12 @@ const Auth = ({ type }) => {
           }
         }
       }, 1500);
-      
+
     } catch (error) {
       console.error('❌ Erreur Google Login:', error);
-      
+
       let errorMessage = 'Échec de la connexion Google';
-      
+
       // Gestion des erreurs Firebase Auth
       if (error.code) {
         switch (error.code) {
@@ -247,8 +260,8 @@ const Auth = ({ type }) => {
         if (error.response.data && error.response.data.message) {
           errorMessage = error.response.data.message;
         } else if (error.response.data && error.response.data.error) {
-          errorMessage = typeof error.response.data.error === 'string' 
-            ? error.response.data.error 
+          errorMessage = typeof error.response.data.error === 'string'
+            ? error.response.data.error
             : error.response.data.error.message || 'Erreur serveur';
         } else {
           errorMessage = `Erreur serveur: ${error.response.status} ${error.response.statusText}`;
@@ -260,7 +273,7 @@ const Auth = ({ type }) => {
       } else {
         errorMessage = error.message || 'Erreur inconnue';
       }
-      
+
       setErrors({ general: errorMessage });
     } finally {
       setIsSubmitting(false);
@@ -268,614 +281,307 @@ const Auth = ({ type }) => {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <div className="logo">CodeGenesis</div>
-          <h2>{type === 'login' ? 'Connexion' : 'Créer un compte'}</h2>
-          <p>
-            {type === 'login' 
-              ? 'Connectez-vous pour accéder à votre espace' 
-              : 'Créez un compte pour commencer'}
-          </p>
-        </div>
-        
-        <form onSubmit={handleSubmit} className="auth-form">
-          {successMessage && (
-            <div className="success-message">
-              <div className="success-icon">✓</div>
-              {successMessage}
-            </div>
-          )}
-          
-          {errors.general && (
-            <div className="error-message general-error">
-              {errors.general}
-            </div>
-          )}
-          
-          <div className={`form-group ${errors.email ? 'error' : ''}`}>
-            <FaEnvelope className="input-icon" />
-            <input
-              type="email"
-              name="email"
-              placeholder="Adresse email"
-              value={formData.email}
-              onChange={handleChange}
-            />
-            {errors.email && <span className="error-message">{errors.email}</span>}
-          </div>
-          
-          <div className={`form-group ${errors.password ? 'error' : ''}`}>
-            <FaLock className="input-icon" />
-            <input
-              type={showPassword ? "text" : "password"}
-              name="password"
-              placeholder="Mot de passe"
-              value={formData.password}
-              onChange={handleChange}
-            />
-            <button 
-              type="button" 
-              className="password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gradient-to-br dark:from-[#0f172a] dark:via-[#1e293b] dark:to-[#0f172a] p-4 relative overflow-hidden transition-colors duration-300">
+      {/* Theme Toggle & Language Selector */}
+      <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
+        <LanguageSelector showLabel={false} size="small" />
+        <ThemeToggle />
+      </div>
+
+      {/* Back to Home Button */}
+      <Link
+        to="/"
+        className="absolute top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm text-slate-700 dark:text-slate-200 hover:bg-white dark:hover:bg-slate-800 transition-all shadow-sm hover:shadow-md font-medium text-sm"
+      >
+        <FaArrowLeft />
+        <span className="hidden sm:inline">{t('auth.backToHome')}</span>
+      </Link>
+
+      {/* Background Elements (Dark Mode) */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none opacity-0 dark:opacity-100 transition-opacity duration-300">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-500/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-[100px]" />
+      </div>
+
+      {/* Background Elements (Light Mode) */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none opacity-100 dark:opacity-0 transition-opacity duration-300">
+        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-200/30 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-200/30 rounded-full blur-[100px]" />
+      </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-8 bg-white dark:bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10 z-10 transition-colors duration-300"
+      >
+        {/* Left Side - Form */}
+        <div className="p-8 lg:p-12 flex flex-col justify-center">
+          <div className="mb-8 text-center lg:text-left">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="mb-6"
             >
-              {showPassword ? <FaEyeSlash /> : <FaEye />}
-            </button>
-            {errors.password && <span className="error-message">{errors.password}</span>}
+              <img src={require('../../assets/icons/logo.png')} alt="CodeGenesis Logo" className="h-16 w-auto mx-auto lg:mx-0" />
+            </motion.div>
+            <motion.h2
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="text-2xl font-semibold text-slate-800 dark:text-white mb-2"
+            >
+              {type === 'login' ? t('auth.login.welcome') : t('auth.register.welcome')}
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+              className="text-slate-500 dark:text-slate-400"
+            >
+              {type === 'login'
+                ? t('auth.login.subtitle')
+                : t('auth.register.subtitle')}
+            </motion.p>
           </div>
-          
-          {type === 'register' && (
-            <div className={`form-group ${errors.confirmPassword ? 'error' : ''}`}>
-              <FaLock className="input-icon" />
-              <input
-                type={showConfirmPassword ? "text" : "password"}
-                name="confirmPassword"
-                placeholder="Confirmez le mot de passe"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-              />
-              <button 
-                type="button" 
-                className="password-toggle"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              >
-                {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
-              {errors.confirmPassword && (
-                <span className="error-message">{errors.confirmPassword}</span>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <AnimatePresence>
+              {successMessage && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 p-3 rounded-xl flex items-center gap-2 text-sm"
+                >
+                  <span>✓</span> {successMessage}
+                </motion.div>
+              )}
+
+              {errors.general && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 p-3 rounded-xl text-sm"
+                >
+                  {errors.general}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="space-y-4">
+              <div className="relative group">
+                <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                <input
+                  type="email"
+                  name="email"
+                  placeholder={t('auth.email')}
+                  value={formData.email}
+                  onChange={handleChange}
+                  className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-xl py-3.5 pl-11 pr-4 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
+                />
+                {errors.email && <span className="text-xs text-red-500 dark:text-red-400 mt-1 ml-1 block">{errors.email}</span>}
+              </div>
+
+              <div className="relative group">
+                <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder={t('auth.password')}
+                  value={formData.password}
+                  onChange={handleChange}
+                  className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-xl py-3.5 pl-11 pr-12 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+                {errors.password && <span className="text-xs text-red-500 dark:text-red-400 mt-1 ml-1 block">{errors.password}</span>}
+              </div>
+
+              {type === 'register' && (
+                <div className="relative group">
+                  <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    name="confirmPassword"
+                    placeholder={t('auth.confirmPassword')}
+                    value={formData.confirmPassword}
+                    onChange={handleChange}
+                    className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.confirmPassword ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-xl py-3.5 pl-11 pr-12 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                  >
+                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                  </button>
+                  {errors.confirmPassword && <span className="text-xs text-red-500 dark:text-red-400 mt-1 ml-1 block">{errors.confirmPassword}</span>}
+                </div>
               )}
             </div>
-          )}
 
-          {/* Sélection du type d'utilisateur */}
-          <div className="form-group user-type-selection">
-            <label className="user-type-label">Je suis :</label>
-            <div className="user-type-options">
-              <label className={`user-type-option ${formData.userType === 'student' ? 'selected' : ''}`}>
-                <input
-                  type="radio"
-                  name="userType"
-                  value="student"
-                  checked={formData.userType === 'student'}
-                  onChange={handleChange}
-                />
-                <span className="option-content">
-                  <span className="option-icon">👦</span>
-                  <span className="option-text">Étudiant</span>
-                </span>
-              </label>
-              <label className={`user-type-option ${formData.userType === 'parent' ? 'selected' : ''}`}>
-                <input
-                  type="radio"
-                  name="userType"
-                  value="parent"
-                  checked={formData.userType === 'parent'}
-                  onChange={handleChange}
-                />
-                <span className="option-content">
-                  <span className="option-icon">👨‍👩‍👧‍👦</span>
-                  <span className="option-text">Parent</span>
-                </span>
-              </label>
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block">{t('auth.iAm')}</label>
+              <div className="grid grid-cols-2 gap-4">
+                <label className={`cursor-pointer relative group`}>
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="student"
+                    checked={formData.userType === 'student'}
+                    onChange={handleChange}
+                    className="hidden"
+                  />
+                  <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col items-center gap-2 ${formData.userType === 'student'
+                    ? 'bg-blue-600/10 dark:bg-blue-600/20 border-blue-500 text-blue-600 dark:text-white shadow-[0_0_20px_rgba(59,130,246,0.1)] dark:shadow-[0_0_20px_rgba(59,130,246,0.2)]'
+                    : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                    }`}>
+                    <FaUserGraduate className={`text-2xl ${formData.userType === 'student' ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                    <span className="font-medium text-sm">{t('auth.student')}</span>
+                  </div>
+                </label>
+
+                <label className={`cursor-pointer relative group`}>
+                  <input
+                    type="radio"
+                    name="userType"
+                    value="parent"
+                    checked={formData.userType === 'parent'}
+                    onChange={handleChange}
+                    className="hidden"
+                  />
+                  <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col items-center gap-2 ${formData.userType === 'parent'
+                    ? 'bg-purple-600/10 dark:bg-purple-600/20 border-purple-500 text-purple-600 dark:text-white shadow-[0_0_20px_rgba(168,85,247,0.1)] dark:shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                    : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                    }`}>
+                    <FaUserTie className={`text-2xl ${formData.userType === 'parent' ? 'text-purple-500 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                    <span className="font-medium text-sm">{t('auth.parent')}</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            {type === 'login' && (
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
+                  <input
+                    type="checkbox"
+                    name="rememberMe"
+                    checked={formData.rememberMe}
+                    onChange={handleChange}
+                    className="rounded border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-blue-500 focus:ring-offset-0 focus:ring-blue-500/50"
+                  />
+                  {t('auth.rememberMe')}
+                </label>
+                <Link to="/forgot-password" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 transition-colors">
+                  {t('auth.forgotPassword')}
+                </Link>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
+            >
+              {isSubmitting ? (
+                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : type === 'login' ? t('auth.login.action') : t('auth.register.action')}
+            </button>
+
+            <div className="relative py-2">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white dark:bg-[#162032] px-2 text-slate-500">{t('auth.orContinueWith')}</span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isSubmitting}
+              className="w-full bg-slate-50 dark:bg-white text-slate-700 font-semibold py-3.5 rounded-xl shadow-sm border border-slate-200 dark:border-transparent hover:bg-slate-100 dark:hover:bg-slate-50 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70"
+            >
+              <FcGoogle className="text-xl" />
+              <span>{type === 'login' ? t('auth.login.google') : t('auth.register.google')}</span>
+            </button>
+          </form>
+
+          <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+            {type === 'login' ? (
+              <p>
+                {t('auth.login.noAccount')}{' '}
+                <Link to="/register" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors">
+                  {t('auth.login.link')}
+                </Link>
+              </p>
+            ) : (
+              <p>
+                {t('auth.register.hasAccount')}{' '}
+                <Link to="/login" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors">
+                  {t('auth.register.link')}
+                </Link>
+              </p>
+            )}
+            <div className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+              {t('auth.agree')}{' '}
+              <Link to="/terms" className="hover:text-slate-600 dark:hover:text-slate-400 underline">{t('auth.terms')}</Link> et{' '}
+              <Link to="/privacy" className="hover:text-slate-600 dark:hover:text-slate-400 underline">{t('auth.privacy')}</Link>.
             </div>
           </div>
-          
-          {type === 'login' && (
-            <div className="remember-forgot">
-              <label className="remember-me">
-                <input
-                  type="checkbox"
-                  name="rememberMe"
-                  checked={formData.rememberMe}
-                  onChange={handleChange}
-                />
-                Se souvenir de moi
-              </label>
-              <Link to="/forgot-password" className="forgot-password">
-                Mot de passe oublié ?
-              </Link>
+        </div>
+
+        {/* Right Side - Hero/Image */}
+        <div className="hidden lg:block relative overflow-hidden bg-gradient-to-br from-blue-600 to-purple-600 p-12 text-white">
+          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+
+          <div className="relative z-10 h-full flex flex-col justify-between">
+            <div>
+              <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center mb-6">
+                <span className="text-2xl">🚀</span>
+              </div>
+              <h3 className="text-3xl font-bold mb-4 whitespace-pre-line">{t('auth.hero.title')}</h3>
+              <p className="text-blue-100 text-lg leading-relaxed">
+                {t('auth.hero.subtitle')}
+              </p>
             </div>
-          )}
-          
-          <button 
-            type="submit" 
-            className="auth-button"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <div className="spinner"></div>
-            ) : type === 'login' ? 'Se connecter' : 'Créer un compte'}
-          </button>
-          
-          <div className="divider">
-            <span>ou</span>
-          </div>
-          
-          <button 
-            type="button" 
-            className="google-button"
-            onClick={handleGoogleLogin}
-            disabled={isSubmitting}
-          >
-            <FcGoogle className="google-icon" />
-            {type === 'login' ? 'Se connecter avec Google' : 'S\'inscrire avec Google'}
-          </button>
-        </form>
-        
-        <div className="auth-footer">
-          {type === 'login' ? (
-            <p>
-              Vous n'avez pas de compte ? <Link to="/register">S'inscrire</Link>
-            </p>
-          ) : (
-            <p>
-              Vous avez déjà un compte ? <Link to="/login">Se connecter</Link>
-            </p>
-          )}
-          
-          <div className="terms">
-            En vous inscrivant, vous acceptez nos 
-            <Link to="/terms"> Conditions d'utilisation</Link> et 
-            notre <Link to="/privacy">Politique de confidentialité</Link>.
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/10">
+                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400">
+                  ✓
+                </div>
+                <div>
+                  <div className="font-semibold">{t('auth.hero.progress.title')}</div>
+                  <div className="text-sm text-blue-100">{t('auth.hero.progress.subtitle')}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/10">
+                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
+                  ★
+                </div>
+                <div>
+                  <div className="font-semibold">{t('auth.hero.certificates.title')}</div>
+                  <div className="text-sm text-blue-100">{t('auth.hero.certificates.subtitle')}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div className="auth-hero">
-        <div className="hero-content">
-          <h2>Plateforme d'apprentissage</h2>
-          <p>
-            Accédez à votre compte pour profiter de toutes nos fonctionnalités
-          </p>
-        </div>
-      </div>
+      </motion.div>
     </div>
   );
 };
 
-// CSS pour les pages d'authentification
-const authCSS = `
-.auth-container {
-  display: flex;
-  min-height: 100vh;
-  background: #f7f9fc;
-  font-family: 'Inter', sans-serif;
-}
-
-.auth-card {
-  flex: 1;
-  max-width: 500px;
-  padding: 3rem 2rem;
-  background: #fff;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.08);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  position: relative;
-  z-index: 2;
-}
-
-.auth-hero {
-  flex: 1;
-  background: linear-gradient(135deg, #4a90e2 0%, #7b61ff 100%);
-  color: white;
-  padding: 4rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-}
-
-.auth-header {
-  text-align: center;
-  margin-bottom: 2.5rem;
-}
-
-.logo {
-  font-size: 2rem;
-  font-weight: 800;
-  color: #4a90e2;
-  margin-bottom: 1rem;
-}
-
-.auth-header h2 {
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
-  color: #333;
-}
-
-.auth-header p {
-  color: #666;
-  margin-bottom: 0;
-}
-
-.auth-form {
-  margin-bottom: 1.5rem;
-}
-
-.form-group {
-  position: relative;
-  margin-bottom: 1.5rem;
-}
-
-.form-group.error .input-icon {
-  color: #e74c3c;
-}
-
-/* Styles pour la sélection du type d'utilisateur */
-.user-type-selection {
-  margin-bottom: 1.5rem;
-}
-
-.user-type-label {
-  display: block;
-  font-weight: 600;
-  color: #333;
-  margin-bottom: 0.8rem;
-  font-size: 0.95rem;
-}
-
-.user-type-options {
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.user-type-option {
-  flex: 1;
-  cursor: pointer;
-  border: 2px solid #e1e5e9;
-  border-radius: 12px;
-  padding: 1rem;
-  transition: all 0.3s ease;
-  background: white;
-  position: relative;
-}
-
-.user-type-option:hover {
-  border-color: #4a90e2;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.15);
-}
-
-.user-type-option.selected {
-  border-color: #4a90e2;
-  background: linear-gradient(135deg, #4a90e2 0%, #7b61ff 100%);
-  color: white;
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
-}
-
-.user-type-option input[type="radio"] {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.option-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  text-align: center;
-}
-
-.option-icon {
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-.option-text {
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.user-type-option.selected .option-text {
-  color: white;
-}
-
-.input-icon {
-  position: absolute;
-  left: 16px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #777;
-  font-size: 1rem;
-}
-
-input {
-  width: 100%;
-  padding: 14px 20px 14px 45px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: #fafafa;
-}
-
-input:focus {
-  outline: none;
-  border-color: #4a90e2;
-  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
-  background: #fff;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #777;
-  cursor: pointer;
-  font-size: 1.1rem;
-}
-
-.remember-forgot {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.remember-me {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.95rem;
-  color: #555;
-  cursor: pointer;
-}
-
-.remember-me input {
-  width: auto;
-  padding: 0;
-  margin: 0;
-}
-
-.forgot-password {
-  color: #4a90e2;
-  text-decoration: none;
-  font-size: 0.95rem;
-  transition: color 0.2s;
-}
-
-.forgot-password:hover {
-  color: #3a78c1;
-  text-decoration: underline;
-}
-
-.auth-button {
-  width: 100%;
-  padding: 14px;
-  background: #4a90e2;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 1.5rem;
-  position: relative;
-}
-
-.auth-button:hover {
-  background: #3a78c1;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
-}
-
-.auth-button:disabled {
-  background: #a0c4f3;
-  cursor: not-allowed;
-}
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(255,255,255,0.3);
-  border-radius: 50%;
-  border-top-color: white;
-  animation: spin 1s ease-in-out infinite;
-  margin: 0 auto;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.divider {
-  position: relative;
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-.divider span {
-  display: inline-block;
-  padding: 0 10px;
-  background: white;
-  color: #777;
-  position: relative;
-  z-index: 1;
-  font-size: 0.9rem;
-}
-
-.divider::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: #eee;
-  z-index: 0;
-}
-
-.google-button {
-  width: 100%;
-  padding: 14px;
-  background: white;
-  color: #444;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.google-button:hover {
-  background: #f8f9fa;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-}
-
-.google-icon {
-  font-size: 1.4rem;
-}
-
-.auth-footer {
-  text-align: center;
-  color: #666;
-  font-size: 0.95rem;
-}
-
-.auth-footer a {
-  color: #4a90e2;
-  text-decoration: none;
-  font-weight: 500;
-  transition: color 0.2s;
-}
-
-.auth-footer a:hover {
-  color: #3a78c1;
-  text-decoration: underline;
-}
-
-.terms {
-  margin-top: 1.5rem;
-  font-size: 0.85rem;
-  color: #888;
-}
-
-.terms a {
-  color: #4a90e2;
-  margin: 0 4px;
-}
-
-.success-message {
-  background: #d4edda;
-  color: #155724;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  animation: fadeIn 0.5s ease;
-}
-
-.success-icon {
-  background: #28a745;
-  color: white;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-}
-
-.error-message {
-  color: #e74c3c;
-  font-size: 0.85rem;
-  margin-top: 5px;
-  display: block;
-}
-
-.general-error {
-  background: #f8d7da;
-  color: #721c24;
-  padding: 10px;
-  border-radius: 4px;
-  margin-bottom: 1rem;
-  text-align: center;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-@media (max-width: 992px) {
-  .auth-container {
-    flex-direction: column;
-  }
-  
-  .auth-card {
-    max-width: 100%;
-    padding: 2rem;
-  }
-  
-  .auth-hero {
-    padding: 2rem;
-    text-align: center;
-  }
-}
-
-@media (max-width: 576px) {
-  .remember-forgot {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.8rem;
-  }
-}
-`;
-
-// Composant LoginPage
-export const LoginPage = () => {
-  return (
-    <>
-      <style>{authCSS}</style>
-      <Auth type="login" />
-    </>
-  );
-};
-
-// Composant RegisterPage
-export const RegisterPage = () => {
-  return (
-    <>
-      <style>{authCSS}</style>
-      <Auth type="register" />
-    </>
-  );
-};
+export default Auth;

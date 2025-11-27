@@ -3,6 +3,8 @@ const ParentChild = require('../models/ParentChild');
 const User = require('../models/User');
 const UserProgress = require('../models/UserProgress');
 const UserActivity = require('../models/UserActivity');
+const UserActivity = require('../models/UserActivity');
+const NotificationController = require('./notificationController');
 const mongoose = require('mongoose');
 
 // Inviter un enfant
@@ -10,37 +12,51 @@ exports.inviteChild = async (req, res) => {
   try {
     const parentId = req.user.id;
     const { childEmail } = req.body;
-    
+
     if (!childEmail) {
       return res.status(400).json({ message: 'Email de l\'enfant requis' });
     }
-    
+
     // Vérifier que l'enfant existe
     const child = await User.findOne({ email: childEmail, userType: 'student' });
     if (!child) {
       return res.status(404).json({ message: 'Enfant non trouvé avec cet email' });
     }
-    
+
     // Vérifier qu'il n'y a pas déjà une relation
     const existingRelation = await ParentChild.findOne({ parent: parentId, child: child._id });
     if (existingRelation) {
       return res.status(409).json({ message: 'Relation déjà existante avec cet enfant' });
     }
-    
+
     // Créer la relation
     const parentChild = new ParentChild({
       parent: parentId,
       child: child._id,
       status: 'pending'
     });
-    
+
     await parentChild.save();
-    
+
+    await parentChild.save();
+
+    // Envoyer notification à l'enfant
+    await NotificationController.createNotification({
+      recipient: child._id,
+      type: 'parent_invitation',
+      title: 'Nouvelle invitation parent',
+      message: 'Un parent souhaite suivre votre progression.',
+      data: {
+        invitationId: parentChild._id,
+        parentId: parentId
+      }
+    });
+
     // TODO: Envoyer email d'invitation à l'enfant
     console.log(`Invitation envoyée à ${childEmail} par le parent ${parentId}`);
-    
-    res.status(201).json({ 
-      message: 'Invitation envoyée avec succès', 
+
+    res.status(201).json({
+      message: 'Invitation envoyée avec succès',
       relation: {
         id: parentChild._id,
         child: {
@@ -63,7 +79,7 @@ exports.getChildren = async (req, res) => {
   try {
     const parentId = req.user.id;
     const children = await ParentChild.findByParent(parentId);
-    
+
     // Enrichir avec les statistiques
     const childrenWithStats = await Promise.all(
       children.map(async (relation) => {
@@ -74,7 +90,7 @@ exports.getChildren = async (req, res) => {
             {},
             { sort: { loginTime: -1 } }
           );
-          
+
           // Calculer le temps utilisé aujourd'hui
           const today = new Date();
           today.setHours(0, 0, 0, 0);
@@ -82,9 +98,9 @@ exports.getChildren = async (req, res) => {
             user: relation.child._id,
             loginTime: { $gte: today }
           });
-          
+
           const todayTime = todayActivities.reduce((sum, activity) => sum + activity.duration, 0);
-          
+
           return {
             ...relation,
             stats,
@@ -104,7 +120,7 @@ exports.getChildren = async (req, res) => {
         }
       })
     );
-    
+
     res.json(childrenWithStats);
   } catch (error) {
     console.error('Erreur récupération enfants:', error);
@@ -117,17 +133,17 @@ exports.getChildDetails = async (req, res) => {
   try {
     const parentId = req.user.id;
     const childId = req.params.childId;
-    
-    const relation = await ParentChild.findOne({ 
-      parent: parentId, 
+
+    const relation = await ParentChild.findOne({
+      parent: parentId,
       child: childId,
       status: 'active'
     }).populate('child');
-    
+
     if (!relation) {
       return res.status(404).json({ message: 'Enfant non trouvé ou relation inactive' });
     }
-    
+
     // Statistiques détaillées
     const stats = await UserProgress.getUserStats(childId);
     const recentActivity = await UserActivity.find(
@@ -135,7 +151,7 @@ exports.getChildDetails = async (req, res) => {
       {},
       { sort: { loginTime: -1 }, limit: 10 }
     );
-    
+
     // Progression par niveau
     const levelProgress = await UserProgress.aggregate([
       { $match: { user: mongoose.Types.ObjectId(childId) } },
@@ -154,7 +170,7 @@ exports.getChildDetails = async (req, res) => {
         }
       }
     ]);
-    
+
     res.json({
       child: relation.child,
       controls: relation.parentalControls,
@@ -174,24 +190,24 @@ exports.updateParentalControls = async (req, res) => {
     const parentId = req.user.id;
     const childId = req.params.childId;
     const { parentalControls } = req.body;
-    
+
     if (!parentalControls) {
       return res.status(400).json({ message: 'Contrôles parentaux requis' });
     }
-    
+
     const relation = await ParentChild.findOneAndUpdate(
       { parent: parentId, child: childId, status: 'active' },
       { $set: { parentalControls } },
       { new: true }
     );
-    
+
     if (!relation) {
       return res.status(404).json({ message: 'Relation non trouvée' });
     }
-    
-    res.json({ 
-      message: 'Contrôles mis à jour avec succès', 
-      controls: relation.parentalControls 
+
+    res.json({
+      message: 'Contrôles mis à jour avec succès',
+      controls: relation.parentalControls
     });
   } catch (error) {
     console.error('Erreur mise à jour contrôles:', error);
@@ -205,18 +221,18 @@ exports.getActivityReport = async (req, res) => {
     const parentId = req.user.id;
     const childId = req.params.childId;
     const { period = 'week' } = req.query; // week, month, year
-    
+
     // Vérifier la relation
-    const relation = await ParentChild.findOne({ 
-      parent: parentId, 
+    const relation = await ParentChild.findOne({
+      parent: parentId,
       child: childId,
       status: 'active'
     });
-    
+
     if (!relation) {
       return res.status(404).json({ message: 'Relation non trouvée' });
     }
-    
+
     // Calculer la période
     const now = new Date();
     let startDate;
@@ -233,31 +249,31 @@ exports.getActivityReport = async (req, res) => {
       default:
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
-    
+
     // Activité de la période
     const activities = await UserActivity.find({
       user: childId,
       loginTime: { $gte: startDate }
     }).sort({ loginTime: -1 });
-    
+
     // Statistiques agrégées
     const totalTime = activities.reduce((sum, activity) => sum + activity.duration, 0);
     const totalExercises = activities.reduce((sum, activity) => sum + activity.sessionStats.exercisesCompleted, 0);
     const totalXP = activities.reduce((sum, activity) => sum + activity.sessionStats.xpEarned, 0);
-    
+
     // Vérification des limites
     const dailyTimeLimit = relation.parentalControls.dailyTimeLimit;
     const weeklyTimeLimit = relation.parentalControls.weeklyTimeLimit;
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayActivities = activities.filter(activity => activity.loginTime >= today);
     const todayTime = todayActivities.reduce((sum, activity) => sum + activity.duration, 0);
-    
+
     const weekStart = new Date(today.getTime() - (today.getDay() * 24 * 60 * 60 * 1000));
     const weekActivities = activities.filter(activity => activity.loginTime >= weekStart);
     const weekTime = weekActivities.reduce((sum, activity) => sum + activity.duration, 0);
-    
+
     res.json({
       period,
       startDate,
@@ -295,23 +311,23 @@ exports.acceptInvitation = async (req, res) => {
   try {
     const childId = req.user.id;
     const { parentId } = req.body;
-    
+
     const relation = await ParentChild.findOneAndUpdate(
       { parent: parentId, child: childId, status: 'pending' },
-      { 
-        $set: { 
+      {
+        $set: {
           status: 'active',
           acceptedAt: new Date()
         }
       },
       { new: true }
     );
-    
+
     if (!relation) {
       return res.status(404).json({ message: 'Invitation non trouvée' });
     }
-    
-    res.json({ 
+
+    res.json({
       message: 'Invitation acceptée avec succès',
       relation: {
         id: relation._id,
@@ -331,22 +347,22 @@ exports.toggleChildStatus = async (req, res) => {
     const parentId = req.user.id;
     const childId = req.params.childId;
     const { status } = req.body;
-    
+
     if (!['active', 'suspended'].includes(status)) {
       return res.status(400).json({ message: 'Statut invalide' });
     }
-    
+
     const relation = await ParentChild.findOneAndUpdate(
       { parent: parentId, child: childId },
       { $set: { status } },
       { new: true }
     );
-    
+
     if (!relation) {
       return res.status(404).json({ message: 'Relation non trouvée' });
     }
-    
-    res.json({ 
+
+    res.json({
       message: `Enfant ${status === 'active' ? 'activé' : 'suspendu'} avec succès`,
       status: relation.status
     });
@@ -362,18 +378,18 @@ exports.getChildAnalytics = async (req, res) => {
     const parentId = req.user.id;
     const childId = req.params.childId;
     const { period = 'week' } = req.query;
-    
+
     // Vérifier la relation
-    const relation = await ParentChild.findOne({ 
-      parent: parentId, 
+    const relation = await ParentChild.findOne({
+      parent: parentId,
       child: childId,
       status: 'active'
     });
-    
+
     if (!relation) {
       return res.status(404).json({ message: 'Relation non trouvée' });
     }
-    
+
     // Calculer la période
     const now = new Date();
     let startDate;
@@ -390,7 +406,7 @@ exports.getChildAnalytics = async (req, res) => {
       default:
         startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
-    
+
     // Analytics d'engagement
     const engagementData = await UserActivity.aggregate([
       {
@@ -414,7 +430,7 @@ exports.getChildAnalytics = async (req, res) => {
         }
       }
     ]);
-    
+
     // Progression par jour
     const dailyProgression = await UserActivity.aggregate([
       {
@@ -439,7 +455,7 @@ exports.getChildAnalytics = async (req, res) => {
       },
       { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
     ]);
-    
+
     // Analytics par heure
     const hourlyAnalytics = await UserActivity.aggregate([
       {
@@ -458,7 +474,7 @@ exports.getChildAnalytics = async (req, res) => {
       },
       { $sort: { '_id': 1 } }
     ]);
-    
+
     // Vérification des limites
     const limits = {
       daily: {
@@ -472,10 +488,10 @@ exports.getChildAnalytics = async (req, res) => {
         percentage: 0
       }
     };
-    
+
     limits.daily.percentage = (limits.daily.used / limits.daily.limit) * 100;
     limits.weekly.percentage = (limits.weekly.used / limits.weekly.limit) * 100;
-    
+
     res.json({
       period: { type: period, startDate, endDate: now },
       engagement: engagementData[0] || {},
@@ -496,19 +512,19 @@ exports.applyControlTemplate = async (req, res) => {
     const parentId = req.user.id;
     const childId = req.params.childId;
     const { template } = req.body;
-    
-    const relation = await ParentChild.findOne({ 
-      parent: parentId, 
+
+    const relation = await ParentChild.findOne({
+      parent: parentId,
       child: childId,
       status: 'active'
     });
-    
+
     if (!relation) {
       return res.status(404).json({ message: 'Relation non trouvée' });
     }
-    
+
     let newControls = { ...relation.parentalControls };
-    
+
     switch (template) {
       case 'strict':
         newControls = {
@@ -537,7 +553,7 @@ exports.applyControlTemplate = async (req, res) => {
           }
         };
         break;
-        
+
       case 'balanced':
         newControls = {
           ...newControls,
@@ -565,7 +581,7 @@ exports.applyControlTemplate = async (req, res) => {
           }
         };
         break;
-        
+
       case 'permissive':
         newControls = {
           ...newControls,
@@ -593,15 +609,15 @@ exports.applyControlTemplate = async (req, res) => {
           }
         };
         break;
-        
+
       default:
         return res.status(400).json({ message: 'Template invalide' });
     }
-    
+
     relation.parentalControls = newControls;
     await relation.save();
-    
-    res.json({ 
+
+    res.json({
       message: `Template ${template} appliqué avec succès`,
       controls: relation.parentalControls
     });
@@ -618,24 +634,24 @@ function getTodayTime(activities) {
 
 function generateChildInsights(engagement, limits) {
   const insights = [];
-  
+
   if (limits.daily.percentage > 100) {
     insights.push('Limite quotidienne dépassée ⚠️');
   } else if (limits.daily.percentage > 80) {
     insights.push('Proche de la limite quotidienne 📊');
   }
-  
+
   if (limits.weekly.percentage > 100) {
     insights.push('Limite hebdomadaire dépassée ⚠️');
   }
-  
+
   if (engagement?.totalBreaks > 0) {
     insights.push(`Pauses prises: ${engagement.totalBreaks} - Bon équilibre ! ⏰`);
   }
-  
+
   if (engagement?.totalRewards > 0) {
     insights.push(`Récompenses gagnées: ${engagement.totalRewards} 🏆`);
   }
-  
+
   return insights;
 }

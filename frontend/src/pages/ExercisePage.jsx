@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../utils/apiConfig';
+import ClientPageLayout from '../components/layout/ClientPageLayout';
 
 // Composants d'exercice
 import CodeExercise from '../components/exercises/CodeExercise';
@@ -33,7 +34,7 @@ import './ExercisePage.css';
 const ExercisePage = () => {
   const { exerciseId } = useParams();
   const navigate = useNavigate();
-  
+
   // États
   const [exercise, setExercise] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -58,7 +59,7 @@ const ExercisePage = () => {
       setLoading(true);
       const response = await axios.get(`http://localhost:5000/api/courses/exercises/${exerciseId}`);
       setExercise(response.data);
-      
+
       // Initialiser la réponse utilisateur selon le type
       initializeUserAnswer(response.data);
     } catch (err) {
@@ -70,7 +71,7 @@ const ExercisePage = () => {
 
   const initializeUserAnswer = (exerciseData) => {
     const { type, codeSnippet, options, blocks } = exerciseData;
-    
+
     switch (type) {
       case 'Code':
       case 'Debug':
@@ -102,7 +103,7 @@ const ExercisePage = () => {
 
   const handleSubmit = async () => {
     if (!userAnswer) return;
-    
+
     try {
       setIsSubmitting(true);
       const apiUrl = getApiUrl(`/api/courses/exercises/${exerciseId}/submit`);
@@ -116,7 +117,7 @@ const ExercisePage = () => {
           'Content-Type': 'application/json'
         }
       });
-      
+
       setSubmissionResult(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Erreur de soumission');
@@ -161,86 +162,94 @@ const ExercisePage = () => {
   };
 
   const getCurrentUserId = () => {
-    // Récupérer l'ID utilisateur depuis le localStorage ou l'état global
-    const stored = localStorage.getItem('userId');
-    if (stored) return stored;
-    const newId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-    localStorage.setItem('userId', newId);
-    return newId;
+    // Récupérer le vrai ID utilisateur MongoDB depuis le localStorage
+    const userId = localStorage.getItem('userId');
+    if (!userId) {
+      console.warn('[ExercisePage] No userId found in localStorage. User must login.');
+      return null;
+    }
+    return userId;
   };
 
-  if (loading) return <LoadingSpinner />;
-  if (error) return <ErrorMessage message={error} onRetry={fetchExercise} />;
-  if (!exercise) return <div>Exercice non trouvé</div>;
-
   return (
-    <div className="exercise-page">
-      {/* En-tête avec métadonnées */}
-      <ExerciseHeader
-        title={exercise.translations?.[currentLanguage]?.name || exercise.name}
-        difficulty={exercise.difficulty}
-        points={exercise.points}
-        type={exercise.type}
-        timeLimit={exercise.timeLimit}
-        attemptsAllowed={exercise.attemptsAllowed}
-      />
-
-      {/* Contenu principal */}
-      <div className="exercise-layout">
-        {/* Section question */}
-        <section className="question-section">
-          <h2>Question</h2>
-          <div 
-            className="question-content"
-            dangerouslySetInnerHTML={{ 
-              __html: exercise.translations?.[currentLanguage]?.question 
-            }} 
+    <ClientPageLayout
+      isLite={true}
+      loading={loading}
+      error={error}
+      onRetry={fetchExercise}
+      showBackButton={true}
+      backLabel="Retour"
+    >
+      {exercise && (
+        <div className="exercise-page">
+          {/* En-tête avec métadonnées */}
+          <ExerciseHeader
+            title={exercise.translations?.[currentLanguage]?.name || exercise.name}
+            difficulty={exercise.difficulty}
+            points={exercise.points}
+            type={exercise.type}
+            timeLimit={exercise.timeLimit}
+            attemptsAllowed={exercise.attemptsAllowed}
           />
-          
-          {exercise.translations?.[currentLanguage]?.explanation && (
-            <div className="explanation">
-              <h4>Explication</h4>
-              <p>{exercise.translations[currentLanguage].explanation}</p>
-            </div>
-          )}
 
-          {/* Informations spécifiques selon le type */}
-          {exercise.type === 'Code' && exercise.testCases && (
-            <div className="test-cases-info">
-              <h4>Cas de test</h4>
-              <p>{exercise.testCases.length} cas de test disponibles</p>
-            </div>
-          )}
+          {/* Contenu principal */}
+          <div className="exercise-layout">
+            {/* Section question */}
+            <section className="question-section">
+              <h2>Question</h2>
+              <div
+                className="question-content"
+                dangerouslySetInnerHTML={{
+                  __html: exercise.translations?.[currentLanguage]?.question
+                }}
+              />
 
-          {exercise.type === 'Debug' && exercise.debugErrors && (
-            <div className="debug-info">
-              <h4>Instructions de débogage</h4>
-              <p>Identifiez et corrigez les erreurs dans le code ci-dessous.</p>
-            </div>
-          )}
-        </section>
+              {exercise.translations?.[currentLanguage]?.explanation && (
+                <div className="explanation">
+                  <h4>Explication</h4>
+                  <p>{exercise.translations[currentLanguage].explanation}</p>
+                </div>
+              )}
 
-        {/* Section réponse */}
-        <section className="answer-section">
-          <ExerciseRenderer
-            exercise={exercise}
-            userAnswer={userAnswer}
-            onAnswerChange={handleAnswerChange}
-            onCodeChange={handleCodeChange}
-          />
-        </section>
+              {/* Informations spécifiques selon le type */}
+              {exercise.type === 'Code' && exercise.testCases && (
+                <div className="test-cases-info">
+                  <h4>Cas de test</h4>
+                  <p>{exercise.testCases.length} cas de test disponibles</p>
+                </div>
+              )}
 
-        {/* Panel de soumission */}
-        <SubmissionPanel
-          onSubmit={handleSubmit}
-          result={submissionResult}
-          isSubmitting={isSubmitting}
-          attemptsAllowed={exercise.attemptsAllowed}
-          userAnswer={userAnswer}
-          exerciseType={exercise.type}
-        />
-      </div>
-    </div>
+              {exercise.type === 'Debug' && exercise.debugErrors && (
+                <div className="debug-info">
+                  <h4>Instructions de débogage</h4>
+                  <p>Identifiez et corrigez les erreurs dans le code ci-dessous.</p>
+                </div>
+              )}
+            </section>
+
+            {/* Section réponse */}
+            <section className="answer-section">
+              <ExerciseRenderer
+                exercise={exercise}
+                userAnswer={userAnswer}
+                onAnswerChange={handleAnswerChange}
+                onCodeChange={handleCodeChange}
+              />
+            </section>
+
+            {/* Panel de soumission */}
+            <SubmissionPanel
+              onSubmit={handleSubmit}
+              result={submissionResult}
+              isSubmitting={isSubmitting}
+              attemptsAllowed={exercise.attemptsAllowed}
+              userAnswer={userAnswer}
+              exerciseType={exercise.type}
+            />
+          </div>
+        </div>
+      )}
+    </ClientPageLayout>
   );
 };
 
@@ -258,61 +267,61 @@ const ExerciseRenderer = ({ exercise, userAnswer, onAnswerChange, onCodeChange }
     switch (exercise.type) {
       case 'Code':
         return <CodeExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       case 'QCM':
         return <QCMExercise {...commonProps} />;
-      
+
       case 'Debug':
         return <DebugExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       case 'DragDrop':
         return <DragDropExercise {...commonProps} />;
-      
+
       case 'OrderBlocks':
         return <OrderBlocksExercise {...commonProps} />;
-      
+
       case 'Matching':
         return <MatchingExercise {...commonProps} />;
-      
+
       case 'Algorithm':
       case 'AlgorithmSteps':
         return <AlgorithmExercise {...commonProps} />;
-      
+
       case 'FlowChart':
         return <FlowChartExercise {...commonProps} />;
-      
+
       case 'Trace':
         return <TraceExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       case 'CodeCompletion':
         return <CodeCompletionExercise {...commonProps} />;
-      
+
       case 'PseudoCode':
         return <PseudoCodeExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       case 'Complexity':
         return <ComplexityExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       case 'DataStructure':
         return <DataStructureExercise {...commonProps} />;
-      
+
       case 'ScratchBlocks':
         return <ScratchBlocksExercise {...commonProps} />;
-      
+
       case 'ConceptMapping':
         return <ConceptMappingExercise {...commonProps} />;
-      
+
       case 'CodeOutput':
         return <CodeOutputExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       case 'Optimization':
         return <OptimizationExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       case 'TextInput':
       case 'FillInTheBlank':
       case 'SpotTheError':
         return <CodeExercise {...commonProps} onCodeChange={onCodeChange} />;
-      
+
       default:
         return <div className="unsupported-type">
           Type d'exercice non supporté: {exercise.type}

@@ -19,9 +19,9 @@ const rateLimit = require('express-rate-limit');
 const app = express();
 
 // CLIENT_ORIGIN - Priorité au frontend déployé en production
-const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 
-  (process.env.NODE_ENV === 'production' 
-    ? 'https://codegenesis-platform.web.app' 
+const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://codegenesis-platform.web.app'
     : 'http://localhost:3000');
 const PORT = process.env.PORT || 5000;
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
@@ -225,10 +225,10 @@ console.log('🌐 CORS - CLIENT_ORIGIN:', CLIENT_ORIGIN);
 // Ce middleware s'assure que le header CORS utilise l'origine de la requête
 const forceCorsOrigin = (req, res, next) => {
   const origin = req.headers.origin;
-  
+
   // Si l'origine est présente et autorisée, forcer le header correct
-  if (origin && (origin.includes('codegenesis-platform.web.app') || 
-                 origin.includes('codegenesis-platform.firebaseapp.com'))) {
+  if (origin && (origin.includes('codegenesis-platform.web.app') ||
+    origin.includes('codegenesis-platform.firebaseapp.com'))) {
     // Forcer le header avec l'origine de la requête
     res.header('Access-Control-Allow-Origin', origin);
     res.header('Access-Control-Allow-Credentials', 'true');
@@ -243,26 +243,26 @@ app.use(cors({
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // En développement, permettre toutes les origines
     if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    
+
     // Vérifier si l'origine est autorisée (priorité au frontend déployé)
-    if (origin.includes('codegenesis-platform.web.app') || 
-        origin.includes('codegenesis-platform.firebaseapp.com')) {
+    if (origin.includes('codegenesis-platform.web.app') ||
+      origin.includes('codegenesis-platform.firebaseapp.com')) {
       // Retourner explicitement l'origine de la requête pour le frontend déployé
       console.log(`✅ CORS: Autorisation de l'origine: ${origin}`);
       return callback(null, origin);
     }
-    
+
     const isAllowed = allowedOrigins.some(allowed => {
       if (origin === allowed) return true;
       if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
       return false;
     });
-    
+
     if (isAllowed) {
       // Retourner explicitement l'origine de la requête
       callback(null, origin);
@@ -286,18 +286,18 @@ app.use(forceCorsOrigin);
 // Gérer les requêtes OPTIONS (preflight) explicitement
 app.options('*', (req, res) => {
   const origin = req.headers.origin;
-  
+
   // Vérifier si l'origine est autorisée
-  const isAllowed = !origin || 
+  const isAllowed = !origin ||
     allowedOrigins.some(allowed => {
       if (origin === allowed) return true;
       if (allowed.startsWith('http') && origin.startsWith(allowed)) return true;
       return false;
-    }) || 
+    }) ||
     origin.includes('codegenesis-platform.web.app') ||
     origin.includes('codegenesis-platform.firebaseapp.com') ||
     process.env.NODE_ENV !== 'production';
-  
+
   if (isAllowed) {
     // Utiliser l'origine de la requête, pas CLIENT_ORIGIN
     const allowedOrigin = origin || (allowedOrigins.includes('https://codegenesis-platform.web.app') ? 'https://codegenesis-platform.web.app' : '*');
@@ -438,7 +438,7 @@ if (true) {
           break;
         }
         default:
-          // ignore other events
+        // ignore other events
       }
 
       res.json({ received: true });
@@ -605,6 +605,25 @@ console.log('parentRoutes:', !!parentRoutes);
 console.log('invitationRoutes:', !!invitationRoutes);
 console.log('notificationRoutes:', !!notificationRoutes);
 
+// Task Management Routes (Must be before adminRoutes to avoid conflict with /:id)
+try {
+  // Précharger le modèle TaskTemplate pour s'assurer qu'il est disponible
+  const TaskTemplate = require('./models/TaskTemplate');
+  console.log('✅ TaskTemplate model loaded');
+
+  const taskTemplateRoutes = require('./routes/taskTemplateRoutes');
+  const assignedTaskRoutes = require('./routes/assignedTaskRoutes');
+  const taskRoutes = require('./routes/taskRoutes');
+
+  app.use('/api/admin/task-templates', taskTemplateRoutes);
+  app.use('/api/assigned-tasks', assignedTaskRoutes); // Shared base, specific routes handle admin/parent
+  app.use('/api/tasks', taskRoutes); // Legacy task routes
+  console.log('✅ Task Management Routes loaded');
+} catch (err) {
+  console.error('❌ Error loading Task Management Routes:', err.message);
+  console.error('❌ Error stack:', err.stack);
+}
+
 if (authRoutes) {
   console.log('Mounting auth routes at /api/auth');
   app.use('/api/auth', authRoutes);
@@ -636,6 +655,8 @@ if (courseAccessRoutes) app.use('/api/course-access', courseAccessRoutes);
 if (subscriptionPaymentRoutes) app.use('/api/subscription-payment', subscriptionPaymentRoutes);
 if (accessRoutes) app.use('/api/access', accessRoutes);
 
+
+
 // Health check endpoints déplacés plus haut dans le fichier
 
 // Error handler
@@ -658,11 +679,11 @@ const connectDB = async () => {
       console.warn('⚠️ URI MongoDB non définie (MONGODB_URI/MONGO_URI) - Mode dégradé activé');
       return false;
     }
-    
+
     // Afficher l'URI (masquer le mot de passe)
     const uriDisplay = mongoURI.replace(/mongodb\+srv:\/\/[^:]+:[^@]+@/, 'mongodb+srv://***:***@');
     console.log(`🔗 Tentative de connexion à MongoDB: ${uriDisplay}`);
-    
+
     await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
@@ -675,7 +696,7 @@ const connectDB = async () => {
     console.error('⚠️ Erreur connexion MongoDB:', err.message);
     console.warn('⚠️ Mode dégradé: Le serveur démarre sans MongoDB');
     console.warn('⚠️ Les fonctionnalités nécessitant MongoDB ne fonctionneront pas');
-    
+
     // Afficher des suggestions d'aide selon le type d'erreur
     if (err.message.includes('authentication failed') || err.message.includes('Authentication failed')) {
       console.error('💡 Vérifiez que le mot de passe MongoDB est correct dans backend/.env');
@@ -685,7 +706,7 @@ const connectDB = async () => {
     } else if (err.message.includes('timeout') || err.message.includes('TIMEOUT')) {
       console.error('💡 Vérifiez votre connexion internet et que le cluster MongoDB Atlas est actif');
     }
-    
+
     return false;
   }
 };
@@ -705,10 +726,10 @@ let server;
   try {
     // Create upload folders
     await createUploadFolders();
-    
+
     // Try to connect to MongoDB (non-blocking)
     const dbConnected = await connectDB();
-    
+
     // Start server even if MongoDB is not connected
     server = app.listen(PORT, () => {
       console.log(`🚀 Serveur démarré sur le port ${PORT}`);
@@ -717,7 +738,7 @@ let server;
         console.warn('⚠️ ATTENTION: MongoDB non connecté - Mode dégradé actif');
       }
     });
-    
+
     // Handle server errors (e.g., port already in use)
     server.on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
@@ -735,6 +756,9 @@ let server;
     process.exit(1);
   }
 })();
+
+// Start cron jobs for task renewal
+require('./jobs/taskRenewalCron');
 
 // Graceful shutdown
 const shutdown = async (signal) => {
