@@ -35,6 +35,7 @@ const uploadFile = async (filePath, destination, mimeType) => {
         };
     } catch (error) {
         console.error('Firebase Storage upload error:', error);
+        error.message = `Bucket "${bucket.name}": ${error.message}`;
         throw error;
     }
 };
