@@ -47,7 +47,7 @@ const uploadVideo = async (filePath, folder = 'codegenesis/videos') => {
 const uploadPDF = async (filePath, folder = 'codegenesis/pdfs') => {
     try {
         const result = await cloudinary.uploader.upload(filePath, {
-            resource_type: 'raw', // Back to raw
+            resource_type: 'image', // Treat PDF as image (V5 strategy)
             folder: folder,
             use_filename: true,
             unique_filename: true,
@@ -57,7 +57,7 @@ const uploadPDF = async (filePath, folder = 'codegenesis/pdfs') => {
 
         // Generate signed URL for debugging
         const signedUrl = cloudinary.url(result.public_id, {
-            resource_type: 'raw',
+            resource_type: 'image',
             type: 'upload',
             sign_url: true,
             secure: true,
