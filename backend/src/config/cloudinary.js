@@ -21,7 +21,8 @@ const uploadVideo = async (filePath, folder = 'codegenesis/videos') => {
             folder: folder,
             use_filename: true,
             unique_filename: true,
-            overwrite: false
+            overwrite: false,
+            access_mode: 'public' // Force public access
         });
 
         return {
@@ -50,7 +51,8 @@ const uploadPDF = async (filePath, folder = 'codegenesis/pdfs') => {
             folder: folder,
             use_filename: true,
             unique_filename: true,
-            overwrite: false
+            overwrite: false,
+            access_mode: 'public' // Force public access
         });
 
         return {
