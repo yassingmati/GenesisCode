@@ -1521,45 +1521,48 @@ class CourseController {
     }
 
     try {
-      // Upload to Cloudinary
-      const filePath = req.file.path;
-      const uploadResult = await uploadVideo(filePath, `codegenesis/levels/${levelId}/videos`);
+      const { uploadFile, deleteFile } = require('../config/firebaseStorage');
 
-      // Delete old video from Cloudinary if exists
-      if (level.cloudinary_videos && level.cloudinary_videos[lang]) {
+      // Upload to Firebase Storage
+      const filePath = req.file.path;
+      const uploadResult = await uploadFile(filePath, `videos/${levelId}/${req.file.filename}`, 'video/mp4');
+
+      // Delete old video from Firebase if exists
+      if (level.videos && level.videos[lang]) {
         try {
-          await deleteFile(level.cloudinary_videos[lang].public_id, 'video');
+          await deleteFile(level.videos[lang]);
         } catch (err) {
           console.error('Failed to delete old video:', err);
         }
       }
 
-      // Update level with Cloudinary URL
-      level.videos = level.videos || {};
-      level.videos[lang] = uploadResult.url;
+      // Update level with Firebase URL
+      const updates = {};
+      updates[`videos.${lang}`] = uploadResult.url;
 
-      level.cloudinary_videos = level.cloudinary_videos || {};
-      level.cloudinary_videos[lang] = {
-        public_id: uploadResult.public_id,
-        url: uploadResult.url,
-        format: uploadResult.format,
-        duration: uploadResult.duration
-      };
+      // Also update legacy field if it's the default language (fr)
+      if (lang === 'fr') {
+        updates.video = uploadResult.url;
+      }
 
-      await level.save();
+      const updatedLevel = await Level.findByIdAndUpdate(
+        levelId,
+        { $set: updates },
+        { new: true }
+      );
 
-      // Delete local file after successful upload
+      // Clean up local file
       await safeUnlink(filePath);
 
       res.json({
-        message: `Vidéo (${lang}) enregistrée sur Cloudinary`,
+        message: `Vidéo (${lang}) enregistrée sur Firebase Storage`,
         url: uploadResult.url,
-        videos: level.videos
+        videos: updatedLevel.videos
       });
     } catch (error) {
-      console.error('Cloudinary upload error:', error);
+      console.error('Firebase upload error:', error);
       await safeUnlink(req.file.path);
-      res.status(500).json({ error: 'Erreur lors de l\'upload vers Cloudinary' });
+      res.status(500).json({ error: 'Erreur lors de l\'upload vers Firebase Storage' });
     }
   });
 
@@ -1584,26 +1587,28 @@ class CourseController {
     }
 
     try {
-      // Upload to Cloudinary
+      const { uploadFile, deleteFile } = require('../config/firebaseStorage');
+
+      // Upload to Firebase Storage
       const filePath = req.file.path;
-      const uploadResult = await uploadPDF(filePath, `codegenesis/levels/${levelId}/pdfs`);
-      // Delete old PDF from Cloudinary if exists
-      if (level.cloudinary_pdfs && level.cloudinary_pdfs[lang]) {
+      const uploadResult = await uploadFile(filePath, `pdfs/${levelId}/${req.file.filename}`, 'application/pdf');
+
+      // Delete old PDF from Firebase if exists
+      if (level.pdfs && level.pdfs[lang]) {
         try {
-          await deleteFile(level.cloudinary_pdfs[lang].public_id, 'raw');
+          await deleteFile(level.pdfs[lang]);
         } catch (err) {
           console.error('Failed to delete old PDF:', err);
         }
       }
-      const result = await uploadPDF(req.file.path, `codegenesis/levels/${levelId}/pdfs`);
 
-      // Update level with new PDF URL
+      // Update level with Firebase URL
       const updates = {};
-      updates[`pdfs.${lang}`] = result.url;
+      updates[`pdfs.${lang}`] = uploadResult.url;
 
       // Also update legacy field if it's the default language (fr)
       if (lang === 'fr') {
-        updates.pdf = result.url;
+        updates.pdf = uploadResult.url;
       }
 
       const updatedLevel = await Level.findByIdAndUpdate(
@@ -1616,15 +1621,14 @@ class CourseController {
       fs.unlinkSync(req.file.path);
 
       res.json({
-        message: `PDF (${lang}) enregistré sur Cloudinary`,
-        url: result.url,
-        pdfs: updatedLevel.pdfs,
-        debug_result: result // Return full result for debugging
+        message: `PDF (${lang}) enregistré sur Firebase Storage`,
+        url: uploadResult.url,
+        pdfs: updatedLevel.pdfs
       });
     } catch (error) {
-      console.error('Cloudinary upload error:', error);
+      console.error('Firebase upload error:', error);
       await safeUnlink(req.file.path);
-      res.status(500).json({ error: 'Erreur lors de l\'upload vers Cloudinary' });
+      res.status(500).json({ error: 'Erreur lors de l\'upload vers Firebase Storage' });
     }
   });
 

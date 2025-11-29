@@ -53,49 +53,23 @@ const testUpload = async () => {
 
         console.log('Upload Status:', response.status);
         console.log('Upload Data:', response.data);
-        if (response.data.debug_result) {
-            console.log('Debug Result:', JSON.stringify(response.data.debug_result, null, 2));
-        }
 
         if (response.data.url) {
-            console.log('Verifying Public URL accessibility...');
+            console.log('Verifying URL accessibility...');
 
-            // Try original URL
-            try {
-                console.log('Testing original URL:', response.data.url);
-                const checkRes = await axios.get(response.data.url, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
-                });
-                console.log('Public URL Check Status:', checkRes.status);
-                console.log('Public URL is accessible!');
-            } catch (err) {
-                console.error('Public URL Check Failed:', err.message);
-                if (err.response) console.error('Status:', err.response.status);
+            // Check if it's a Firebase Storage URL
+            if (response.data.url.includes('storage.googleapis.com')) {
+                console.log('Confirmed: URL is from Firebase Storage.');
+            } else {
+                console.warn('Warning: URL does not look like Firebase Storage.');
             }
 
-            // Try JPG version (thumbnail)
             try {
-                const jpgUrl = response.data.url.replace('.pdf', '.jpg');
-                console.log('Testing JPG URL:', jpgUrl);
-                const checkRes = await axios.get(jpgUrl, {
-                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
-                });
-                console.log('JPG URL Check Status:', checkRes.status);
-                console.log('JPG URL is accessible!');
+                const checkRes = await axios.get(response.data.url);
+                console.log('URL Check Status:', checkRes.status);
+                console.log('URL is accessible!');
             } catch (err) {
-                console.error('JPG URL Check Failed:', err.message);
-                if (err.response) console.error('Status:', err.response.status);
-            }
-        }
-
-        if (response.data.debug_result && response.data.debug_result.signed_url) {
-            console.log('Verifying Signed URL accessibility...');
-            try {
-                const checkRes = await axios.get(response.data.debug_result.signed_url);
-                console.log('Signed URL Check Status:', checkRes.status);
-                console.log('Signed URL is accessible!');
-            } catch (err) {
-                console.error('Signed URL Check Failed:', err.message);
+                console.error('URL Check Failed:', err.message);
                 if (err.response) {
                     console.error('Status:', err.response.status);
                     console.error('Data:', err.response.data);
