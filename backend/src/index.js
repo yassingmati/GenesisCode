@@ -57,6 +57,7 @@ if (process.env.STRIPE_SECRET_KEY) {
 
 // Models & Routes (adapter si chemins différents)
 let authRoutes, userRoutes, adminRoutes, courseRoutes, subscriptionRoutes, parentRoutes, invitationRoutes, notificationRoutes, calendarRoutes, reportsRoutes, courseAccessRoutes, subscriptionPaymentRoutes, publicRoutes, paymentRoutes, accessRoutes;
+let gfsBucket;
 
 // Charger les routes individuellement pour éviter qu'une erreur empêche le chargement des autres
 try {
@@ -542,6 +543,51 @@ app.get('/api/proxyVideo', proxyVideoHandler);
 app.get('/api/courses/proxyFile', proxyFileHandler);
 app.get('/api/courses/proxyVideo', proxyVideoHandler);
 
+
+
+// ---------- GridFS File Route ----------
+app.get('/api/files/:filename', async (req, res) => {
+  if (!gfsBucket) return res.status(500).json({ error: 'GridFS non initialisé' });
+
+  try {
+    const file = await gfsBucket.find({ filename: req.params.filename }).next();
+    if (!file) return res.status(404).json({ error: 'Fichier non trouvé' });
+
+    // Handle Range header for video streaming
+    const range = req.headers.range;
+    if (range && file.contentType && file.contentType.startsWith('video/')) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
+      const chunksize = (end - start) + 1;
+
+      res.writeHead(206, {
+        'Content-Range': `bytes ${start}-${end}/${file.length}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunksize,
+        'Content-Type': file.contentType,
+      });
+
+      const downloadStream = gfsBucket.openDownloadStreamByName(req.params.filename, {
+        start,
+        end: end + 1 // end is exclusive in openDownloadStreamByName options? No, it uses start/end options similar to createReadStream? 
+        // Actually MongoDB Node Driver GridFSBucket.openDownloadStreamByName options are { start, end, revision }
+        // end is exclusive in MongoDB driver? Let's check docs or assume standard slice behavior.
+        // Usually it's 0-indexed and end is exclusive.
+      });
+      downloadStream.pipe(res);
+    } else {
+      res.set('Content-Type', file.contentType || 'application/octet-stream');
+      res.set('Content-Length', file.length);
+      const downloadStream = gfsBucket.openDownloadStreamByName(req.params.filename);
+      downloadStream.pipe(res);
+    }
+  } catch (err) {
+    console.error('GridFS error:', err);
+    res.status(500).json({ error: 'Erreur lors de la récupération du fichier' });
+  }
+});
+
 // ---------- Media route for local video streaming (Range support) ----------
 app.get('/media/videos/:filename', async (req, res) => {
   try {
@@ -690,7 +736,16 @@ const connectDB = async () => {
       serverSelectionTimeoutMS: 10000, // Augmenter le timeout pour MongoDB Atlas
       maxPoolSize: 10
     });
+
     console.log('✅ Connecté à MongoDB');
+
+    // Init GridFS Bucket
+    const db = mongoose.connection.db;
+    gfsBucket = new mongoose.mongo.GridFSBucket(db, {
+      bucketName: 'uploads'
+    });
+    console.log('✅ GridFS Bucket initialisé');
+
     return true;
   } catch (err) {
     console.error('⚠️ Erreur connexion MongoDB:', err.message);

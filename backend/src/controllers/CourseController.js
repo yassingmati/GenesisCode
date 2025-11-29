@@ -24,8 +24,8 @@ const UserLevelProgress = require('../models/UserLevelProgress');
 // Services
 const ExerciseService = require('../services/exerciseService');
 
-// Cloudinary
-const { uploadVideo, uploadPDF, deleteFile } = require('../config/cloudinary');
+// GridFS
+const gridfsStorage = require('../config/gridfs');
 
 /* ============================
    Helpers / utilities
@@ -87,6 +87,20 @@ const safeUnlink = async (relPath) => {
     await fsp.unlink(abs).catch(() => { });
   } catch (e) {
     // swallow errors, deletion is best-effort
+  }
+};
+
+const deleteGridFSFile = async (filename) => {
+  if (!filename) return;
+  try {
+    const db = mongoose.connection.db;
+    const bucket = new mongoose.mongo.GridFSBucket(db, { bucketName: 'uploads' });
+    const file = await bucket.find({ filename }).next();
+    if (file) {
+      await bucket.delete(file._id);
+    }
+  } catch (err) {
+    console.error('Error deleting GridFS file:', err);
   }
 };
 
@@ -424,21 +438,9 @@ const pdfExt = ['.pdf'];
 const configureMulter = (opts = {}) => {
   const allowedExt = opts.allowedExt || defaultVideoExt;
   const maxSize = opts.maxSize || (500 * 1024 * 1024);
-  const subdir = opts.subdir || 'videos';
-  const storageDir = path.join(uploadsBaseDir, subdir);
-
-  const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      fsp.mkdir(storageDir, { recursive: true }).then(() => cb(null, storageDir)).catch(cb);
-    },
-    filename: (req, file, cb) => {
-      const safeName = `${subdir}-${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname).toLowerCase()}`;
-      cb(null, safeName);
-    }
-  });
 
   return multer({
-    storage,
+    storage: gridfsStorage,
     limits: { fileSize: maxSize },
     fileFilter: (req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
@@ -1504,46 +1506,44 @@ class CourseController {
   static saveVideoPath = catchErrors(async (req, res) => {
     const lang = (req.body?.lang || req.query?.lang || '').toLowerCase();
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu' });
+
+    const filename = req.file.filename;
+
     if (!isAllowedLang(lang)) {
-      await safeUnlink(resolveRelPath(path.join('videos', req.file.filename)));
+      await deleteGridFSFile(filename);
       return res.status(400).json({ error: 'Langue invalide (fr,en,ar)' });
     }
     const levelId = req.params.levelId;
     if (!isValidObjectId(levelId)) {
-      await safeUnlink(resolveRelPath(path.join('videos', req.file.filename)));
+      await deleteGridFSFile(filename);
       return res.status(400).json({ error: 'ID de niveau invalide' });
     }
 
     const level = await Level.findById(levelId);
     if (!level) {
-      await safeUnlink(resolveRelPath(path.join('videos', req.file.filename)));
+      await deleteGridFSFile(filename);
       return res.status(404).json({ error: 'Niveau non trouvé' });
     }
 
     try {
-      const { uploadFile, deleteFile } = require('../config/firebaseStorage');
+      // Construct URL
+      const protocol = req.protocol;
+      const host = req.get('host');
+      const fileUrl = `${protocol}://${host}/api/files/${filename}`;
 
-      // Upload to Firebase Storage
-      const filePath = req.file.path;
-      const uploadResult = await uploadFile(filePath, `videos/${levelId}/${req.file.filename}`, 'video/mp4');
-
-      // Delete old video from Firebase if exists
+      // Delete old video if exists
       if (level.videos && level.videos[lang]) {
-        try {
-          await deleteFile(level.videos[lang]);
-        } catch (err) {
-          console.error('Failed to delete old video:', err);
+        const oldUrl = level.videos[lang];
+        if (oldUrl.includes('/api/files/')) {
+          const oldFilename = oldUrl.split('/').pop();
+          await deleteGridFSFile(oldFilename);
         }
       }
 
-      // Update level with Firebase URL
+      // Update level
       const updates = {};
-      updates[`videos.${lang}`] = uploadResult.url;
-
-      // Also update legacy field if it's the default language (fr)
-      if (lang === 'fr') {
-        updates.video = uploadResult.url;
-      }
+      updates[`videos.${lang}`] = fileUrl;
+      if (lang === 'fr') updates.video = fileUrl;
 
       const updatedLevel = await Level.findByIdAndUpdate(
         levelId,
@@ -1551,21 +1551,15 @@ class CourseController {
         { new: true }
       );
 
-      // Clean up local file
-      await safeUnlink(filePath);
-
       res.json({
-        message: `Vidéo (${lang}) enregistrée sur Firebase Storage`,
-        url: uploadResult.url,
+        message: `Vidéo (${lang}) enregistrée sur GridFS`,
+        url: fileUrl,
         videos: updatedLevel.videos
       });
     } catch (error) {
-      console.error('Firebase upload error:', error);
-      await safeUnlink(req.file.path);
-      res.status(500).json({
-        error: 'Erreur lors de l\'upload vers Firebase Storage',
-        details: error.message
-      });
+      console.error('GridFS save error:', error);
+      await deleteGridFSFile(filename);
+      res.status(500).json({ error: 'Erreur lors de l\'enregistrement vidéo' });
     }
   });
 
@@ -1573,46 +1567,44 @@ class CourseController {
   static savePDFPath = catchErrors(async (req, res) => {
     const lang = (req.body?.lang || req.query?.lang || '').toLowerCase();
     if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu' });
+
+    const filename = req.file.filename;
+
     if (!isAllowedLang(lang)) {
-      await safeUnlink(resolveRelPath(path.join('pdfs', req.file.filename)));
+      await deleteGridFSFile(filename);
       return res.status(400).json({ error: 'Langue invalide (fr,en,ar)' });
     }
     const levelId = req.params.levelId;
     if (!isValidObjectId(levelId)) {
-      await safeUnlink(resolveRelPath(path.join('pdfs', req.file.filename)));
+      await deleteGridFSFile(filename);
       return res.status(400).json({ error: 'ID de niveau invalide' });
     }
 
     const level = await Level.findById(levelId);
     if (!level) {
-      await safeUnlink(resolveRelPath(path.join('pdfs', req.file.filename)));
+      await deleteGridFSFile(filename);
       return res.status(404).json({ error: 'Niveau non trouvé' });
     }
 
     try {
-      const { uploadFile, deleteFile } = require('../config/firebaseStorage');
+      // Construct URL
+      const protocol = req.protocol;
+      const host = req.get('host');
+      const fileUrl = `${protocol}://${host}/api/files/${filename}`;
 
-      // Upload to Firebase Storage
-      const filePath = req.file.path;
-      const uploadResult = await uploadFile(filePath, `pdfs/${levelId}/${req.file.filename}`, 'application/pdf');
-
-      // Delete old PDF from Firebase if exists
+      // Delete old PDF if exists
       if (level.pdfs && level.pdfs[lang]) {
-        try {
-          await deleteFile(level.pdfs[lang]);
-        } catch (err) {
-          console.error('Failed to delete old PDF:', err);
+        const oldUrl = level.pdfs[lang];
+        if (oldUrl.includes('/api/files/')) {
+          const oldFilename = oldUrl.split('/').pop();
+          await deleteGridFSFile(oldFilename);
         }
       }
 
-      // Update level with Firebase URL
+      // Update level
       const updates = {};
-      updates[`pdfs.${lang}`] = uploadResult.url;
-
-      // Also update legacy field if it's the default language (fr)
-      if (lang === 'fr') {
-        updates.pdf = uploadResult.url;
-      }
+      updates[`pdfs.${lang}`] = fileUrl;
+      if (lang === 'fr') updates.pdf = fileUrl;
 
       const updatedLevel = await Level.findByIdAndUpdate(
         levelId,
@@ -1620,21 +1612,15 @@ class CourseController {
         { new: true }
       );
 
-      // Clean up local file
-      fs.unlinkSync(req.file.path);
-
       res.json({
-        message: `PDF (${lang}) enregistré sur Firebase Storage`,
-        url: uploadResult.url,
+        message: `PDF (${lang}) enregistré sur GridFS`,
+        url: fileUrl,
         pdfs: updatedLevel.pdfs
       });
     } catch (error) {
-      console.error('Firebase upload error:', error);
-      await safeUnlink(req.file.path);
-      res.status(500).json({
-        error: 'Erreur lors de l\'upload vers Firebase Storage',
-        details: error.message
-      });
+      console.error('GridFS save error:', error);
+      await deleteGridFSFile(filename);
+      res.status(500).json({ error: 'Erreur lors de l\'enregistrement PDF' });
     }
   });
 
@@ -1650,7 +1636,14 @@ class CourseController {
 
     if (!level.videos || !level.videos[lang]) return res.status(404).json({ error: 'Aucune vidéo pour cette langue' });
 
-    await safeUnlink(level.videos[lang]);
+    const videoUrl = level.videos[lang];
+    if (videoUrl && videoUrl.includes('/api/files/')) {
+      const filename = videoUrl.split('/').pop();
+      await deleteGridFSFile(filename);
+    } else {
+      await safeUnlink(videoUrl);
+    }
+
     delete level.videos[lang];
     await level.save();
 
@@ -1669,7 +1662,14 @@ class CourseController {
 
     if (!level.pdfs || !level.pdfs[lang]) return res.status(404).json({ error: 'Aucun PDF pour cette langue' });
 
-    await safeUnlink(level.pdfs[lang]);
+    const pdfUrl = level.pdfs[lang];
+    if (pdfUrl && pdfUrl.includes('/api/files/')) {
+      const filename = pdfUrl.split('/').pop();
+      await deleteGridFSFile(filename);
+    } else {
+      await safeUnlink(pdfUrl);
+    }
+
     delete level.pdfs[lang];
     await level.save();
 

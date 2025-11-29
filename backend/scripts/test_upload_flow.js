@@ -57,11 +57,11 @@ const testUpload = async () => {
         if (response.data.url) {
             console.log('Verifying URL accessibility...');
 
-            // Check if it's a Firebase Storage URL
-            if (response.data.url.includes('storage.googleapis.com')) {
-                console.log('Confirmed: URL is from Firebase Storage.');
+            // Check if it's a GridFS URL
+            if (response.data.url.includes('/api/files/')) {
+                console.log('Confirmed: URL is from GridFS.');
             } else {
-                console.warn('Warning: URL does not look like Firebase Storage.');
+                console.warn('Warning: URL does not look like GridFS.');
             }
 
             try {
