@@ -56,6 +56,7 @@ const uploadPDF = async (filePath, folder = 'codegenesis/pdfs') => {
         });
 
         return {
+            ...result, // Return everything for debugging
             url: result.secure_url,
             public_id: result.public_id,
             format: result.format,
