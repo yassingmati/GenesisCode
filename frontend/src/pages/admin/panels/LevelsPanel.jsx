@@ -277,10 +277,12 @@ export default function LevelsPanel({ onOpenCreate }) {
 
     for (const lang of ['fr', 'en', 'ar']) {
       if (level.videos?.[lang]) {
-        newVideoPreviews[lang] = `${API_BASE_URL}${level.videos[lang]}`;
+        const vUrl = level.videos[lang];
+        newVideoPreviews[lang] = vUrl.startsWith('http') ? vUrl : `${API_BASE_URL}${vUrl}`;
       }
       if (level.pdfs?.[lang]) {
-        newPdfPreviews[lang] = `${API_BASE_URL}${level.pdfs[lang]}`;
+        const pUrl = level.pdfs[lang];
+        newPdfPreviews[lang] = pUrl.startsWith('http') ? pUrl : `${API_BASE_URL}${pUrl}`;
       }
     }
 

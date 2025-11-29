@@ -122,40 +122,26 @@ export default function LevelPage() {
           l = await res.json();
         }
 
-        // Normalize URLs logic - handle both correct and malformed Cloudinary URLs
+        // Normalize URLs logic
         const vids = {};
         const pdfs = {};
         ['fr', 'en', 'ar'].forEach(k => {
           if (l.videos?.[k]) {
-            // Check if it's a Cloudinary URL (even if malformed)
             const videoUrl = l.videos[k];
-            if (videoUrl.includes('cloudinary.com') || videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) {
-              vids[k] = videoUrl;
-            } else {
-              vids[k] = `${API_BASE}/levels/${levelId}/video?lang=${k}`;
-            }
+            vids[k] = videoUrl.startsWith('http') ? videoUrl : `${API_BASE}/levels/${levelId}/video?lang=${k}`;
           }
           if (l.pdfs?.[k]) {
-            // Check if it's a Cloudinary URL (even if malformed)
             const pdfUrl = l.pdfs[k];
-            if (pdfUrl.includes('cloudinary.com') || pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://')) {
-              pdfs[k] = pdfUrl;
-            } else {
-              pdfs[k] = `${API_BASE}/levels/${levelId}/pdf?lang=${k}`;
-            }
+            pdfs[k] = pdfUrl.startsWith('http') ? pdfUrl : `${API_BASE}/levels/${levelId}/pdf?lang=${k}`;
           }
         });
         if (l.video && !l.videos) {
           const videoUrl = l.video;
-          vids.fr = (videoUrl.includes('cloudinary.com') || videoUrl.startsWith('http://') || videoUrl.startsWith('https://'))
-            ? videoUrl
-            : `${API_BASE}/levels/${levelId}/video?lang=fr`;
+          vids.fr = videoUrl.startsWith('http') ? videoUrl : `${API_BASE}/levels/${levelId}/video?lang=fr`;
         }
         if (l.pdf && !l.pdfs) {
           const pdfUrl = l.pdf;
-          pdfs.fr = (pdfUrl.includes('cloudinary.com') || pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://'))
-            ? pdfUrl
-            : `${API_BASE}/levels/${levelId}/pdf?lang=fr`;
+          pdfs.fr = pdfUrl.startsWith('http') ? pdfUrl : `${API_BASE}/levels/${levelId}/pdf?lang=fr`;
         }
 
         l.videos = vids;
@@ -181,25 +167,23 @@ export default function LevelPage() {
     return () => mounted = false;
   }, [levelId]);
 
-  // PDF Probe - use Cloudinary URLs directly
+  // PDF Probe
   useEffect(() => {
     setPdfEffectiveUrl(null);
     if (!level) return;
     const candidate = level.pdfs?.[lang];
     if (!candidate) return;
 
-    // Use URL directly (Cloudinary URLs are public)
     setPdfEffectiveUrl(`${candidate}#toolbar=0&scroll=continuous&view=FitH`);
   }, [level, lang]);
 
-  // Video Probe - use Cloudinary URLs directly
+  // Video Probe
   useEffect(() => {
     setVideoEffectiveUrl(null);
     if (!level) return;
     const candidate = level.videos?.[lang];
     if (!candidate) return;
 
-    // Use URL directly (Cloudinary URLs are public)
     setVideoEffectiveUrl(candidate);
   }, [level, lang]);
 
