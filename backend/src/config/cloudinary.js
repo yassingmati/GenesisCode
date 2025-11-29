@@ -55,9 +55,19 @@ const uploadPDF = async (filePath, folder = 'codegenesis/pdfs') => {
             type: 'upload'
         });
 
+        // Generate signed URL for debugging
+        const signedUrl = cloudinary.url(result.public_id, {
+            resource_type: 'image',
+            type: 'upload',
+            sign_url: true,
+            secure: true,
+            version: result.version
+        });
+
         return {
             ...result, // Return everything for debugging
             url: result.secure_url,
+            signed_url: signedUrl,
             public_id: result.public_id,
             format: result.format,
             size: result.bytes

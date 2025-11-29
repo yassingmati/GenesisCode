@@ -58,56 +58,31 @@ const testUpload = async () => {
         }
 
         if (response.data.url) {
-            console.log('Verifying URL accessibility...');
+            console.log('Verifying Public URL accessibility...');
             try {
                 const checkRes = await axios.get(response.data.url);
-                console.log('URL Check Status:', checkRes.status);
-                console.log('URL is accessible!');
+                console.log('Public URL Check Status:', checkRes.status);
+                console.log('Public URL is accessible!');
             } catch (err) {
-                console.error('URL Check Failed:', err.message);
-                if (err.response) console.error('Status:', err.response.status);
+                console.error('Public URL Check Failed:', err.message);
+                if (err.response) {
+                    console.error('Status:', err.response.status);
+                    console.error('Data:', err.response.data);
+                }
+            }
+        }
 
-                // Inspect resource via Cloudinary API
-                try {
-                    const cloudinary = require('cloudinary').v2;
-                    cloudinary.config({
-                        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-                        api_key: process.env.CLOUDINARY_API_KEY,
-                        api_secret: process.env.CLOUDINARY_API_SECRET
-                    });
-
-                    // Extract public_id from URL
-                    // URL: https://res.cloudinary.com/cloud_name/image/upload/v12345/folder/filename.pdf
-                    const urlParts = response.data.url.split('/');
-                    const filename = urlParts.pop();
-                    const folderPath = urlParts.slice(7).join('/'); // Adjust index based on URL structure
-                    // public_id usually includes folder
-                    // Let's try to find it by listing recent resources if extraction is hard
-
-                    console.log('Inspecting Cloudinary resource...');
-                    // We can't easily guess public_id without knowing the exact structure, 
-                    // but we can try to extract it.
-                    // Assuming folder structure: codegenesis/levels/...
-                    // The backend returns the full URL.
-
-                    // Let's just list the last uploaded resource
-                    const resources = await cloudinary.api.resources({
-                        type: 'upload',
-                        resource_type: 'image', // We used auto, so it might be image
-                        max_results: 1,
-                        direction: 'desc'
-                    });
-
-                    if (resources.resources.length > 0) {
-                        const latest = resources.resources[0];
-                        console.log('Latest Resource:', JSON.stringify(latest, null, 2));
-                        console.log('Access Mode:', latest.access_mode);
-                    } else {
-                        console.log('No resources found via API.');
-                    }
-
-                } catch (cloudErr) {
-                    console.error('Cloudinary Inspection Failed:', cloudErr.message);
+        if (response.data.debug_result && response.data.debug_result.signed_url) {
+            console.log('Verifying Signed URL accessibility...');
+            try {
+                const checkRes = await axios.get(response.data.debug_result.signed_url);
+                console.log('Signed URL Check Status:', checkRes.status);
+                console.log('Signed URL is accessible!');
+            } catch (err) {
+                console.error('Signed URL Check Failed:', err.message);
+                if (err.response) {
+                    console.error('Status:', err.response.status);
+                    console.error('Data:', err.response.data);
                 }
             }
         }
