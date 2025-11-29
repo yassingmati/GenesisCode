@@ -1562,7 +1562,10 @@ class CourseController {
     } catch (error) {
       console.error('Firebase upload error:', error);
       await safeUnlink(req.file.path);
-      res.status(500).json({ error: 'Erreur lors de l\'upload vers Firebase Storage' });
+      res.status(500).json({
+        error: 'Erreur lors de l\'upload vers Firebase Storage',
+        details: error.message
+      });
     }
   });
 
