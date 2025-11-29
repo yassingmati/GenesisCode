@@ -1587,7 +1587,6 @@ class CourseController {
       // Upload to Cloudinary
       const filePath = req.file.path;
       const uploadResult = await uploadPDF(filePath, `codegenesis/levels/${levelId}/pdfs`);
-
       // Delete old PDF from Cloudinary if exists
       if (level.cloudinary_pdfs && level.cloudinary_pdfs[lang]) {
         try {
@@ -1596,27 +1595,31 @@ class CourseController {
           console.error('Failed to delete old PDF:', err);
         }
       }
+      const result = await uploadPDF(req.file.path, `codegenesis/levels/${levelId}/pdfs`);
 
-      // Update level with Cloudinary URL
-      level.pdfs = level.pdfs || {};
-      level.pdfs[lang] = uploadResult.url;
+      // Update level with new PDF URL
+      const updates = {};
+      updates[`pdfs.${lang}`] = result.url;
 
-      level.cloudinary_pdfs = level.cloudinary_pdfs || {};
-      level.cloudinary_pdfs[lang] = {
-        public_id: uploadResult.public_id,
-        url: uploadResult.url,
-        format: uploadResult.format
-      };
+      // Also update legacy field if it's the default language (fr)
+      if (lang === 'fr') {
+        updates.pdf = result.url;
+      }
 
-      await level.save();
+      const updatedLevel = await Level.findByIdAndUpdate(
+        levelId,
+        { $set: updates },
+        { new: true }
+      );
 
-      // Delete local file after successful upload
-      await safeUnlink(filePath);
+      // Clean up local file
+      fs.unlinkSync(req.file.path);
 
       res.json({
         message: `PDF (${lang}) enregistré sur Cloudinary`,
-        url: uploadResult.url,
-        pdfs: level.pdfs
+        url: result.url,
+        pdfs: updatedLevel.pdfs,
+        debug_result: result // Return full result for debugging
       });
     } catch (error) {
       console.error('Cloudinary upload error:', error);
