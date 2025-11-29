@@ -57,7 +57,7 @@ async function findLevelInAccessiblePaths(levelId, token) {
 import { Document, Page, pdfjs } from 'react-pdf';
 
 // Configure PDF worker using CDN to avoid local file serving issues
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
 
 export default function LevelPage() {
   const { levelId } = useParams();
