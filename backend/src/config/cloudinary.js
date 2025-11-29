@@ -47,12 +47,12 @@ const uploadVideo = async (filePath, folder = 'codegenesis/videos') => {
 const uploadPDF = async (filePath, folder = 'codegenesis/pdfs') => {
     try {
         const result = await cloudinary.uploader.upload(filePath, {
-            resource_type: 'raw', // Back to raw for PDFs
+            resource_type: 'image', // Treat PDF as image for public access and features
             folder: folder,
             use_filename: true,
             unique_filename: true,
             overwrite: false,
-            type: 'upload' // Explicitly set storage type to upload (public)
+            type: 'upload'
         });
 
         return {
