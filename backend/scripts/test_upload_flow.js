@@ -59,16 +59,32 @@ const testUpload = async () => {
 
         if (response.data.url) {
             console.log('Verifying Public URL accessibility...');
+
+            // Try original URL
             try {
-                const checkRes = await axios.get(response.data.url);
+                console.log('Testing original URL:', response.data.url);
+                const checkRes = await axios.get(response.data.url, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+                });
                 console.log('Public URL Check Status:', checkRes.status);
                 console.log('Public URL is accessible!');
             } catch (err) {
                 console.error('Public URL Check Failed:', err.message);
-                if (err.response) {
-                    console.error('Status:', err.response.status);
-                    console.error('Data:', err.response.data);
-                }
+                if (err.response) console.error('Status:', err.response.status);
+            }
+
+            // Try JPG version (thumbnail)
+            try {
+                const jpgUrl = response.data.url.replace('.pdf', '.jpg');
+                console.log('Testing JPG URL:', jpgUrl);
+                const checkRes = await axios.get(jpgUrl, {
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36' }
+                });
+                console.log('JPG URL Check Status:', checkRes.status);
+                console.log('JPG URL is accessible!');
+            } catch (err) {
+                console.error('JPG URL Check Failed:', err.message);
+                if (err.response) console.error('Status:', err.response.status);
             }
         }
 
