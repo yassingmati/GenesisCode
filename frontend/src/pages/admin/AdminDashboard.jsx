@@ -12,7 +12,20 @@ import {
   IconActivity
 } from '@tabler/icons-react';
 
-export default function AdminDashboard() {
+import UserManagementPanel from './panels/UserManagementPanel';
+
+// ... (imports)
+
+// ... (inside AdminDashboard component)
+
+        <Tab key="users" title="Utilisateurs">
+          <div className="mt-6">
+            <UserManagementPanel />
+          </div>
+        </Tab>
+
+        <Tab key="tasks" title="Gestion des Tâches">
+// ...
   const [stats, setStats] = useState({ users: 0, courses: 0, payments: 0, contentItems: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -84,110 +97,126 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-        <StatCard
-          title="Utilisateurs Totaux"
-          value={stats.users}
-          icon={IconUsers}
-          color="bg-blue-500"
-          trend="+12%"
-        />
-        <StatCard
-          title="Cours Actifs"
-          value={stats.courses}
-          icon={IconBook}
-          color="bg-indigo-500"
-          trend="+5%"
-        />
-        <StatCard
-          title="Revenus (Mois)"
-          value={`${stats.payments}€`}
-          icon={IconCreditCard}
-          color="bg-emerald-500"
-          trend="+8.2%"
-        />
-        <StatCard
-          title="Contenus Créés"
-          value={stats.contentItems}
-          icon={IconFiles}
-          color="bg-purple-500"
-          trend="+24%"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Chart Section */}
-        <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                <IconTrendingUp className="text-indigo-600" />
-                Activité Hebdomadaire
-              </h2>
-              <p className="text-sm text-gray-400 mt-1">Engagement des utilisateurs sur les 7 derniers jours</p>
-            </div>
-            <select className="bg-gray-50 border-none text-sm font-medium text-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-100 cursor-pointer hover:bg-gray-100 transition-colors">
-              <option>Cette semaine</option>
-              <option>Semaine dernière</option>
-            </select>
+      <Tabs aria-label="Options du dashboard" color="primary" variant="underlined" classNames={{
+        tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+        cursor: "w-full bg-indigo-600",
+        tab: "max-w-fit px-0 h-12",
+        tabContent: "group-data-[selected=true]:text-indigo-600"
+      }}>
+        <Tab key="overview" title="Vue d'ensemble">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 mt-6">
+            <StatCard
+              title="Utilisateurs Totaux"
+              value={stats.users}
+              icon={IconUsers}
+              color="bg-blue-500"
+              trend="+12%"
+            />
+            <StatCard
+              title="Cours Actifs"
+              value={stats.courses}
+              icon={IconBook}
+              color="bg-indigo-500"
+              trend="+5%"
+            />
+            <StatCard
+              title="Revenus (Mois)"
+              value={`${stats.payments}€`}
+              icon={IconCreditCard}
+              color="bg-emerald-500"
+              trend="+8.2%"
+            />
+            <StatCard
+              title="Contenus Créés"
+              value={stats.contentItems}
+              icon={IconFiles}
+              color="bg-purple-500"
+              trend="+24%"
+            />
           </div>
 
-          <div className="h-64 flex items-end justify-between gap-4 px-4">
-            {chartData.map((item, i) => (
-              <div key={i} className="flex flex-col items-center gap-3 flex-1 group cursor-pointer">
-                <div className="relative w-full flex justify-end flex-col h-full">
-                  <div
-                    className={`w-full rounded-t-xl transition-all duration-500 ease-out group-hover:opacity-80 relative overflow-hidden ${item.color}`}
-                    style={{ height: `${item.value}%` }}
-                  >
-                    <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
-                  </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Chart Section */}
+            <div className="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                    <IconTrendingUp className="text-indigo-600" />
+                    Activité Hebdomadaire
+                  </h2>
+                  <p className="text-sm text-gray-400 mt-1">Engagement des utilisateurs sur les 7 derniers jours</p>
                 </div>
-                <span className="text-xs font-semibold text-gray-400 group-hover:text-indigo-600 transition-colors">
-                  {item.label}
-                </span>
+                <select className="bg-gray-50 border-none text-sm font-medium text-gray-600 rounded-lg px-4 py-2 focus:ring-2 focus:ring-indigo-100 cursor-pointer hover:bg-gray-100 transition-colors">
+                  <option>Cette semaine</option>
+                  <option>Semaine dernière</option>
+                </select>
               </div>
-            ))}
+
+              <div className="h-64 flex items-end justify-between gap-4 px-4">
+                {chartData.map((item, i) => (
+                  <div key={i} className="flex flex-col items-center gap-3 flex-1 group cursor-pointer">
+                    <div className="relative w-full flex justify-end flex-col h-full">
+                      <div
+                        className={`w-full rounded-t-xl transition-all duration-500 ease-out group-hover:opacity-80 relative overflow-hidden ${item.color}`}
+                        style={{ height: `${item.value}%` }}
+                      >
+                        <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-20 transition-opacity"></div>
+                      </div>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-400 group-hover:text-indigo-600 transition-colors">
+                      {item.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Actions / Side Panel */}
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white shadow-lg shadow-indigo-200 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-black opacity-10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
+
+              <h3 className="text-2xl font-bold mb-2 relative z-10">Mode Premium</h3>
+              <p className="text-indigo-100 mb-8 relative z-10">Accédez aux fonctionnalités avancées d'administration.</p>
+
+              <div className="space-y-4 relative z-10">
+                <button className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-left transition-all flex items-center gap-3 group">
+                  <div className="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition-transform">
+                    <IconUsers size={20} />
+                  </div>
+                  <div>
+                    <div className="font-semibold">Gérer les accès</div>
+                    <div className="text-xs text-indigo-200">Permissions & Rôles</div>
+                  </div>
+                </button>
+
+                <button className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-left transition-all flex items-center gap-3 group">
+                  <div className="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition-transform">
+                    <IconFiles size={20} />
+                  </div>
+                  <div>
+                    <div className="font-semibold">Rapports</div>
+                    <div className="text-xs text-indigo-200">Télécharger les stats</div>
+                  </div>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
+        </Tab>
 
-        {/* Quick Actions / Side Panel */}
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white shadow-lg shadow-indigo-200 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white opacity-5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-48 h-48 bg-black opacity-10 rounded-full -ml-10 -mb-10 blur-2xl"></div>
-
-          <h3 className="text-2xl font-bold mb-2 relative z-10">Mode Premium</h3>
-          <p className="text-indigo-100 mb-8 relative z-10">Accédez aux fonctionnalités avancées d'administration.</p>
-
-          <div className="space-y-4 relative z-10">
-            <button className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-left transition-all flex items-center gap-3 group">
-              <div className="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition-transform">
-                <IconUsers size={20} />
-              </div>
-              <div>
-                <div className="font-semibold">Gérer les accès</div>
-                <div className="text-xs text-indigo-200">Permissions & Rôles</div>
-              </div>
-            </button>
-
-            <button className="w-full bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/10 rounded-xl p-4 text-left transition-all flex items-center gap-3 group">
-              <div className="bg-white/20 p-2 rounded-lg group-hover:scale-110 transition-transform">
-                <IconFiles size={20} />
-              </div>
-              <div>
-                <div className="font-semibold">Rapports</div>
-                <div className="text-xs text-indigo-200">Télécharger les stats</div>
-              </div>
-            </button>
+        <Tab key="tasks" title="Gestion des Tâches">
+          <div className="mt-6">
+            <AdminTaskManagement />
           </div>
-        </div>
-      </div>
+        </Tab>
 
-      {/* Task Management Section */}
-      <div className="mt-10">
-        <AdminTaskManagement />
-      </div>
+        <Tab key="promocodes" title="Codes Promo">
+          <div className="mt-6">
+            <PromoCodesPanel />
+          </div>
+        </Tab>
+      </Tabs>
     </div>
   );
 }

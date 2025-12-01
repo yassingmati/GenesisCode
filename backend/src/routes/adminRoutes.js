@@ -20,7 +20,15 @@ try {
 
 // Routes protégées pour la gestion des admins (doivent être APRÈS les routes spécifiques)
 // Temporairement public pour migration avec clé secrète
+// Routes pour la gestion des abonnements (Admin)
+const subscriptionController = require('../controllers/subscriptionController');
+router.get('/subscriptions', adminProtect, adminOnly, subscriptionController.getAllSubscriptionsAdmin);
+router.post('/subscriptions/cancel', adminProtect, adminOnly, subscriptionController.cancelSubscriptionAdmin);
+
 router.post('/migrate-plans', adminController.migratePlans);
+router.post('/promo-codes', adminProtect, adminOnly, adminController.createPromoCode);
+router.get('/promo-codes', adminProtect, adminOnly, adminController.getPromoCodes);
+router.get('/users', adminProtect, adminOnly, adminController.getUsers);
 router.get('/list', adminProtect, adminOnly, adminController.listAdmins);
 router.get('/:id', adminProtect, adminOnly, adminController.getAdminById);
 

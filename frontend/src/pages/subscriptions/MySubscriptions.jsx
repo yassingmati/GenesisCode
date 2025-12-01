@@ -165,8 +165,13 @@ export default function MySubscriptions() {
                       </Chip>
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" variant="light" disabled>
-                        Télécharger (Bientôt)
+                      <Button
+                        size="sm"
+                        variant="light"
+                        onPress={() => SubscriptionService.downloadInvoice(sub._id)}
+                        isDisabled={!payment.status || (payment.status !== 'completed' && payment.status !== 'paid')}
+                      >
+                        Télécharger
                       </Button>
                     </TableCell>
                   </TableRow>

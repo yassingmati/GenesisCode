@@ -46,4 +46,10 @@ router.post('/subscribe', catchErrors(subscriptionController.subscribe));
  */
 router.post('/cancel', catchErrors(subscriptionController.cancelSubscription));
 
+/**
+ * Télécharger une facture
+ */
+const invoiceController = require('../controllers/invoiceController');
+router.get('/invoices/:subscriptionId', catchErrors(invoiceController.generateInvoice));
+
 module.exports = router;

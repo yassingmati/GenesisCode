@@ -63,7 +63,7 @@ const sendVerificationEmail = async (email, token) => {
   }
 
   const verificationLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${token}`;
-  
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -123,7 +123,7 @@ const sendPasswordResetEmail = async (email, token) => {
   }
 
   const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password?token=${token}`;
-  
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: email,
@@ -169,8 +169,86 @@ const sendPasswordResetEmail = async (email, token) => {
   }
 };
 
+/**
+ * Envoyer un email de confirmation d'abonnement
+ */
+const sendSubscriptionConfirmationEmail = async (email, planName, amount, currency) => {
+  if (!isEmailConfigured()) return;
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Confirmation de votre abonnement - CodeGenesis',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #4a90e2 0%, #7b61ff 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">CodeGenesis</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">Abonnement Confirmé !</h2>
+          <p style="color: #666; line-height: 1.6;">Merci pour votre abonnement au plan <strong>${planName}</strong>.</p>
+          <p style="color: #666; line-height: 1.6;">Le montant de <strong>${(amount / 100).toFixed(2)} ${currency}</strong> a été réglé avec succès.</p>
+          <p style="margin: 30px 0; text-align: center;">
+            <a href="${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/subscriptions" 
+               style="display: inline-block; padding: 15px 30px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Voir mes abonnements
+            </a>
+          </p>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Email confirmation abonnement envoyé à:', email);
+  } catch (error) {
+    console.error('❌ Erreur envoi email confirmation:', error);
+  }
+};
+
+/**
+ * Envoyer un rappel de renouvellement
+ */
+const sendRenewalReminderEmail = async (email, planName, renewalDate) => {
+  if (!isEmailConfigured()) return;
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: 'Rappel de renouvellement - CodeGenesis',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #4a90e2 0%, #7b61ff 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0;">CodeGenesis</h1>
+        </div>
+        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
+          <h2 style="color: #333; margin-top: 0;">Renouvellement Prochain</h2>
+          <p style="color: #666; line-height: 1.6;">Votre abonnement <strong>${planName}</strong> sera renouvelé automatiquement le <strong>${new Date(renewalDate).toLocaleDateString('fr-FR')}</strong>.</p>
+          <p style="color: #666; line-height: 1.6;">Si vous souhaitez annuler, veuillez le faire avant cette date depuis votre espace personnel.</p>
+          <p style="margin: 30px 0; text-align: center;">
+            <a href="${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/subscriptions" 
+               style="display: inline-block; padding: 15px 30px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+              Gérer mon abonnement
+            </a>
+          </p>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Email rappel renouvellement envoyé à:', email);
+  } catch (error) {
+    console.error('❌ Erreur envoi email rappel:', error);
+  }
+};
+
 module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
+  sendSubscriptionConfirmationEmail,
+  sendRenewalReminderEmail,
   isEmailConfigured
 };

@@ -21,7 +21,7 @@ const API_CONFIG = {
   ENDPOINTS: {
     // Plans d'abonnement
     PLANS: '/api/plans',
-    PLANS_BY_PATH: (pathId) => `/api/plans/path/${pathId}`,
+    PLANS_BY_PATH: (pathId) => `/api/subscriptions/plans/path/${pathId}`,
     // Nouveaux plans par catégorie (même source que l'admin, public actuellement)
     CATEGORY_PLANS: '/api/category-payments/plans', // Endpoint public pour les plans de catégories
     ADMIN_CATEGORY_PLANS: '/api/admin/category-plans', // Endpoint admin protégé

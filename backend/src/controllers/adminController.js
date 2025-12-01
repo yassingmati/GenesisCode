@@ -259,3 +259,68 @@ exports.migratePlans = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+/**
+ * Créer un code promo
+ */
+exports.createPromoCode = async (req, res) => {
+  try {
+    const PromoCode = require('../models/PromoCode');
+    const { code, discountType, discountValue, expirationDate, maxUsage, active, applicablePlans } = req.body;
+
+    if (!code || !discountType || !discountValue) {
+      return res.status(400).json({ message: 'Champs obligatoires manquants' });
+    }
+
+    const existing = await PromoCode.findOne({ code: code.toUpperCase() });
+    if (existing) {
+      return res.status(400).json({ message: 'Ce code promo existe déjà' });
+    }
+
+    const promo = await PromoCode.create({
+      code: code.toUpperCase(),
+      type: discountType,
+      value: discountValue,
+      expiresAt: expirationDate,
+      maxUses: maxUsage,
+      active: active !== undefined ? active : true,
+      applicablePlans
+    });
+
+    res.status(201).json({ success: true, promo });
+  } catch (err) {
+    console.error('createPromoCode error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Récupérer tous les codes promo
+ */
+exports.getPromoCodes = async (req, res) => {
+  try {
+    const PromoCode = require('../models/PromoCode');
+    const promoCodes = await PromoCode.find({}).sort({ createdAt: -1 });
+    res.json({ success: true, promoCodes });
+  } catch (err) {
+    console.error('getPromoCodes error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Récupérer tous les utilisateurs
+ */
+exports.getUsers = async (req, res) => {
+  try {
+    const users = await User.find({})
+      .select('firstName lastName email roles isVerified avatar createdAt')
+      .sort({ createdAt: -1 })
+      .limit(100); // Limite pour éviter la surcharge
+
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('getUsers error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};

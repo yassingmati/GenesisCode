@@ -39,7 +39,7 @@ const promoCodeSchema = new mongoose.Schema({
         default: true
     },
     applicablePlans: [{
-        type: mongoose.Schema.Types.ObjectId,
+        type: String,
         ref: 'Plan'
     }] // Si vide, applicable à tous les plans
 }, {

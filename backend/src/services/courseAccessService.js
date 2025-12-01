@@ -6,7 +6,7 @@ const Path = require('../models/Path');
 const Level = require('../models/Level');
 
 class CourseAccessService {
-  
+
   /**
    * Vérifie si un utilisateur a accès à un contenu
    */
@@ -100,7 +100,7 @@ class CourseAccessService {
 
       // Vérifier les parcours autorisés
       if (plan.allowedPaths && plan.allowedPaths.length > 0) {
-        const hasPathAccess = plan.allowedPaths.some(allowedPathId => 
+        const hasPathAccess = plan.allowedPaths.some(allowedPathId =>
           allowedPathId.toString() === pathId.toString()
         );
         if (hasPathAccess) {
@@ -227,7 +227,7 @@ class CourseAccessService {
     try {
       // Récupérer tous les parcours
       const paths = await Path.find().populate('levels').lean();
-      
+
       for (const path of paths) {
         if (path.levels && path.levels.length > 0) {
           // Trier les niveaux par ordre

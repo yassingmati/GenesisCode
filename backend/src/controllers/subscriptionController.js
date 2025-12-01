@@ -201,8 +201,13 @@ exports.handlePaymentReturn = async (req, res) => {
         }
 
         // Envoyer Email de Confirmation
-        // TODO: Implémenter sendSubscriptionConfirmationEmail dans emailService
-        // await sendSubscriptionConfirmationEmail(subscription.user.email, subscription.plan.name);
+        const { sendSubscriptionConfirmationEmail } = require('../utils/emailService');
+        await sendSubscriptionConfirmationEmail(
+          subscription.user.email,
+          subscription.plan.name,
+          paymentStatus.amount,
+          paymentStatus.currency
+        );
       }
 
       return res.json({
@@ -328,6 +333,70 @@ exports.getPlansForPath = async (req, res) => {
     res.json({ success: true, plans });
   } catch (err) {
     console.error('getPlansForPath Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Récupérer tous les abonnements (avec filtres)
+ */
+exports.getAllSubscriptionsAdmin = async (req, res) => {
+  try {
+    const { status, planId, search } = req.query;
+    const filter = {};
+
+    if (status) filter.status = status;
+    if (planId) filter.plan = planId;
+
+    // Si recherche par email utilisateur
+    if (search) {
+      const users = await User.find({
+        $or: [
+          { email: { $regex: search, $options: 'i' } },
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+      filter.user = { $in: users.map(u => u._id) };
+    }
+
+    const subscriptions = await Subscription.find(filter)
+      .populate('user', 'firstName lastName email')
+      .populate('plan', 'name priceMonthly currency')
+      .sort({ createdAt: -1 })
+      .limit(100); // Limite pour éviter la surcharge
+
+    res.json({ success: true, subscriptions });
+  } catch (err) {
+    console.error('getAllSubscriptionsAdmin Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Annuler un abonnement utilisateur
+ */
+exports.cancelSubscriptionAdmin = async (req, res) => {
+  try {
+    const { subscriptionId, immediate } = req.body;
+
+    const sub = await Subscription.findById(subscriptionId);
+    if (!sub) return res.status(404).json({ success: false, message: 'Abonnement introuvable' });
+
+    if (immediate) {
+      sub.status = 'canceled';
+      sub.canceledAt = new Date();
+      sub.cancelAtPeriodEnd = false; // Annulation immédiate
+    } else {
+      sub.cancelAtPeriodEnd = true;
+      sub.canceledAt = new Date();
+    }
+
+    await sub.save();
+
+    res.json({ success: true, message: 'Abonnement annulé par admin', subscription: sub });
+  } catch (err) {
+    console.error('cancelSubscriptionAdmin Error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 };

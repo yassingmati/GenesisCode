@@ -35,7 +35,13 @@ const SubscriptionModal = ({
       setError(null);
 
       // Récupérer les plans via le service
-      const fetchedPlans = await SubscriptionService.getPlans();
+      let fetchedPlans;
+      if (pathId) {
+        console.log('Fetching plans for path:', pathId);
+        fetchedPlans = await SubscriptionService.getPlansForPath(pathId);
+      } else {
+        fetchedPlans = await SubscriptionService.getPlans();
+      }
 
       if (fetchedPlans && fetchedPlans.length > 0) {
         setPlans(fetchedPlans);
