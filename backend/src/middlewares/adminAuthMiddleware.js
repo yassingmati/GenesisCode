@@ -36,7 +36,17 @@ exports.adminProtect = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Token invalide ou expiré' });
     }
 
-    const admin = await Admin.findById(decoded.id).lean().exec();
+    let admin = await Admin.findById(decoded.id).lean().exec();
+
+    // Si pas trouvé dans Admin, chercher dans User (cas d'un admin connecté via le portail principal)
+    if (!admin) {
+      const User = require('../models/User');
+      const user = await User.findById(decoded.id).lean().exec();
+      if (user && user.roles && user.roles.includes('admin')) {
+        admin = user; // Traiter l'utilisateur comme un admin
+      }
+    }
+
     if (!admin) {
       return res.status(401).json({ success: false, message: 'Admin introuvable pour ce token' });
     }
