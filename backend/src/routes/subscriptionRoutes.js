@@ -17,6 +17,11 @@ const catchErrors = (fn) => (req, res, next) => {
 router.get('/plans', catchErrors(subscriptionController.listPublicPlans));
 
 /**
+ * Obtenir les plans pour un parcours spécifique
+ */
+router.get('/plans/path/:pathId', catchErrors(subscriptionController.getPlansForPath));
+
+/**
  * Retour de paiement Konnect (Callback)
  * Cette route est appelée par le frontend ou Konnect après le paiement
  */

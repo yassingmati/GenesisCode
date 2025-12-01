@@ -282,3 +282,52 @@ exports.listPublicPlans = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
+
+/**
+ * Obtenir les plans pour un parcours spécifique (basé sur la catégorie)
+ */
+exports.getPlansForPath = async (req, res) => {
+  try {
+    const { pathId } = req.params;
+    // Lazy load Path model to avoid circular dependencies if any
+    const Path = require('../models/Path');
+
+    const path = await Path.findById(pathId).populate('category');
+
+    if (!path) {
+      return res.status(404).json({ success: false, message: 'Parcours introuvable' });
+    }
+
+    if (!path.category) {
+      // Fallback to all plans if no category linked
+      return exports.listPublicPlans(req, res);
+    }
+
+    const categoryName = path.category.translations?.fr?.name;
+
+    if (!categoryName) {
+      return exports.listPublicPlans(req, res);
+    }
+
+    // Find plan matching the category name
+    // Since we created plans with exact category names, this should work.
+    // We also include a fallback regex search.
+    const plans = await Plan.find({
+      $or: [
+        { name: categoryName },
+        { name: { $regex: new RegExp(`^${categoryName}$`, 'i') } }
+      ],
+      active: true
+    }).lean();
+
+    if (plans.length === 0) {
+      // Fallback to all plans if specific plan not found
+      return exports.listPublicPlans(req, res);
+    }
+
+    res.json({ success: true, plans });
+  } catch (err) {
+    console.error('getPlansForPath Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
