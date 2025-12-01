@@ -184,3 +184,78 @@ exports.getAdminById = async (req, res) => {
     res.status(500).json({ message: 'Erreur lors de la récupération de l\'admin' });
   }
 };
+
+/**
+ * MIGRATION TEMPORAIRE: Réinitialiser les plans depuis les catégories
+ */
+exports.migratePlans = async (req, res) => {
+  try {
+    const Category = require('../models/Category');
+    const Plan = require('../models/Plan');
+
+    // Sécurité temporaire
+    if (req.body.secretKey !== 'migration-secret-123') {
+      return res.status(403).json({ success: false, message: 'Accès refusé' });
+    }
+
+    console.log('🗑️ Suppression des plans existants...');
+    await Plan.deleteMany({});
+
+    console.log('📋 Récupération des catégories...');
+    const categories = await Category.find({});
+
+    const newPlans = [];
+    const DEFAULT_PRICE = 30000; // 30.00 TND
+    const DEFAULT_CURRENCY = 'TND';
+
+    function generateSlug(name) {
+      return name
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    for (const category of categories) {
+      const nameFr = category.translations?.fr?.name || 'Catégorie Inconnue';
+      const slug = generateSlug(nameFr);
+      const planId = `plan-${slug}`;
+
+      const plan = new Plan({
+        _id: planId,
+        name: nameFr,
+        description: `Accès complet aux cours de ${nameFr}`,
+        priceMonthly: DEFAULT_PRICE,
+        currency: DEFAULT_CURRENCY,
+        interval: 'month',
+        features: [
+          'Accès illimité aux cours',
+          'Exercices interactifs',
+          'Suivi de progression',
+          'Support prioritaire'
+        ],
+        active: true,
+        // Access Control
+        type: 'category',
+        targetId: category._id
+      });
+
+      newPlans.push(plan);
+    }
+
+    if (newPlans.length > 0) {
+      await Plan.insertMany(newPlans);
+    }
+
+    res.json({
+      success: true,
+      message: `Migration terminée. ${newPlans.length} plans créés avec contrôle d'accès.`,
+      plans: newPlans.map(p => ({ id: p._id, targetId: p.targetId }))
+    });
+
+  } catch (err) {
+    console.error('Migration error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
