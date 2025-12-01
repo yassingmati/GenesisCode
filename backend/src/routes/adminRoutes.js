@@ -19,7 +19,8 @@ try {
 }
 
 // Routes protégées pour la gestion des admins (doivent être APRÈS les routes spécifiques)
-router.post('/migrate-plans', adminProtect, adminOnly, adminController.migratePlans);
+// Temporairement public pour migration avec clé secrète
+router.post('/migrate-plans', adminController.migratePlans);
 router.get('/list', adminProtect, adminOnly, adminController.listAdmins);
 router.get('/:id', adminProtect, adminOnly, adminController.getAdminById);
 

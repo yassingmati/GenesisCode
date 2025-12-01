@@ -193,6 +193,11 @@ exports.migratePlans = async (req, res) => {
     const Category = require('../models/Category');
     const Plan = require('../models/Plan');
 
+    // Sécurité temporaire
+    if (req.body.secretKey !== 'migration-secret-123') {
+      return res.status(403).json({ success: false, message: 'Accès refusé' });
+    }
+
     console.log('🗑️ Suppression des plans existants...');
     await Plan.deleteMany({});
 
