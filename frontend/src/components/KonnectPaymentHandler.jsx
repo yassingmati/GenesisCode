@@ -7,12 +7,13 @@ import SubscriptionService from '../services/subscriptionService';
 import { FiLoader, FiCheckCircle, FiXCircle, FiAlertCircle, FiExternalLink, FiCreditCard } from 'react-icons/fi';
 import './KonnectPaymentHandler.css';
 
-const KonnectPaymentHandler = ({ 
-  plan, 
-  onSuccess, 
-  onError, 
+const KonnectPaymentHandler = ({
+  plan,
+  onSuccess,
+  onError,
   onCancel,
-  customerEmail = 'user@genesis.com'
+  customerEmail = 'user@genesis.com',
+  promoCode = null
 }) => {
   const { t } = useTranslation();
   const [paymentStatus, setPaymentStatus] = useState('initializing'); // initializing, ready, processing, success, failed, cancelled
@@ -52,10 +53,11 @@ const KonnectPaymentHandler = ({
           // Plan d'abonnement global - utiliser SubscriptionService.subscribe
           console.log('💳 Utilisation SubscriptionService pour plan global:', planId);
           result = await SubscriptionService.subscribe(planId, {
+            promoCode,
             returnUrl: `${window.location.origin}/payment/success`,
             cancelUrl: `${window.location.origin}/payment/cancel`
           });
-          
+
           // Adapter la réponse pour le format attendu
           if (result.subscription && result.subscription.status === 'active') {
             // Plan gratuit activé
@@ -80,14 +82,14 @@ const KonnectPaymentHandler = ({
         } else {
           // Plan de catégorie - utiliser KonnectService.initPayment
           console.log('💳 Utilisation KonnectService pour plan catégorie:', planId);
-      const paymentData = {
-        planId: undefined,
-        categoryPlanId: plan.raw?._id || planId,
-        customerEmail: customerEmail,
-        returnUrl: `${window.location.origin}/payment/success`,
-        cancelUrl: `${window.location.origin}/payment/cancel`
-      };
-        result = await KonnectService.initPayment(paymentData);
+          const paymentData = {
+            planId: undefined,
+            categoryPlanId: plan.raw?._id || planId,
+            customerEmail: customerEmail,
+            returnUrl: `${window.location.origin}/payment/success`,
+            cancelUrl: `${window.location.origin}/payment/cancel`
+          };
+          result = await KonnectService.initPayment(paymentData);
         }
       } catch (e) {
         // Ne pas utiliser buildPaymentUrl car elle construit une URL incorrecte
@@ -103,9 +105,9 @@ const KonnectPaymentHandler = ({
           setIsFreeAccess(true);
           setPaymentUrl(null);
           setPaymentId(null);
-          
+
           console.log('✅ Accès gratuit accordé:', result.plan);
-          
+
           // Appeler le callback de succès
           if (onSuccess) {
             onSuccess({
@@ -122,7 +124,7 @@ const KonnectPaymentHandler = ({
           setPaymentUrl(result.paymentUrl);
           setPaymentId(result.konnectPaymentId);
           setPaymentStatus('ready');
-          
+
           console.log('🔗 URL de paiement générée:', result.paymentUrl);
         } else {
           throw new Error('URL de paiement non générée');
@@ -265,7 +267,7 @@ const KonnectPaymentHandler = ({
           <h3 className={`status-title ${getStatusColor()}`}>
             {getStatusMessage()}
           </h3>
-          
+
           {plan && (
             <div className="plan-info">
               <h4>{plan.name}</h4>

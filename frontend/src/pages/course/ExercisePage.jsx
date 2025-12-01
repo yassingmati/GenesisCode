@@ -22,7 +22,8 @@ import {
   IconBrain,
   IconAbc,
   IconTrophy,
-  IconPlayerPlay
+  IconPlayerPlay,
+  IconArrowRight
 } from '@tabler/icons-react';
 import { getApiUrl } from '../../utils/apiConfig';
 
@@ -36,6 +37,7 @@ export default function ExercisePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [completedExercises, setCompletedExercises] = useState({});
+  const [nextLevelId, setNextLevelId] = useState(null);
 
   useEffect(() => {
     const fetchLevel = async () => {
@@ -52,6 +54,25 @@ export default function ExercisePage() {
         const data = await res.json();
         setLevel(data);
 
+        // Fetch path levels to find the next level
+        if (data.path) {
+          try {
+            const pathId = typeof data.path === 'object' ? data.path._id : data.path;
+            const levelsRes = await fetch(`${API_BASE}/paths/${pathId}/levels`, {
+              headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+            });
+            if (levelsRes.ok) {
+              const levels = await levelsRes.json();
+              const currentIndex = levels.findIndex(l => l._id === levelId);
+              if (currentIndex !== -1 && currentIndex < levels.length - 1) {
+                setNextLevelId(levels[currentIndex + 1]._id);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to find next level", e);
+          }
+        }
+
         // Load progress from backend API
         if (userId && token) {
           try {
@@ -61,10 +82,8 @@ export default function ExercisePage() {
 
             if (progressRes.ok) {
               const progressData = await progressRes.json();
-              console.log('Progress API Response:', progressData); // Debug log
 
               // Transform backend data to match frontend structure
-              // API returns: { exerciseProgresses: { exerciseId: { completed, xp, ... } } }
               const completed = {};
               if (progressData.exerciseProgresses) {
                 Object.entries(progressData.exerciseProgresses).forEach(([exerciseId, progress]) => {
@@ -75,7 +94,6 @@ export default function ExercisePage() {
                   };
                 });
               }
-              console.log('Transformed completed exercises:', completed); // Debug log
               setCompletedExercises(completed);
             }
           } catch (progressErr) {
@@ -121,7 +139,7 @@ export default function ExercisePage() {
   );
 
   return (
-    <div className="min-h-screen bg-default-50">
+    <div className="min-h-screen bg-default-50 pb-20">
       {/* Navbar */}
       <Navbar isBordered className="bg-background/70 backdrop-blur-md">
         <NavbarBrand className="gap-3">
@@ -188,6 +206,33 @@ export default function ExercisePage() {
           ))}
         </div>
       </div>
+
+      {/* Next Lesson Floating Button */}
+      {stats.percentage === 100 && nextLevelId && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="fixed bottom-8 left-0 right-0 flex justify-center z-50 pointer-events-none"
+        >
+          <Card className="pointer-events-auto shadow-2xl bg-gradient-to-r from-success-500 to-emerald-600 border-none">
+            <CardBody className="flex flex-row items-center gap-4 px-6 py-3">
+              <div className="flex flex-col">
+                <span className="text-white font-bold text-lg">Niveau terminé !</span>
+                <span className="text-white/80 text-xs">Continuez votre progression</span>
+              </div>
+              <Button
+                color="default"
+                variant="solid"
+                className="bg-white text-success-600 font-bold"
+                endContent={<IconArrowRight size={18} />}
+                onPress={() => navigate(`/courses/levels/${nextLevelId}`)}
+              >
+                Leçon suivante
+              </Button>
+            </CardBody>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }

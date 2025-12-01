@@ -75,12 +75,12 @@ class SubscriptionService {
   }
 
   /**
-   * Récupérer l'abonnement de l'utilisateur actuel
-   * @returns {Promise<Object>} - Abonnement de l'utilisateur
+   * Récupérer les abonnements de l'utilisateur actuel
+   * @returns {Promise<Array>} - Liste des abonnements
    */
-  static async getMySubscription() {
+  static async getMySubscriptions() {
     try {
-      console.log('👤 Récupération de l\'abonnement utilisateur...');
+      console.log('👤 Récupération des abonnements utilisateur...');
 
       const response = await fetch(API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.SUBSCRIPTION_ME), {
         method: 'GET',
@@ -90,16 +90,14 @@ class SubscriptionService {
       const data = await response.json();
 
       if (!response.ok) {
-        const errorMessage = data.message || data.error || `Erreur HTTP: ${response.status}`;
-        console.error('❌ Erreur récupération abonnement:', errorMessage);
-        throw new Error(errorMessage);
+        throw new Error(data.message || `Erreur HTTP: ${response.status}`);
       }
 
-      console.log('✅ Abonnement utilisateur récupéré:', data.subscription);
+      console.log('✅ Abonnements récupérés:', data.subscriptions?.length || 0);
 
-      return data.subscription || null;
+      return data.subscriptions || [];
     } catch (error) {
-      console.error('❌ Erreur récupération abonnement:', error);
+      console.error('❌ Erreur récupération abonnements:', error);
       throw error;
     }
   }
@@ -146,31 +144,31 @@ class SubscriptionService {
       console.error('❌ Erreur abonnement:', error);
       // Re-throw avec un message plus clair si nécessaire
       if (error.message) {
-      throw error;
+        throw error;
       }
       throw new Error('Erreur lors de l\'abonnement. Veuillez réessayer.');
     }
   }
 
   /**
-   * Annuler l'abonnement
+   * Annuler un abonnement
+   * @param {string} subscriptionId - ID de l'abonnement à annuler
    * @returns {Promise<Object>} - Résultat de l'annulation
    */
-  static async cancelSubscription() {
+  static async cancelSubscription(subscriptionId) {
     try {
-      console.log('❌ Annulation de l\'abonnement...');
+      console.log('❌ Annulation de l\'abonnement:', subscriptionId);
 
       const response = await fetch(API_CONFIG.getFullUrl(API_CONFIG.ENDPOINTS.SUBSCRIPTION_CANCEL), {
         method: 'POST',
-        headers: API_CONFIG.getDefaultHeaders()
+        headers: API_CONFIG.getDefaultHeaders(),
+        body: JSON.stringify({ subscriptionId })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        const errorMessage = data.message || data.error || `Erreur HTTP: ${response.status}`;
-        console.error('❌ Erreur annulation abonnement:', errorMessage);
-        throw new Error(errorMessage);
+        throw new Error(data.message || `Erreur HTTP: ${response.status}`);
       }
 
       console.log('✅ Abonnement annulé:', data);

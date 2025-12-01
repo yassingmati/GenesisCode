@@ -23,8 +23,10 @@ import {
   IconLogout,
   IconUser,
   IconSettings,
-  IconHelp
+  IconHelp,
+  IconDiamond
 } from '@tabler/icons-react';
+import ThemeToggle from '../../components/ThemeToggle';
 
 const API_BASE = getApiUrl('/api');
 
@@ -33,10 +35,6 @@ function getAuthHeader() {
   const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
-
-import ThemeToggle from '../../components/ThemeToggle';
-
-// ... imports
 
 export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, setActivePage }) {
   const { t } = useTranslation();
@@ -127,11 +125,19 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
         </Button>
       </NavbarContent>
 
-      {/* Search Bar Removed */}
-
-
       {/* Right Actions */}
       <NavbarContent justify="end" className="gap-4">
+        {/* Subscribe Button */}
+        <NavbarItem>
+          <Button
+            className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-bold shadow-lg hover:scale-105 transition-transform"
+            startContent={<IconDiamond size={18} />}
+            onPress={() => window.location.href = '/plans'}
+          >
+            S'abonner
+          </Button>
+        </NavbarItem>
+
         {/* Theme Toggle */}
         <NavbarItem>
           <ThemeToggle />

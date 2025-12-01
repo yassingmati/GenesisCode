@@ -297,7 +297,11 @@ export default function AppRouter() {
 
             {/* Subscription / Payment client pages */}
             <Route path="/plans" element={<Plans />} />
-            <Route path="/subscriptions" element={<MySubscriptions />} />
+            <Route path="/subscriptions" element={
+              <AuthGuard>
+                <MySubscriptions />
+              </AuthGuard>
+            } />
             <Route path="/payments/konnect-return" element={<PaymentReturn />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />
             <Route path="/payment/cancel" element={<PaymentCancel />} />

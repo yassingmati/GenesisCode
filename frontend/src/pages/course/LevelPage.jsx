@@ -1,28 +1,28 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from '../../hooks/useTranslation';
-import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
-import ExerciseHeader from '../../components/ui/ExerciseHeader';
 import CourseAccessGuard from '../../components/CourseAccessGuard';
 import { getApiUrl } from '../../utils/apiConfig';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
 import {
   Button, Select, SelectItem, Card, CardBody,
-  Divider, Chip, Tooltip, Progress, ScrollShadow, Spinner,
+  Divider, Chip, Tooltip, Spinner,
   Modal, ModalContent, ModalBody, ModalHeader, useDisclosure
 } from "@nextui-org/react";
 import {
-  IconArrowLeft, IconArrowRight, IconPlayerPlay, IconPlayerPause,
-  IconFileText, IconPrinter, IconLink, IconList,
-  IconCheck, IconX
+  IconArrowLeft, IconArrowRight, IconPlayerPlay,
+  IconFileText, IconPrinter, IconLink
 } from '@tabler/icons-react';
 
+import { Document, Page, pdfjs } from 'react-pdf';
+
+// Configure PDF worker using CDN to avoid local file serving issues
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
 const API_BASE = getApiUrl('/api/courses');
-const PROXY_FILE = `${API_BASE}/proxyFile`;
-const PROXY_VIDEO = `${API_BASE}/proxyVideo`;
 const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇸🇦' }];
 
-// Helper functions (kept from original)
+// Helper functions
 async function findAccessiblePath(token) {
   try {
     const catsRes = await fetch(`${API_BASE}/categories`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -54,11 +54,6 @@ async function findLevelInAccessiblePaths(levelId, token) {
   } catch (error) { return null; }
 }
 
-import { Document, Page, pdfjs } from 'react-pdf';
-
-// Configure PDF worker using CDN to avoid local file serving issues
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-
 export default function LevelPage() {
   const { levelId } = useParams();
   const navigate = useNavigate();
@@ -76,6 +71,20 @@ export default function LevelPage() {
   const [pdfEffectiveUrl, setPdfEffectiveUrl] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [pdfContainerWidth, setPdfContainerWidth] = useState(null);
+  const pdfContainerRef = useRef(null);
+
+  // Resize observer for PDF container
+  useEffect(() => {
+    if (!pdfContainerRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      if (entries[0]) {
+        setPdfContainerWidth(entries[0].contentRect.width);
+      }
+    });
+    observer.observe(pdfContainerRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -85,22 +94,6 @@ export default function LevelPage() {
   // Video state
   const [videoEffectiveUrl, setVideoEffectiveUrl] = useState(null);
   const [isCompactLayout, setIsCompactLayout] = useState(() => window.innerWidth <= 1024);
-
-  // Video controls
-  const videoRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [duration, setDuration] = useState(0);
-
-  // Exercise states
-  const [exercises, setExercises] = useState([]);
-  const [activeExercise, setActiveExercise] = useState(null);
-  const [userAnswer, setUserAnswer] = useState(null);
-  const [submissionResult, setSubmissionResult] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [exerciseError, setExerciseError] = useState(null);
-  const [showExercises, setShowExercises] = useState(false);
-  const [completedExercises, setCompletedExercises] = useState({});
 
   // Load level metadata
   useEffect(() => {
@@ -187,76 +180,12 @@ export default function LevelPage() {
     setVideoEffectiveUrl(candidate);
   }, [level, lang]);
 
-  // Video UI handlers
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
-    const onTime = () => {
-      if (v.duration) {
-        setProgress(v.currentTime);
-        setDuration(v.duration);
-      }
-    };
-    v.addEventListener('play', onPlay);
-    v.addEventListener('pause', onPause);
-    v.addEventListener('timeupdate', onTime);
-    return () => {
-      v.removeEventListener('play', onPlay);
-      v.removeEventListener('pause', onPause);
-      v.removeEventListener('timeupdate', onTime);
-    };
-  }, [videoEffectiveUrl]);
-
   // Responsive
   useEffect(() => {
     const onResize = () => setIsCompactLayout(window.innerWidth <= 1024);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
-
-  const togglePlay = () => {
-    const v = videoRef.current;
-    if (v) v.paused ? v.play() : v.pause();
-  };
-
-  const handleSeek = (value) => {
-    const v = videoRef.current;
-    if (v && v.duration) {
-      v.currentTime = (value / 100) * v.duration;
-    }
-  };
-
-  // Exercise Logic
-  const loadExercises = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/levels/${levelId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        setExercises(data.exercises || []);
-      }
-    } catch (e) { console.error(e); }
-  }, [levelId]);
-
-  useEffect(() => { if (levelId) loadExercises(); }, [levelId, loadExercises]);
-
-  const submitExercise = async (exerciseId, answer, extraData = {}) => {
-    setIsSubmitting(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/exercises/${exerciseId}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ answer, userId: localStorage.getItem('userId'), ...extraData })
-      });
-      const result = await res.json();
-      setSubmissionResult(result);
-      setCompletedExercises(prev => ({ ...prev, [exerciseId]: { completed: result.correct, pointsEarned: result.pointsEarned, pointsMax: result.pointsMax } }));
-    } catch (e) { setExerciseError(e.message); }
-    finally { setIsSubmitting(false); }
-  };
 
   const levelTitle = level?.translations?.[lang]?.title || level?.translations?.fr?.title || 'Niveau';
   const pathName = pathInfo?.name || 'Parcours';
@@ -298,272 +227,176 @@ export default function LevelPage() {
           </div>
         }
       >
-        <div className={`grid ${showExercises ? 'grid-cols-1 lg:grid-cols-2' : (isCompactLayout ? 'grid-cols-1' : 'grid-cols-[1fr_400px]')} gap-8 h-[calc(100vh-300px)] min-h-[600px]`}>
+        <div className={`grid ${isCompactLayout ? 'grid-cols-1' : 'grid-cols-[1fr_400px]'} gap-6 h-[calc(100vh-140px)] min-h-[600px] p-4`}>
 
-          {/* PDF Viewer Area */}
-          <Card className="h-full shadow-md border-none overflow-hidden">
-            <CardBody className="p-0 h-full bg-gray-100 flex flex-col items-center justify-center relative">
+          {/* PDF Viewer Area - Left Column */}
+          <Card className="h-full shadow-lg border-none overflow-hidden bg-white/50 backdrop-blur-sm dark:bg-gray-800/50">
+            <CardBody className="p-0 h-full relative group">
               {pdfEffectiveUrl ? (
-                <div className="w-full h-full overflow-auto flex justify-center p-4">
-                  <Document
-                    file={pdfEffectiveUrl}
-                    onLoadSuccess={onDocumentLoadSuccess}
-                    loading={
-                      <div className="flex flex-col items-center gap-2">
-                        <Spinner size="lg" color="primary" />
-                        <p className="text-gray-500">Chargement du PDF...</p>
-                      </div>
-                    }
-                    error={
-                      <div className="flex flex-col items-center gap-2 text-danger">
-                        <IconFileText size={48} />
-                        <p>Impossible de charger le PDF.</p>
-                        <Button
-                          size="sm"
-                          color="primary"
-                          variant="flat"
-                          onPress={() => window.open(pdfEffectiveUrl, '_blank')}
-                        >
-                          Ouvrir dans un nouvel onglet
-                        </Button>
-                      </div>
-                    }
-                    className="max-w-full"
-                  >
-                    <Page
-                      pageNumber={pageNumber}
-                      width={isCompactLayout ? window.innerWidth - 40 : undefined}
-                      scale={isCompactLayout ? 1 : 1.2}
-                      renderTextLayer={false}
-                      renderAnnotationLayer={false}
-                    />
-                  </Document>
+                <div className="w-full h-full overflow-hidden relative flex flex-col" ref={pdfContainerRef}>
+                  <div className="flex-1 overflow-auto bg-gray-50/50 dark:bg-gray-900/50 custom-scrollbar">
+                    <Document
+                      file={pdfEffectiveUrl}
+                      onLoadSuccess={onDocumentLoadSuccess}
+                      loading={
+                        <div className="flex flex-col items-center justify-center h-full gap-4 p-8">
+                          <Spinner size="lg" color="primary" />
+                          <p className="text-gray-500 font-medium animate-pulse">Chargement du document...</p>
+                        </div>
+                      }
+                      error={
+                        <div className="flex flex-col items-center justify-center h-full gap-4 text-danger p-6 text-center">
+                          <div className="w-16 h-16 rounded-full bg-danger/10 flex items-center justify-center mb-2">
+                            <IconFileText size={32} />
+                          </div>
+                          <h3 className="text-lg font-bold">Impossible de charger le PDF</h3>
+                          <Button
+                            size="sm"
+                            color="danger"
+                            variant="flat"
+                            onPress={() => window.open(pdfEffectiveUrl, '_blank')}
+                            startContent={<IconLink size={16} />}
+                          >
+                            Ouvrir dans un nouvel onglet
+                          </Button>
+                        </div>
+                      }
+                      className="flex flex-col items-center min-h-full"
+                    >
+                      <Page
+                        pageNumber={pageNumber}
+                        width={pdfContainerWidth ? pdfContainerWidth : undefined}
+                        renderTextLayer={false}
+                        renderAnnotationLayer={false}
+                        className="shadow-sm"
+                      />
+                    </Document>
+                  </div>
 
+                  {/* Floating PDF Controls */}
                   {numPages && numPages > 1 && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-10">
+                    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-md text-white shadow-2xl rounded-full px-4 py-2 flex items-center gap-4 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 border border-white/10">
                       <Button
                         isIconOnly
                         size="sm"
                         variant="light"
+                        className="text-white hover:bg-white/20 rounded-full"
                         isDisabled={pageNumber <= 1}
                         onPress={() => setPageNumber(prev => prev - 1)}
                       >
-                        <IconArrowLeft size={16} />
+                        <IconArrowLeft size={18} />
                       </Button>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-bold font-mono">
                         {pageNumber} / {numPages}
                       </span>
                       <Button
                         isIconOnly
                         size="sm"
                         variant="light"
+                        className="text-white hover:bg-white/20 rounded-full"
                         isDisabled={pageNumber >= numPages}
                         onPress={() => setPageNumber(prev => prev + 1)}
                       >
-                        <IconArrowRight size={16} />
+                        <IconArrowRight size={18} />
                       </Button>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <IconFileText size={64} className="mb-4 opacity-50" />
-                  <p>Aucun PDF disponible pour ce niveau</p>
+                <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-gray-50 dark:bg-gray-900/50">
+                  <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+                    <IconFileText size={48} className="opacity-20" />
+                  </div>
+                  <p className="font-medium text-lg">Aucun document disponible</p>
                 </div>
               )}
 
-              {isCompactLayout && (
+              {/* Mobile Video Toggle */}
+              {isCompactLayout && videoEffectiveUrl && (
                 <Button
                   isIconOnly
-                  color="secondary"
-                  className="absolute top-4 right-4 shadow-lg z-50"
+                  color="primary"
+                  size="lg"
+                  className="absolute top-4 right-4 shadow-xl z-50 rounded-full animate-bounce-slow"
                   onPress={onVideoOpen}
                 >
-                  <IconPlayerPlay />
+                  <IconPlayerPlay size={24} />
                 </Button>
               )}
             </CardBody>
           </Card>
 
-          {/* Sidebar (Video + Controls) */}
+          {/* Sidebar (Video + Controls) - Right Column */}
           {!isCompactLayout && (
-            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
-              {/* Video Player */}
-              <Card className="bg-black border-none shadow-lg aspect-video flex-shrink-0">
-                <CardBody className="p-0 overflow-hidden relative group h-full">
-                  {videoEffectiveUrl ? (
-                    <>
-                      <video
-                        ref={videoRef}
-                        src={videoEffectiveUrl}
-                        className="w-full h-full object-contain"
-                        onClick={togglePlay}
-                      />
-                      {!isPlaying && (
-                        <div
-                          className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer transition-opacity"
-                          onClick={togglePlay}
-                        >
-                          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 hover:scale-110 transition-transform">
-                            <IconPlayerPlay size={32} className="text-white ml-1" />
-                          </div>
-                        </div>
-                      )}
+            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-1 custom-scrollbar">
 
-                      {/* Controls Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Button isIconOnly size="sm" variant="light" className="text-white" onPress={togglePlay}>
-                            {isPlaying ? <IconPlayerPause size={18} /> : <IconPlayerPlay size={18} />}
-                          </Button>
-                          <Progress
-                            size="sm"
-                            value={(progress / duration) * 100 || 0}
-                            color="primary"
-                            className="cursor-pointer"
-                            onClick={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              const percent = (e.clientX - rect.left) / rect.width;
-                              handleSeek(percent * 100);
-                            }}
-                          />
-                          <span className="text-tiny text-white font-mono">
-                            {Math.floor(progress / 60)}:{String(Math.floor(progress % 60)).padStart(2, '0')}
-                          </span>
-                        </div>
-                      </div>
-                    </>
+              {/* Standard Video Player */}
+              <Card className="bg-black border-none shadow-xl aspect-video flex-shrink-0 overflow-hidden rounded-xl">
+                <CardBody className="p-0 overflow-hidden h-full bg-black flex items-center justify-center">
+                  {videoEffectiveUrl ? (
+                    <video
+                      src={videoEffectiveUrl}
+                      controls
+                      className="w-full h-full object-contain"
+                      controlsList="nodownload"
+                    />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      <p>Vidéo non disponible</p>
+                    <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                      <IconPlayerPlay size={40} className="mb-2 opacity-20" />
+                      <p className="text-xs font-medium opacity-50">Vidéo non disponible</p>
                     </div>
                   )}
                 </CardBody>
               </Card>
 
-              {/* Navigation & Actions */}
-              <Card className="flex-shrink-0 shadow-sm">
-                <CardBody className="gap-3 p-5">
-                  <h3 className="font-bold text-lg text-gray-800">Actions</h3>
+              {/* Actions Panel */}
+              <Card className="flex-shrink-0 shadow-md border-none bg-white dark:bg-gray-800">
+                <CardBody className="gap-4 p-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-bold text-base text-gray-800 dark:text-white">Navigation</h3>
+                    <Chip size="sm" variant="flat" color="primary" className="text-xs">Niveau {level?.order || 1}</Chip>
+                  </div>
+
                   <div className="flex flex-col gap-3">
                     <Button
-                      color={showExercises ? "danger" : "success"}
+                      color="primary"
                       variant="shadow"
-                      className="w-full font-semibold text-white"
-                      startContent={showExercises ? <IconX size={18} /> : <IconList size={18} />}
+                      className="w-full font-medium"
+                      endContent={<IconArrowRight size={18} />}
                       onPress={() => navigate(`/courses/levels/${levelId}/exercises`)}
                     >
-                      Afficher les exercices
+                      Suivant
                     </Button>
-                    <div className="flex gap-2">
+
+                    <div className="grid grid-cols-1 gap-2">
                       <Button
-                        className="flex-1"
                         variant="flat"
-                        startContent={<IconArrowLeft size={18} />}
+                        className="w-full"
+                        size="sm"
+                        startContent={<IconArrowLeft size={16} />}
                         onPress={() => navigate(-1)}
                       >
                         Précédent
-                      </Button>
-                      <Button
-                        className="flex-1"
-                        color="primary"
-                        endContent={<IconArrowRight size={18} />}
-                      >
-                        Suivant
                       </Button>
                     </div>
                   </div>
                 </CardBody>
               </Card>
 
-              {/* Quick Actions */}
-              <div className="flex gap-2 justify-center mt-auto">
+              {/* Quick Tools */}
+              <div className="flex gap-2 justify-center mt-auto p-3 bg-white/50 backdrop-blur-sm rounded-xl dark:bg-gray-800/50">
                 <Tooltip content="Imprimer">
-                  <Button isIconOnly variant="light" onPress={() => window.print()}>
-                    <IconPrinter size={20} className="text-gray-500" />
+                  <Button isIconOnly size="sm" variant="light" onPress={() => window.print()}>
+                    <IconPrinter size={18} className="text-gray-600 dark:text-gray-300" />
                   </Button>
                 </Tooltip>
-                <Tooltip content="Copier le lien">
-                  <Button isIconOnly variant="light" onPress={() => navigator.clipboard.writeText(window.location.href)}>
-                    <IconLink size={20} className="text-gray-500" />
+                <Tooltip content="Lien">
+                  <Button isIconOnly size="sm" variant="light" onPress={() => navigator.clipboard.writeText(window.location.href)}>
+                    <IconLink size={18} className="text-gray-600 dark:text-gray-300" />
                   </Button>
                 </Tooltip>
               </div>
             </div>
-          )}
-
-          {/* Exercises Panel (conditionally rendered) */}
-          {showExercises && (
-            <Card className="h-full shadow-lg border-none">
-              <CardBody className="p-0 h-full">
-                <ScrollShadow className="h-full p-6">
-                  {!activeExercise ? (
-                    <div className="space-y-4">
-                      <h2 className="text-2xl font-bold mb-6 text-gray-800">Exercices</h2>
-                      <div className="grid grid-cols-1 gap-3">
-                        {exercises.map((ex, idx) => (
-                          <Card
-                            key={ex._id}
-                            isPressable
-                            onPress={() => setActiveExercise(ex)}
-                            className={`border-l-4 shadow-sm hover:shadow-md transition-shadow ${completedExercises[ex._id]?.completed ? 'border-l-success' : 'border-l-primary'}`}
-                          >
-                            <CardBody className="flex flex-row items-center justify-between p-4">
-                              <div className="flex items-center gap-3">
-                                <Chip size="sm" variant="flat" color="primary">{idx + 1}</Chip>
-                                <span className="font-semibold text-gray-700">{ex.name}</span>
-                              </div>
-                              {completedExercises[ex._id]?.completed && (
-                                <IconCheck className="text-success" size={20} />
-                              )}
-                            </CardBody>
-                          </Card>
-                        ))}
-                      </div>
-                      <Button
-                        className="w-full mt-6"
-                        color="secondary"
-                        variant="flat"
-                        onPress={() => navigate(`/courses/levels/${levelId}/exercises`)}
-                      >
-                        Mode plein écran
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col h-full">
-                      <Button
-                        variant="light"
-                        startContent={<IconArrowLeft size={18} />}
-                        className="self-start mb-4"
-                        onPress={() => setActiveExercise(null)}
-                      >
-                        Retour à la liste
-                      </Button>
-
-                      <div className="flex-1">
-                        <ExerciseHeader
-                          title={activeExercise.name}
-                          difficulty={activeExercise.difficulty}
-                          points={activeExercise.points}
-                          type={activeExercise.type}
-                          timeLimit={activeExercise.timeLimit}
-                        />
-                        <Divider className="my-4" />
-                        <ExerciseAnswerInterface
-                          exercise={activeExercise}
-                          answer={userAnswer}
-                          onAnswer={setUserAnswer}
-                          onSubmit={() => submitExercise(activeExercise._id, userAnswer)}
-                          isSubmitting={isSubmitting}
-                          submissionResult={submissionResult}
-                          error={exerciseError}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </ScrollShadow>
-              </CardBody>
-            </Card>
           )}
         </div>
 
