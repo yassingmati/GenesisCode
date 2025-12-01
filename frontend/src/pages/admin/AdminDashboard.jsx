@@ -1,4 +1,3 @@
-// src/admin/pages/AdminDashboard.jsx
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdminTaskManagement from '../../components/admin/AdminTaskManagement';
@@ -11,21 +10,11 @@ import {
   IconArrowUpRight,
   IconActivity
 } from '@tabler/icons-react';
-
+import { Tabs, Tab } from "@nextui-org/react";
 import UserManagementPanel from './panels/UserManagementPanel';
+import PromoCodesPanel from './panels/PromoCodesPanel';
 
-// ... (imports)
-
-// ... (inside AdminDashboard component)
-
-        <Tab key="users" title="Utilisateurs">
-          <div className="mt-6">
-            <UserManagementPanel />
-          </div>
-        </Tab>
-
-        <Tab key="tasks" title="Gestion des Tâches">
-// ...
+export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, courses: 0, payments: 0, contentItems: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -202,6 +191,12 @@ import UserManagementPanel from './panels/UserManagementPanel';
                 </button>
               </div>
             </div>
+          </div>
+        </Tab>
+
+        <Tab key="users" title="Utilisateurs">
+          <div className="mt-6">
+            <UserManagementPanel />
           </div>
         </Tab>
 

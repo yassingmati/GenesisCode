@@ -40,8 +40,22 @@ export default function PromoCodesPanel() {
         active: true
     });
 
-    useEffect(() => {
+    const loadPromoCodes = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/admin/promo-codes');
+            setPromoCodes(res.data.promoCodes);
+        } catch (err) {
+            console.error('Erreur chargement codes promo:', err);
+            toast.error('Erreur chargement codes promo');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        loadPromoCodes();
+    }, []);
 
     const handleSubmit = async (onClose) => {
         try {

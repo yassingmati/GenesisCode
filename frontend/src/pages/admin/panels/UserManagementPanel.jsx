@@ -30,8 +30,22 @@ export default function UserManagementPanel() {
     const [userSubscriptions, setUserSubscriptions] = useState([]);
     const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
-    useEffect(() => {
+    const loadUsers = async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/admin/users');
+            setUsers(res.data.users);
+        } catch (err) {
+            console.error('Erreur chargement utilisateurs:', err);
+            toast.error('Erreur chargement utilisateurs');
+        } finally {
+            setLoading(false);
+        }
     };
+
+    useEffect(() => {
+        loadUsers();
+    }, []);
 
     const handleViewSubscriptions = async (user) => {
         setSelectedUser(user);
