@@ -50,7 +50,7 @@ export default function UserManagementPanel() {
     const handleViewSubscriptions = async (user) => {
         setSelectedUser(user);
         try {
-            const res = await api.get(`/admin/subscriptions?search=${user.email}`);
+            const res = await api.get(`/api/admin/subscriptions?search=${user.email}`);
             setUserSubscriptions(res.data.subscriptions);
             onOpen();
         } catch (err) {

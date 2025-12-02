@@ -16,7 +16,7 @@ const auth = getAuth(app);
 // En production, utiliser URL relative (même domaine) pour éviter CORS
 // En développement, utiliser localhost
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
-  (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
+  (process.env.NODE_ENV === 'production' ? 'https://codegenesis-backend.onrender.com' : getApiUrl(''));
 
 (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
