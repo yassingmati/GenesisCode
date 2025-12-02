@@ -33,7 +33,7 @@ export default function UserManagementPanel() {
     const loadUsers = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/admin/users');
+            const res = await api.get('/api/admin/users');
             setUsers(res.data.users);
         } catch (err) {
             console.error('Erreur chargement utilisateurs:', err);

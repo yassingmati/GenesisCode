@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+import { getApiUrl } from '../utils/apiConfig';
+
+const API_URL = getApiUrl('/api');
 
 const getAuthToken = async () => {
     // Try adminToken first for admin routes

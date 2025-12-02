@@ -43,7 +43,7 @@ export default function PromoCodesPanel() {
     const loadPromoCodes = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/admin/promo-codes');
+            const res = await api.get('/api/admin/promo-codes');
             setPromoCodes(res.data.promoCodes);
         } catch (err) {
             console.error('Erreur chargement codes promo:', err);
@@ -59,7 +59,7 @@ export default function PromoCodesPanel() {
 
     const handleSubmit = async (onClose) => {
         try {
-            await api.post('/admin/promo-codes', formData);
+            await api.post('/api/admin/promo-codes', formData);
             toast.success('Code promo créé avec succès');
             loadPromoCodes();
             onClose();
