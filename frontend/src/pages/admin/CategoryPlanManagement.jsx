@@ -387,7 +387,7 @@ const CategoryPlanManagement = () => {
 
       const [plansRes, categoriesRes, statsRes] = await Promise.all([
         api.get('/api/admin/category-plans'),
-        api.get('/api/categories'),
+        api.get('/api/courses/categories'),
         api.get('/api/admin/category-plans/stats')
       ]);
 
