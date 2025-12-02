@@ -73,6 +73,7 @@ import TaskManagement from './pages/admin/TaskManagement';
 import ChildTasks from './pages/parent/ChildTasks';
 import SubscriptionManagement from './pages/admin/SubscriptionManagementSimple';
 import CategoryPlanManagement from './pages/admin/CategoryPlanManagement';
+import PromoCodesPage from './pages/admin/PromoCodesPage';
 
 // Styles globaux
 const GlobalStyle = createGlobalStyle`
@@ -404,6 +405,7 @@ export default function AppRouter() {
               <Route path="tasks" element={<TaskManagement />} />
               <Route path="subscriptions" element={<SubscriptionManagement />} />
               <Route path="category-plans" element={<CategoryPlanManagement />} />
+              <Route path="promo-codes" element={<PromoCodesPage />} />
             </Route>
 
             {/* 404 - redirige vers l'accueil */}

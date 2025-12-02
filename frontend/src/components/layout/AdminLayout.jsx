@@ -286,6 +286,7 @@ const pageTitles = {
   '/admin/payments': 'Gestion des Paiements',
   '/admin/Subscription': 'Gestion du Subscription',
   '/admin/category-plans': 'Plans de Catégories',
+  '/admin/promo-codes': 'Gestion des Codes Promo',
   '/admin/tasks': 'Gestion des Tâches',
   '/admin/settings': 'Paramètres Administrateur',
 };
@@ -342,6 +343,11 @@ export default function AdminLayout() {
           <LinkItem to="/admin/category-plans">
             <LinkIcon>🏷️</LinkIcon>
             {!sidebarCollapsed && <LinkText>Plans de Catégories</LinkText>}
+          </LinkItem>
+
+          <LinkItem to="/admin/promo-codes">
+            <LinkIcon>🎟️</LinkIcon>
+            {!sidebarCollapsed && <LinkText>Codes Promo</LinkText>}
           </LinkItem>
 
           <LinkItem to="/admin/tasks">
