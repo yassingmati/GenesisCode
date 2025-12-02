@@ -148,8 +148,8 @@ function PlanCard({ plan, index, formatPrice }) {
     >
       <Card
         className={`h-full border-none transition-all duration-300 hover:-translate-y-2 ${isPopular
-            ? 'bg-gradient-to-b from-blue-600 to-violet-700 text-white shadow-2xl shadow-blue-500/30'
-            : 'bg-white dark:bg-slate-800 shadow-xl hover:shadow-2xl'
+          ? 'bg-gradient-to-b from-blue-600 to-violet-700 text-white shadow-2xl shadow-blue-500/30'
+          : 'bg-white dark:bg-slate-800 shadow-xl hover:shadow-2xl'
           }`}
       >
         <CardHeader className="flex flex-col items-start p-8 pb-0">
@@ -212,7 +212,7 @@ function PlanCard({ plan, index, formatPrice }) {
           <div className="mt-auto pt-4">
             <div className={isPopular ? 'brightness-110' : ''}>
               <SubscribeButton
-                planId={plan._id}
+                plan={plan}
                 returnUrl={`${window.location.origin}/payments/konnect-return`}
                 customClass={`w-full font-bold py-6 ${isPopular ? 'bg-white text-blue-600 hover:bg-white/90' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
               />
