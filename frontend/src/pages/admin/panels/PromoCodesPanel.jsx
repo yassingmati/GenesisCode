@@ -174,57 +174,56 @@ export default function PromoCodesPanel() {
                 <ModalContent>
                     {(onClose) => (
                         <>
-                            <>
-                                <ModalHeader>{editingId ? 'Modifier le Code Promo' : 'Créer un Code Promo'}</ModalHeader>
-                                <ModalBody>
-                                    <Input
-                                        label="Code"
-                                        placeholder="EX: PROMO2025"
-                                        value={formData.code}
-                                        onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                                    />
-                                    <div className="flex gap-4">
-                                        <Select
-                                            label="Type de réduction"
-                                            selectedKeys={[formData.discountType]}
-                                            onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
-                                        >
-                                            <SelectItem key="percentage" value="percentage">Pourcentage (%)</SelectItem>
-                                            <SelectItem key="fixed_amount" value="fixed_amount">Montant Fixe (TND)</SelectItem>
-                                        </Select>
-                                        <Input
-                                            type="number"
-                                            label="Valeur"
-                                            placeholder="Ex: 20"
-                                            value={formData.discountValue}
-                                            onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
-                                        />
-                                    </div>
-                                    <Input
-                                        type="date"
-                                        label="Date d'expiration (Optionnel)"
-                                        value={formData.expirationDate}
-                                        onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
-                                    />
+                            <ModalHeader>{editingId ? 'Modifier le Code Promo' : 'Créer un Code Promo'}</ModalHeader>
+                            <ModalBody>
+                                <Input
+                                    label="Code"
+                                    placeholder="EX: PROMO2025"
+                                    value={formData.code}
+                                    onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
+                                />
+                                <div className="flex gap-4">
+                                    <Select
+                                        label="Type de réduction"
+                                        selectedKeys={[formData.discountType]}
+                                        onChange={(e) => setFormData({ ...formData, discountType: e.target.value })}
+                                    >
+                                        <SelectItem key="percentage" value="percentage">Pourcentage (%)</SelectItem>
+                                        <SelectItem key="fixed_amount" value="fixed_amount">Montant Fixe (TND)</SelectItem>
+                                    </Select>
                                     <Input
                                         type="number"
-                                        label="Usage Max (Optionnel)"
-                                        placeholder="Laisser vide pour illimité"
-                                        value={formData.maxUsage}
-                                        onChange={(e) => setFormData({ ...formData, maxUsage: e.target.value })}
+                                        label="Valeur"
+                                        placeholder="Ex: 20"
+                                        value={formData.discountValue}
+                                        onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
                                     />
-                                </ModalBody>
-                                <ModalFooter>
-                                    <Button color="danger" variant="light" onPress={onClose}>
-                                        Annuler
-                                    </Button>
-                                    <Button color="primary" onPress={() => handleSubmit(onClose)}>
-                                        {editingId ? 'Mettre à jour' : 'Créer'}
-                                    </Button>
-                                </ModalFooter>
-                            </>
+                                </div>
+                                <Input
+                                    type="date"
+                                    label="Date d'expiration (Optionnel)"
+                                    value={formData.expirationDate}
+                                    onChange={(e) => setFormData({ ...formData, expirationDate: e.target.value })}
+                                />
+                                <Input
+                                    type="number"
+                                    label="Usage Max (Optionnel)"
+                                    placeholder="Laisser vide pour illimité"
+                                    value={formData.maxUsage}
+                                    onChange={(e) => setFormData({ ...formData, maxUsage: e.target.value })}
+                                />
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button color="danger" variant="light" onPress={onClose}>
+                                    Annuler
+                                </Button>
+                                <Button color="primary" onPress={() => handleSubmit(onClose)}>
+                                    {editingId ? 'Mettre à jour' : 'Créer'}
+                                </Button>
+                            </ModalFooter>
+                        </>
                     )}
-                        </ModalContent>
+                </ModalContent>
             </Modal>
         </div>
     );
