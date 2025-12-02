@@ -19,7 +19,7 @@ import {
     useDisclosure
 } from "@nextui-org/react";
 import { toast } from 'react-toastify';
-import api from '../../../config/api';
+import api from '../../../utils/api';
 import { format } from 'date-fns';
 import { IconEye, IconTrash } from '@tabler/icons-react';
 

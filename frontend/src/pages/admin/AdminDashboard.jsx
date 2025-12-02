@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../utils/api';
 import AdminTaskManagement from '../../components/admin/AdminTaskManagement';
 import {
   IconUsers,
@@ -30,7 +30,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('/api/admin/dashboard-stats')
+    api.get('/api/admin/dashboard-stats')
       .then(res => {
         setStats(res.data);
         setLoading(false);

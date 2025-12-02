@@ -22,7 +22,7 @@ import {
     SelectItem
 } from "@nextui-org/react";
 import { toast } from 'react-toastify';
-import api from '../../../config/api';
+import api from '../../../utils/api';
 import { format } from 'date-fns';
 
 export default function PromoCodesPanel() {
