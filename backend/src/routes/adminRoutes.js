@@ -28,6 +28,7 @@ router.post('/subscriptions/cancel', adminProtect, adminOnly, subscriptionContro
 router.post('/migrate-plans', adminController.migratePlans);
 router.post('/promo-codes', adminProtect, adminOnly, adminController.createPromoCode);
 router.get('/promo-codes', adminProtect, adminOnly, adminController.getPromoCodes);
+router.get('/dashboard-stats', adminProtect, adminOnly, adminController.getDashboardStats);
 router.get('/users', adminProtect, adminOnly, adminController.getUsers);
 router.get('/list', adminProtect, adminOnly, adminController.listAdmins);
 router.get('/:id', adminProtect, adminOnly, adminController.getAdminById);
