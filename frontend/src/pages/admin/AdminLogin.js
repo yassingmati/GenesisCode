@@ -63,15 +63,18 @@ const Error = styled.p`
 export default function AdminLogin() {
   const navigate = useNavigate();
   const { setAdmin, setToken } = useAuth();
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError]       = useState('');
+  const [error, setError] = useState('');
 
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
     try {
       const { token, admin } = await loginAdmin({ email, password });
+      // Clear client token to prevent interference
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setToken(token);
       setAdmin(admin);
       navigate('/admin/dashboard');

@@ -19,8 +19,16 @@ const api = axios.create({
 // Add Authorization header if token exists in localStorage
 api.interceptors.request.use(cfg => {
   try {
-    const token = localStorage.getItem('token') || localStorage.getItem('adminToken'); // adapte si tu utilises AuthContext
-    if (token) cfg.headers.Authorization = `Bearer ${token}`;
+    const adminToken = localStorage.getItem('adminToken');
+    const clientToken = localStorage.getItem('token');
+
+    // Prioritize adminToken for admin routes
+    if (cfg.url && cfg.url.includes('/admin/') && adminToken) {
+      cfg.headers.Authorization = `Bearer ${adminToken}`;
+    } else {
+      const token = clientToken || adminToken;
+      if (token) cfg.headers.Authorization = `Bearer ${token}`;
+    }
   } catch (e) { /* ignore */ }
   return cfg;
 }, err => Promise.reject(err));
