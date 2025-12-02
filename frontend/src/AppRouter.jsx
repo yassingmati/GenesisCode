@@ -56,6 +56,7 @@ import TestKonnectIntegration from './components/TestKonnectIntegration';
 
 // Nouveau système de paiement par catégorie
 import CategoryPlans from './pages/CategoryPlans';
+import PaymentSelectionPage from './pages/PaymentSelectionPage';
 
 // Specific language flow pages
 import SpecificLanguageCategories from './pages/learning/SpecificLanguageCategories';
@@ -312,6 +313,11 @@ export default function AppRouter() {
 
             {/* Nouveau système de paiement par catégorie */}
             <Route path="/category-plans" element={<CategoryPlans />} />
+            <Route path="/payment-selection" element={
+              <AuthGuard>
+                <PaymentSelectionPage />
+              </AuthGuard>
+            } />
 
             {/* Specific language learning flow */}
             <Route path="/learning/choose-language" element={

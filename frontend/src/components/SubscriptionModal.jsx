@@ -1,5 +1,6 @@
 // src/components/SubscriptionModal.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
 import SubscriptionService from '../services/subscriptionService';
@@ -14,6 +15,7 @@ const SubscriptionModal = ({
   pathName,
   onSubscribe
 }) => {
+  const navigate = useNavigate();
   const { t } = useTranslation();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -77,9 +79,19 @@ const SubscriptionModal = ({
         }
       }
 
-      // Pour les plans payants, on passe au handler de paiement
-      setSelectedPlan(plan);
-      setShowPaymentHandler(true);
+      // Pour les plans payants, on redirige vers la page de sélection de paiement
+      onClose(); // Fermer la modale
+      // On utilise window.location pour la redirection si on n'a pas accès au hook useNavigate ici
+      // Mais comme c'est un composant, on devrait pouvoir passer navigate ou utiliser un hook si dispo.
+      // SubscriptionModal est utilisé dans des pages, donc on peut supposer qu'on peut utiliser window.location.href 
+      // ou mieux, émettre un événement.
+      // Cependant, le plus propre est de rediriger via le router si possible.
+      // Comme je ne peux pas facilement ajouter useNavigate sans changer tous les parents, 
+      // je vais utiliser window.location.assign pour l'instant ou mieux, dispatch un event custom ?
+      // Non, le plus simple est d'importer useNavigate du router-dom.
+
+      // NOTE: J'ajoute useNavigate au début du fichier.
+      navigate('/payment-selection', { state: { plan } });
 
     } catch (err) {
       console.error('Error subscribing:', err);
