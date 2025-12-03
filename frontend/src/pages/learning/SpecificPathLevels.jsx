@@ -67,7 +67,8 @@ export default function SpecificPathLevels() {
     try {
       setLoading(true);
       // Fetch the plan for this category
-      const plan = await CategoryPaymentService.getCategoryPlan(categoryId);
+      const response = await CategoryPaymentService.getCategoryPlan(categoryId);
+      const plan = response?.plan;
 
       if (plan) {
         // Adapt plan for PaymentSelectionPage
