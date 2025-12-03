@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getLevelsByPath, getPathsByCategory, getCategories } from '../../services/courseService';
 import CategoryPaymentService from '../../services/categoryPaymentService';
+import SubscriptionService from '../../services/subscriptionService';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
 import {
   Card, CardBody, CardFooter, Button, Progress, Chip
@@ -24,11 +25,12 @@ export default function SpecificPathLevels() {
   useEffect(() => {
     (async () => {
       try {
-        const [levelsData, pathsData, categoriesData, accessHistory] = await Promise.all([
+        const [levelsData, pathsData, categoriesData, accessHistory, globalSubs] = await Promise.all([
           getLevelsByPath(pathId),
           getPathsByCategory(categoryId),
           getCategories('specific'),
-          CategoryPaymentService.getUserAccessHistory().catch(() => ({ purchases: [] }))
+          CategoryPaymentService.getUserAccessHistory().catch(() => ({ purchases: [] })),
+          SubscriptionService.getMySubscriptions().catch(() => [])
         ]);
 
         setLevels(levelsData || []);
@@ -37,11 +39,14 @@ export default function SpecificPathLevels() {
         setPath(currentPath);
         setCategory(currentCategory);
 
-        // Check access
-        const isUnlocked = accessHistory?.purchases?.some(
+        // Check access: Either specific category purchase OR active global subscription
+        const isCategoryUnlocked = accessHistory?.purchases?.some(
           p => (p.categoryId === categoryId || p.category === categoryId) && p.status === 'active'
         );
-        setHasAccess(!!isUnlocked);
+
+        const hasGlobalSub = globalSubs?.some(sub => sub.status === 'active');
+
+        setHasAccess(!!isCategoryUnlocked || !!hasGlobalSub);
 
         // TODO: Fetch real user progress for levels
         // For now, we'll simulate that if you have access, you might have some progress
@@ -64,9 +69,8 @@ export default function SpecificPathLevels() {
   const progress = levels.length > 0 ? (completedLevels.length / levels.length) * 100 : 0;
 
   const handleUnlockClick = () => {
-    // Redirect to payment selection for this category
-    // We need to find the plan for this category first, but usually we go to the plans page
-    navigate('/category-plans');
+    // Redirect to global plans page
+    navigate('/plans');
   };
 
   return (

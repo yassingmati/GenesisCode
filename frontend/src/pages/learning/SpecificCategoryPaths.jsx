@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getPathsByCategory, getCategories } from '../../services/courseService';
 import CategoryPaymentService from '../../services/categoryPaymentService';
+import SubscriptionService from '../../services/subscriptionService';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
 import {
   Card, CardBody, CardFooter, Button, Chip, Spacer, Progress
@@ -25,21 +26,25 @@ export default function SpecificCategoryPaths() {
   useEffect(() => {
     (async () => {
       try {
-        const [pathsData, categoriesData, accessHistory] = await Promise.all([
+        const [pathsData, categoriesData, accessHistory, globalSubs] = await Promise.all([
           getPathsByCategory(categoryId),
           getCategories('specific'),
-          CategoryPaymentService.getUserAccessHistory().catch(() => ({ purchases: [] }))
+          CategoryPaymentService.getUserAccessHistory().catch(() => ({ purchases: [] })),
+          SubscriptionService.getMySubscriptions().catch(() => [])
         ]);
 
         setPaths(pathsData || []);
         const currentCategory = categoriesData?.find(cat => cat._id === categoryId);
         setCategory(currentCategory);
 
-        // Check access
-        const isUnlocked = accessHistory?.purchases?.some(
+        // Check access: Either specific category purchase OR active global subscription
+        const isCategoryUnlocked = accessHistory?.purchases?.some(
           p => (p.categoryId === categoryId || p.category === categoryId) && p.status === 'active'
         );
-        setHasAccess(!!isUnlocked);
+
+        const hasGlobalSub = globalSubs?.some(sub => sub.status === 'active');
+
+        setHasAccess(!!isCategoryUnlocked || !!hasGlobalSub);
 
       } catch (e) {
         setError('Erreur lors du chargement des parcours');
@@ -54,7 +59,7 @@ export default function SpecificCategoryPaths() {
   const categoryName = category?.translations?.fr?.name || 'Langage';
 
   const handleUnlockClick = () => {
-    navigate('/category-plans');
+    navigate('/plans');
   };
 
   return (
