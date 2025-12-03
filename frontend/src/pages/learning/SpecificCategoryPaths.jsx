@@ -64,9 +64,11 @@ export default function SpecificCategoryPaths() {
         // Adapt plan for PaymentSelectionPage
         const adaptedPlan = {
           ...plan,
-          priceMonthly: plan.price * 100, // Assuming price is in TND (e.g. 30) and we need 3000 for display logic
+          priceMonthly: (plan.price || 0) * 100, // Ensure price is handled
           interval: 'lifetime',
-          currency: plan.currency || 'TND'
+          currency: plan.currency || 'TND',
+          type: 'category',
+          raw: plan
         };
         navigate('/payment-selection', { state: { plan: adaptedPlan } });
       } else {
