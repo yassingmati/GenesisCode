@@ -3,15 +3,7 @@ import API_CONFIG from '../config/api';
 const base = `${API_CONFIG.BASE_URL}/api/courses`;
 
 const headers = () => {
-  // Try adminToken first, then user token
-  const adminToken = localStorage.getItem('adminToken');
-  const userToken = localStorage.getItem('token');
-  const token = adminToken || userToken || '';
-  
-  return {
-    'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : ''
-  };
+  return API_CONFIG.getDefaultHeaders();
 };
 
 export async function getCategories(type) {
