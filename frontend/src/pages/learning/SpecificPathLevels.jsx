@@ -74,11 +74,11 @@ export default function SpecificPathLevels() {
         // Adapt plan for PaymentSelectionPage
         const adaptedPlan = {
           ...plan,
-          priceMonthly: (plan.price || 0) * 100, // Ensure price is handled
+          priceMonthly: plan.price * 100, // Assuming price is in TND (e.g. 30) and we need 3000 for display logic
           interval: 'lifetime',
           currency: plan.currency || 'TND',
-          type: 'category',
-          raw: plan
+          type: 'category', // Explicitly mark as category plan
+          raw: plan // Pass original plan object for handler
         };
         navigate('/payment-selection', { state: { plan: adaptedPlan } });
       } else {
