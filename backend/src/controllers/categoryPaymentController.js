@@ -334,6 +334,32 @@ class CategoryPaymentController {
       });
     }
   }
+  /**
+   * DEBUG: Réinitialise les accès d'un utilisateur par email
+   */
+  static async debugResetAccess(req, res) {
+    try {
+      const { email } = req.params;
+      const User = require('../models/User');
+      const CategoryAccess = require('../models/CategoryAccess');
+
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ success: false, message: 'Utilisateur non trouvé' });
+      }
+
+      const result = await CategoryAccess.deleteMany({ user: user._id });
+
+      return res.json({
+        success: true,
+        message: `Accès réinitialisés pour ${email}`,
+        count: result.deletedCount
+      });
+    } catch (error) {
+      console.error('Error resetting access:', error);
+      return res.status(500).json({ success: false, error: error.message });
+    }
+  }
 }
 
 module.exports = CategoryPaymentController;

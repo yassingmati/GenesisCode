@@ -39,4 +39,7 @@ router.get('/history', CategoryPaymentController.getUserAccessHistory);
 // Admin
 router.post('/cleanup', CategoryPaymentController.cleanupExpiredAccesses);
 
+// DEBUG: Route temporaire pour réinitialiser les accès
+router.get('/debug/reset-access/:email', CategoryPaymentController.debugResetAccess);
+
 module.exports = router;
