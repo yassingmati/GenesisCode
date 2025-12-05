@@ -79,7 +79,7 @@ export default function SpecificCategoryPaths() {
           {paths.map((path, index) => (
             <Card
               key={path._id}
-              isPressable={hasAccess}
+              isPressable={true}
               onPress={() => hasAccess ? navigate(`/learning/specific/${categoryId}/paths/${path._id}`) : navigate(`/category-plans?category=${categoryId}`)}
               className={`group transition-transform duration-300 border-none shadow-lg bg-white dark:bg-slate-800 overflow-visible ${hasAccess ? 'hover:-translate-y-2 hover:shadow-2xl' : 'opacity-90'}`}
             >
