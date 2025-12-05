@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
 import KonnectService from '../services/konnectService';
 import SubscriptionService from '../services/subscriptionService';
+import CategoryPaymentService from '../services/categoryPaymentService';
 import { FiLoader, FiCheckCircle, FiXCircle, FiAlertCircle, FiExternalLink, FiCreditCard } from 'react-icons/fi';
 import './KonnectPaymentHandler.css';
 
@@ -80,16 +81,21 @@ const KonnectPaymentHandler = ({
             throw new Error(result.message || result.error || 'Erreur lors de l\'abonnement');
           }
         } else {
-          // Plan de catégorie - utiliser KonnectService.initPayment
-          console.log('💳 Utilisation KonnectService pour plan catégorie:', planId);
-          const paymentData = {
-            planId: undefined,
-            categoryPlanId: plan.raw?._id || planId,
-            customerEmail: customerEmail,
-            returnUrl: `${window.location.origin}/payment/success`,
-            cancelUrl: `${window.location.origin}/payment/cancel`
-          };
-          result = await KonnectService.initPayment(paymentData);
+          // Plan de catégorie - utiliser CategoryPaymentService.initCategoryPayment
+          console.log('💳 Utilisation CategoryPaymentService pour plan catégorie:', planId);
+
+          // Extraire l'ID de la catégorie
+          // Le plan contient category qui peut être un objet ou un ID
+          const categoryId = plan.category?._id || plan.category || plan.targetId;
+
+          if (!categoryId) {
+            throw new Error("ID de la catégorie introuvable dans le plan");
+          }
+
+          const returnUrl = `${window.location.origin}/payment/success`;
+          const cancelUrl = `${window.location.origin}/payment/cancel`;
+
+          result = await CategoryPaymentService.initCategoryPayment(categoryId, returnUrl, cancelUrl);
         }
       } catch (e) {
         // Ne pas utiliser buildPaymentUrl car elle construit une URL incorrecte

@@ -168,6 +168,13 @@ class CategoryPaymentService {
       // Initialiser le paiement Konnect
       const paymentResult = await konnectPaymentService.initPayment(paymentData);
 
+      console.log('📦 Resultat Konnect brut:', JSON.stringify(paymentResult, null, 2));
+
+      if (!paymentResult || !paymentResult.paymentUrl) {
+        console.error('❌ paymentResult invalide ou paymentUrl manquant:', paymentResult);
+        throw new Error('Erreur interne: URL de paiement manquante dans la réponse du service');
+      }
+
       // Créer l'accès en attente
       const access = new CategoryAccess({
         user: userId,
