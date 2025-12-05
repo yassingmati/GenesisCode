@@ -44,12 +44,14 @@ class KonnectService {
       const result = await response.json();
       console.log('✅ Paiement Konnect initialisé:', result);
 
-      // Vérifier si c'est un accès gratuit
-      if (result.freeAccess) {
+      // Vérifier si c'est un accès gratuit ou déjà acquis
+      if (result.freeAccess || result.alreadyHasAccess) {
         return {
           success: true,
-          freeAccess: true,
-          plan: result.plan,
+          freeAccess: !!result.freeAccess,
+          alreadyHasAccess: !!result.alreadyHasAccess,
+          plan: result.plan || result.categoryPlan,
+          access: result.access,
           message: result.message
         };
       }
@@ -106,7 +108,7 @@ class KonnectService {
     return new Promise((resolve, reject) => {
       try {
         console.log('🔗 Ouverture de la page de paiement Konnect:', paymentUrl);
-        
+
         const paymentWindow = window.open(
           paymentUrl,
           'konnect_payment',
@@ -128,7 +130,7 @@ class KonnectService {
         // Écouter les messages de la fenêtre de paiement
         const messageHandler = (event) => {
           if (event.origin !== window.location.origin) return;
-          
+
           if (event.data.type === 'konnect_payment_success') {
             clearInterval(checkClosed);
             window.removeEventListener('message', messageHandler);

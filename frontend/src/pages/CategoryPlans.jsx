@@ -69,9 +69,9 @@ const CategoryPlans = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const response = await CategoryPaymentService.getCategoryPlans();
-      
+
       // Normaliser les plans pour gérer les différents formats
       const plansData = response?.plans || response || [];
       const normalizedPlans = plansData.map(plan => ({
@@ -85,9 +85,9 @@ const CategoryPlans = () => {
           ar: { name: plan.name || 'Plan', description: plan.description || '' }
         }
       }));
-      
+
       setPlans(normalizedPlans);
-      
+
     } catch (error) {
       console.error('Error fetching category plans:', error);
       const errorMessage = error?.message || 'Impossible de charger les plans de catégories';
@@ -105,8 +105,8 @@ const CategoryPlans = () => {
 
   const handlePaymentInitiated = async (result) => {
     if (result.success) {
-      if (result.freeAccess) {
-        toast.success('Accès gratuit accordé !');
+      if (result.freeAccess || result.alreadyHasAccess) {
+        toast.success(result.alreadyHasAccess ? 'Vous avez déjà accès à ce plan !' : 'Accès gratuit accordé !');
         // Actualiser la page pour refléter l'accès
         setTimeout(() => {
           window.location.reload();
@@ -149,7 +149,7 @@ const CategoryPlans = () => {
       <Subtitle>
         Choisissez la catégorie qui vous intéresse et débloquez tous ses contenus
       </Subtitle>
-      
+
       <InfoBox>
         <strong>💡 Comment ça marche :</strong>
         <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
