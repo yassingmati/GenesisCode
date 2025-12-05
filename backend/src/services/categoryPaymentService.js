@@ -1,5 +1,5 @@
 // src/services/categoryPaymentService.js
-const Plan = require('../models/Plan');
+const CategoryPlan = require('../models/CategoryPlan');
 const CategoryAccess = require('../models/CategoryAccess');
 const Category = require('../models/Category');
 const Path = require('../models/Path');
@@ -29,33 +29,53 @@ class CategoryPaymentService {
         }
       }
 
-      const plans = await Plan.find({ type: 'category', active: true });
-
-      // Manually fetch categories to avoid refPath case sensitivity issues with 'category' vs 'Category'
-      const categoryIds = plans.map(p => p.targetId).filter(id => id);
-      const categories = await Category.find({ _id: { $in: categoryIds } });
-      const categoriesMap = categories.reduce((acc, cat) => {
-        acc[cat._id.toString()] = cat;
-        return acc;
-      }, {});
-
+      const plans = await CategoryPlan.findAllActive();
+      // Convertir les plans en objets JavaScript simples et gérer les erreurs
       return plans.map(plan => {
-        const category = plan.targetId ? categoriesMap[plan.targetId.toString()] : null;
+        try {
+          // Si c'est un document Mongoose, convertir en objet
+          const planObj = plan.toObject ? plan.toObject() : plan;
 
-        return {
-          id: plan._id,
-          _id: plan._id,
-          category: category, // Attach the full category object
-          price: plan.priceMonthly ? plan.priceMonthly / 100 : 0,
-          currency: plan.currency || 'TND',
-          paymentType: plan.interval === 'month' ? 'monthly' : (plan.interval === 'year' ? 'yearly' : 'one_time'),
-          accessDuration: plan.interval ? (plan.interval === 'year' ? 365 : 30) : 365,
-          active: plan.active,
-          name: plan.name,
-          description: plan.description,
-          translations: { fr: { name: plan.name, description: plan.description } }, // Mock translations for frontend compatibility
-          features: plan.features || []
-        };
+          // Construire l'objet avec toutes les propriétés nécessaires
+          const translation = planObj.translations?.fr || planObj.translations?.en || { name: 'Plan', description: '' };
+
+          // Utiliser getLocalizedInfo si disponible, mais ajouter les champs manquants
+          let localizedInfo = {};
+          if (typeof plan.getLocalizedInfo === 'function') {
+            localizedInfo = plan.getLocalizedInfo();
+          }
+
+          // Construire l'objet complet avec toutes les propriétés
+          return {
+            id: planObj._id || planObj.id || localizedInfo.id,
+            _id: planObj._id || planObj.id || localizedInfo.id,
+            category: planObj.category || localizedInfo.category,
+            price: planObj.price !== undefined ? planObj.price : (localizedInfo.price !== undefined ? localizedInfo.price : 0),
+            currency: planObj.currency || localizedInfo.currency || 'TND',
+            paymentType: planObj.paymentType || localizedInfo.paymentType || 'one_time',
+            accessDuration: planObj.accessDuration !== undefined ? planObj.accessDuration : (localizedInfo.accessDuration !== undefined ? localizedInfo.accessDuration : 365),
+            active: planObj.active !== false && planObj.active !== undefined ? planObj.active : (localizedInfo.active !== undefined ? localizedInfo.active : true),
+            name: localizedInfo.name || translation.name || 'Plan',
+            description: localizedInfo.description || translation.description || '',
+            translations: planObj.translations || {},
+            features: planObj.features || localizedInfo.features || [],
+            order: planObj.order !== undefined ? planObj.order : (localizedInfo.order !== undefined ? localizedInfo.order : 0)
+          };
+        } catch (err) {
+          console.error('Error processing plan:', err);
+          // Retourner un plan minimal en cas d'erreur
+          return {
+            id: plan._id || plan.id,
+            _id: plan._id || plan.id,
+            name: 'Plan',
+            description: '',
+            price: 0,
+            currency: 'TND',
+            active: true,
+            translations: {},
+            features: []
+          };
+        }
       });
     } catch (error) {
       console.error('Error getting category plans:', error);
@@ -68,35 +88,11 @@ class CategoryPaymentService {
    */
   static async getCategoryPlan(categoryId) {
     try {
-      // NOTE: We don't use populate('targetId') here to avoid refPath issues if 'category' != 'Category'
-      const plan = await Plan.findOne({ type: 'category', targetId: categoryId, active: true });
-
+      const plan = await CategoryPlan.findByCategory(categoryId);
       if (!plan) {
-        // Fallback: check if there is a generic category plan? Or return null.
-        // For now, return null to let controller handle 404
-        return null;
+        throw new Error('Plan de catégorie non trouvé');
       }
-
-      // Manually fetch category if needed
-      let category = null;
-      try {
-        category = await Category.findById(categoryId);
-      } catch (e) {
-        console.warn('Could not fetch category details for plan', plan._id);
-      }
-
-      return {
-        id: plan._id,
-        _id: plan._id,
-        category: category,
-        price: plan.priceMonthly ? plan.priceMonthly / 100 : 0,
-        currency: plan.currency || 'TND',
-        paymentType: plan.interval === 'month' ? 'monthly' : (plan.interval === 'year' ? 'yearly' : 'one_time'),
-        accessDuration: plan.interval ? (plan.interval === 'year' ? 365 : 30) : 365,
-        name: plan.name,
-        description: plan.description,
-        features: plan.features || []
-      };
+      return plan.getLocalizedInfo();
     } catch (error) {
       console.error('Error getting category plan:', error);
       throw error;
@@ -115,7 +111,7 @@ class CategoryPaymentService {
       }
 
       // Récupérer le plan de la catégorie
-      const categoryPlan = await Plan.findOne({ type: 'category', targetId: categoryId, active: true });
+      const categoryPlan = await CategoryPlan.findByCategory(categoryId);
       if (!categoryPlan) {
         throw new Error('Plan de catégorie non trouvé');
       }
@@ -131,10 +127,8 @@ class CategoryPaymentService {
         };
       }
 
-      const price = categoryPlan.priceMonthly ? categoryPlan.priceMonthly / 100 : 0;
-
       // Plan gratuit - accès immédiat
-      if (price === 0) {
+      if (categoryPlan.price === 0) {
         const access = await this.grantFreeAccess(userId, categoryId, categoryPlan._id);
         return {
           success: true,
@@ -149,9 +143,9 @@ class CategoryPaymentService {
 
       // Préparer les données de paiement
       const paymentData = {
-        amountCents: categoryPlan.priceMonthly, // Already in cents
+        amountCents: categoryPlan.price * 100, // Convertir en centimes
         currency: categoryPlan.currency,
-        description: `Accès à la catégorie ${categoryPlan.name} - GenesisCode`,
+        description: `Accès à la catégorie ${categoryPlan.translations.fr.name} - GenesisCode`,
         merchantOrderId,
         customerEmail: user.email,
         returnUrl: returnUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payment/success`,
@@ -161,19 +155,12 @@ class CategoryPaymentService {
           categoryPlanId: categoryPlan._id,
           userId,
           type: 'category_payment',
-          paymentType: categoryPlan.interval === 'month' ? 'monthly' : 'one_time'
+          paymentType: categoryPlan.paymentType
         }
       };
 
       // Initialiser le paiement Konnect
       const paymentResult = await konnectPaymentService.initPayment(paymentData);
-
-      console.log('📦 Resultat Konnect brut:', JSON.stringify(paymentResult, null, 2));
-
-      if (!paymentResult || !paymentResult.paymentUrl) {
-        console.error('❌ paymentResult invalide ou paymentUrl manquant:', paymentResult);
-        throw new Error('Erreur interne: URL de paiement manquante dans la réponse du service');
-      }
 
       // Créer l'accès en attente
       const access = new CategoryAccess({
@@ -183,7 +170,7 @@ class CategoryPaymentService {
         accessType: 'purchase',
         payment: {
           konnectPaymentId: paymentResult.konnectPaymentId,
-          amount: price,
+          amount: categoryPlan.price,
           currency: categoryPlan.currency,
           status: 'pending'
         }
@@ -196,12 +183,7 @@ class CategoryPaymentService {
         paymentUrl: paymentResult.paymentUrl,
         konnectPaymentId: paymentResult.konnectPaymentId,
         merchantOrderId,
-        categoryPlan: {
-          id: categoryPlan._id,
-          name: categoryPlan.name,
-          price: price,
-          currency: categoryPlan.currency
-        },
+        categoryPlan: categoryPlan.getLocalizedInfo(),
         accessId: access._id
       };
 
@@ -230,19 +212,15 @@ class CategoryPaymentService {
       access.status = 'active';
 
       // Calculer la date d'expiration
-      // Note: access.categoryPlan is now a Plan document
-      const plan = access.categoryPlan;
-
-      if (!plan.interval) {
-        // One time
+      if (access.categoryPlan.paymentType === 'one_time') {
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 365); // Default 1 year
+        expiresAt.setDate(expiresAt.getDate() + access.categoryPlan.accessDuration);
         access.expiresAt = expiresAt;
-      } else if (plan.interval === 'month') {
+      } else if (access.categoryPlan.paymentType === 'monthly') {
         const expiresAt = new Date();
         expiresAt.setMonth(expiresAt.getMonth() + 1);
         access.expiresAt = expiresAt;
-      } else if (plan.interval === 'year') {
+      } else if (access.categoryPlan.paymentType === 'yearly') {
         const expiresAt = new Date();
         expiresAt.setFullYear(expiresAt.getFullYear() + 1);
         access.expiresAt = expiresAt;
@@ -251,11 +229,11 @@ class CategoryPaymentService {
       await access.save();
 
       // Débloquer le premier niveau de chaque parcours de la catégorie
-      await this.unlockFirstLevels(access.user, access.category._id || access.category);
+      await this.unlockFirstLevels(access.user, access.category);
 
       console.log('✅ Paiement de catégorie traité avec succès:', {
         userId: access.user,
-        categoryId: access.category._id || access.category,
+        categoryId: access.category,
         expiresAt: access.expiresAt
       });
 
@@ -354,6 +332,36 @@ class CategoryPaymentService {
     } catch (error) {
       console.error('Error checking level access:', error);
       return { hasAccess: false, reason: 'error' };
+    }
+  }
+
+  /**
+   * Vérifie si un utilisateur a accès à une catégorie
+   */
+  static async checkCategoryAccess(userId, categoryId) {
+    try {
+      const access = await CategoryAccess.findActiveByUserAndCategory(userId, categoryId);
+
+      if (!access) {
+        return { hasAccess: false, reason: 'no_access_found' };
+      }
+
+      // Vérifier si l'accès est encore valide (au cas où findActive ne capture pas tout)
+      if (!access.isActive()) {
+        return { hasAccess: false, reason: 'access_expired' };
+      }
+
+      return {
+        hasAccess: true,
+        access: {
+          id: access._id,
+          type: access.accessType,
+          expiresAt: access.expiresAt
+        }
+      };
+    } catch (error) {
+      console.error('Error checking category access:', error);
+      throw error;
     }
   }
 

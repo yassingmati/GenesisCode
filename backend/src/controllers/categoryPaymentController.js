@@ -84,16 +84,12 @@ class CategoryPaymentController {
         });
       }
 
-      console.log('🚀 initCategoryPayment - Body:', req.body);
-
       const result = await CategoryPaymentService.initCategoryPayment(
         userId,
         categoryId,
         returnUrl,
         cancelUrl
       );
-
-      console.log('✅ initCategoryPayment - Service Result:', JSON.stringify(result, null, 2));
 
       return res.json({
         success: true,
@@ -150,6 +146,46 @@ class CategoryPaymentController {
       return res.status(500).json({
         success: false,
         message: 'Erreur lors du traitement du webhook',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
+
+  /**
+   * Vérifie l'accès à une catégorie
+   */
+  static async checkCategoryAccess(req, res) {
+    try {
+      const userId = req.user ? req.user.id : null;
+      const { categoryId } = req.params;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentification requise'
+        });
+      }
+
+      if (!categoryId) {
+        return res.status(400).json({
+          success: false,
+          message: 'ID de catégorie requis'
+        });
+      }
+
+      const result = await CategoryPaymentService.checkCategoryAccess(userId, categoryId);
+
+      return res.json({
+        success: true,
+        hasAccess: result.hasAccess,
+        access: result.access
+      });
+
+    } catch (error) {
+      console.error('Error checking category access:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la vérification de l\'accès',
         error: process.env.NODE_ENV === 'development' ? error.message : undefined
       });
     }

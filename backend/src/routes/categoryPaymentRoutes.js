@@ -29,6 +29,7 @@ router.use(authMiddleware.protect);
 router.post('/init-payment', CategoryPaymentController.initCategoryPayment);
 
 // Vérification d'accès
+router.get('/access/:categoryId', CategoryPaymentController.checkCategoryAccess);
 router.get('/access/:categoryId/:pathId/:levelId', CategoryPaymentController.checkLevelAccess);
 router.post('/unlock-level', CategoryPaymentController.unlockLevel);
 
