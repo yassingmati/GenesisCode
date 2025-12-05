@@ -29,13 +29,23 @@ class CategoryPaymentService {
         }
       }
 
-      const plans = await Plan.find({ type: 'category', active: true }).populate('targetId');
+      const plans = await Plan.find({ type: 'category', active: true });
+
+      // Manually fetch categories to avoid refPath case sensitivity issues with 'category' vs 'Category'
+      const categoryIds = plans.map(p => p.targetId).filter(id => id);
+      const categories = await Category.find({ _id: { $in: categoryIds } });
+      const categoriesMap = categories.reduce((acc, cat) => {
+        acc[cat._id.toString()] = cat;
+        return acc;
+      }, {});
 
       return plans.map(plan => {
+        const category = plan.targetId ? categoriesMap[plan.targetId.toString()] : null;
+
         return {
           id: plan._id,
           _id: plan._id,
-          category: plan.targetId, // This is the populated Category object or ID
+          category: category, // Attach the full category object
           price: plan.priceMonthly ? plan.priceMonthly / 100 : 0,
           currency: plan.currency || 'TND',
           paymentType: plan.interval === 'month' ? 'monthly' : (plan.interval === 'year' ? 'yearly' : 'one_time'),
@@ -58,7 +68,8 @@ class CategoryPaymentService {
    */
   static async getCategoryPlan(categoryId) {
     try {
-      const plan = await Plan.findOne({ type: 'category', targetId: categoryId, active: true }).populate('targetId');
+      // NOTE: We don't use populate('targetId') here to avoid refPath issues if 'category' != 'Category'
+      const plan = await Plan.findOne({ type: 'category', targetId: categoryId, active: true });
 
       if (!plan) {
         // Fallback: check if there is a generic category plan? Or return null.
@@ -66,10 +77,18 @@ class CategoryPaymentService {
         return null;
       }
 
+      // Manually fetch category if needed
+      let category = null;
+      try {
+        category = await Category.findById(categoryId);
+      } catch (e) {
+        console.warn('Could not fetch category details for plan', plan._id);
+      }
+
       return {
         id: plan._id,
         _id: plan._id,
-        category: plan.targetId,
+        category: category,
         price: plan.priceMonthly ? plan.priceMonthly / 100 : 0,
         currency: plan.currency || 'TND',
         paymentType: plan.interval === 'month' ? 'monthly' : (plan.interval === 'year' ? 'yearly' : 'one_time'),
