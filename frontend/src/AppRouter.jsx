@@ -33,7 +33,7 @@ import ModernDashboard from './pages/dashboard/ModernDashboard';
 // Pages de cours - NOUVEAU ROUTAGE
 import DebutantMap from './pages/course/DebutantMap';
 import LevelPage from './pages/course/LevelPage';
-import ExercisePage from './pages/course/ExercisePage';
+
 import ExerciseWorkspace from './pages/course/ExerciseWorkspace';
 import TestExerciseInterface from './components/TestExerciseInterface';
 
@@ -45,7 +45,7 @@ import ChildDetails from './pages/parent/ChildDetails';
 import ParentAuthGuard from './components/ParentAuthGuard';
 
 // Subscription / Payment client pages
-import Plans from './pages/Plans';
+
 import MySubscriptions from './pages/subscriptions/MySubscriptions';
 import PaymentReturn from './pages/PaymentReturn';
 import PaymentSuccess from './pages/PaymentSuccess';
@@ -56,7 +56,6 @@ import TestKonnectIntegration from './components/TestKonnectIntegration';
 
 // Nouveau système de paiement par catégorie
 import CategoryPlans from './pages/CategoryPlans';
-import PaymentSelectionPage from './pages/PaymentSelectionPage';
 
 // Specific language flow pages
 import SpecificLanguageCategories from './pages/learning/SpecificLanguageCategories';
@@ -74,7 +73,6 @@ import TaskManagement from './pages/admin/TaskManagement';
 import ChildTasks from './pages/parent/ChildTasks';
 import SubscriptionManagement from './pages/admin/SubscriptionManagementSimple';
 import CategoryPlanManagement from './pages/admin/CategoryPlanManagement';
-import PromoCodesPage from './pages/admin/PromoCodesPage';
 
 // Styles globaux
 const GlobalStyle = createGlobalStyle`
@@ -280,12 +278,7 @@ export default function AppRouter() {
               </AuthGuard>
             } />
 
-            {/* Liste des exercices du niveau */}
-            <Route path="/courses/levels/:levelId/exercises" element={
-              <AuthGuard>
-                <ExercisePage />
-              </AuthGuard>
-            } />
+
 
             {/* Exercice individuel - WORKSPACE */}
             <Route path="/courses/levels/:levelId/exercises/:exerciseId" element={
@@ -298,7 +291,7 @@ export default function AppRouter() {
             <Route path="/test-exercise" element={<TestExerciseInterface />} />
 
             {/* Subscription / Payment client pages */}
-            <Route path="/plans" element={<Plans />} />
+
             <Route path="/subscriptions" element={
               <AuthGuard>
                 <MySubscriptions />
@@ -313,11 +306,7 @@ export default function AppRouter() {
 
             {/* Nouveau système de paiement par catégorie */}
             <Route path="/category-plans" element={<CategoryPlans />} />
-            <Route path="/payment-selection" element={
-              <AuthGuard>
-                <PaymentSelectionPage />
-              </AuthGuard>
-            } />
+            <Route path="/payment-selection" element={<CategoryPlans />} />
 
             {/* Specific language learning flow */}
             <Route path="/learning/choose-language" element={
@@ -411,7 +400,6 @@ export default function AppRouter() {
               <Route path="tasks" element={<TaskManagement />} />
               <Route path="subscriptions" element={<SubscriptionManagement />} />
               <Route path="category-plans" element={<CategoryPlanManagement />} />
-              <Route path="promo-codes" element={<PromoCodesPage />} />
             </Route>
 
             {/* 404 - redirige vers l'accueil */}
