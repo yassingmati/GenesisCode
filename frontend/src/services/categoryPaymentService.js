@@ -44,6 +44,12 @@ async function initCategoryPayment(categoryId, returnUrl, cancelUrl) {
   });
 }
 
+// Vérifie si l'utilisateur a accès à une catégorie
+async function checkCategoryAccess(categoryId) {
+  const url = `${BASE}/access/${categoryId}`;
+  return httpJson(url, { headers: authHeaders() });
+}
+
 // Récupère l'historique des accès de l'utilisateur
 async function getUserAccessHistory() {
   const url = `${BASE}/history`;
@@ -72,6 +78,7 @@ const CategoryPaymentService = {
   initCategoryPayment,
   getUserAccessHistory,
   checkLevelAccess,
+  checkCategoryAccess,
   unlockLevel
 };
 

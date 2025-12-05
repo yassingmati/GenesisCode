@@ -19,7 +19,7 @@ import {
     useDisclosure
 } from "@nextui-org/react";
 import { toast } from 'react-toastify';
-import api from '../../../utils/api';
+import api from '../../../config/api';
 import { format } from 'date-fns';
 import { IconEye, IconTrash } from '@tabler/icons-react';
 
@@ -33,7 +33,7 @@ export default function UserManagementPanel() {
     const loadUsers = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/api/admin/users');
+            const res = await api.get('/admin/users');
             setUsers(res.data.users);
         } catch (err) {
             console.error('Erreur chargement utilisateurs:', err);
@@ -50,7 +50,7 @@ export default function UserManagementPanel() {
     const handleViewSubscriptions = async (user) => {
         setSelectedUser(user);
         try {
-            const res = await api.get(`/api/admin/subscriptions?search=${user.email}`);
+            const res = await api.get(`/admin/subscriptions?search=${user.email}`);
             setUserSubscriptions(res.data.subscriptions);
             onOpen();
         } catch (err) {

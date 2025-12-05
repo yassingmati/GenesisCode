@@ -1,10 +1,10 @@
 import React from 'react';
-import UserManagementPanel from './panels/UserManagementPanel';
 
 const UserManagement = () => {
   return (
-    <div className="p-4">
-      <UserManagementPanel />
+    <div>
+      <h1>Gestion des Utilisateurs</h1>
+      <p>Page de gestion des utilisateurs en cours de développement...</p>
     </div>
   );
 };

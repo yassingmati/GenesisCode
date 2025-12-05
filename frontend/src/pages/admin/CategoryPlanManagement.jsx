@@ -2,7 +2,42 @@ import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
 import { FiEdit, FiTrash2, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw } from 'react-icons/fi';
-import api from '../../utils/api';
+import axios from 'axios';
+import { getApiUrl } from '../../utils/apiConfig';
+
+// Configuration API
+const API_BASE = process.env.REACT_APP_API_URL || getApiUrl('');
+
+// Client API avec gestion d'authentification
+const api = axios.create({
+  baseURL: API_BASE,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Intercepteur pour l'authentification
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Intercepteur pour la gestion des erreurs
+api.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      console.log('Token admin expiré, redirection vers login...');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');
+      setTimeout(() => {
+        window.location.href = '/admin/login';
+      }, 100);
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Styles
 const Container = styled.div`
@@ -259,8 +294,6 @@ const Input = styled.input`
   border: 1px solid #d1d5db;
   border-radius: 6px;
   font-size: 0.875rem;
-  background: white;
-  color: #374151;
 
   &:focus {
     outline: none;
@@ -275,7 +308,6 @@ const Select = styled.select`
   border-radius: 6px;
   font-size: 0.875rem;
   background: white;
-  color: #374151;
 
   &:focus {
     outline: none;
@@ -291,8 +323,6 @@ const TextArea = styled.textarea`
   font-size: 0.875rem;
   min-height: 80px;
   resize: vertical;
-  background: white;
-  color: #374151;
 
   &:focus {
     outline: none;
@@ -389,19 +419,19 @@ const CategoryPlanManagement = () => {
     setError(null);
     try {
       console.log('🔄 Chargement des données...');
-
+      
       const [plansRes, categoriesRes, statsRes] = await Promise.all([
         api.get('/api/admin/category-plans'),
-        api.get('/api/courses/categories'),
+        api.get('/api/categories'),
         api.get('/api/admin/category-plans/stats')
       ]);
-
-      console.log('✅ Données chargées:', {
+      
+      console.log('✅ Données chargées:', { 
         plans: plansRes.data?.plans?.length || 0,
         categories: categoriesRes.data?.length || 0,
         stats: statsRes.data?.stats?.length || 0
       });
-
+      
       setPlans(plansRes.data?.plans || []);
       setCategories(categoriesRes.data || []);
       setStats({
@@ -409,10 +439,10 @@ const CategoryPlanManagement = () => {
         activePlans: (plansRes.data?.plans || []).filter(p => p.active).length,
         totalUsers: (plansRes.data?.plans || []).reduce((sum, p) => sum + (p.activeUsersCount || 0), 0)
       });
-
+      
       setSuccess('Données chargées avec succès');
       setTimeout(() => setSuccess(null), 3000);
-
+      
     } catch (error) {
       console.error('❌ Erreur lors du chargement:', error);
       setError(error.response?.data?.message || 'Erreur lors du chargement des données');
@@ -466,10 +496,10 @@ const CategoryPlanManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-
+    
     try {
       console.log('💾 Sauvegarde du plan:', formData);
-
+      
       if (editingPlan) {
         await api.put(`/api/admin/category-plans/${editingPlan._id}`, formData);
         toast.success('Plan mis à jour avec succès');
@@ -477,10 +507,10 @@ const CategoryPlanManagement = () => {
         await api.post('/api/admin/category-plans', formData);
         toast.success('Plan créé avec succès');
       }
-
+      
       setModalOpen(false);
       fetchData();
-
+      
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde:', error);
       setError(error.response?.data?.message || 'Erreur lors de la sauvegarde');
@@ -613,36 +643,36 @@ const CategoryPlanManagement = () => {
                   {plan.active ? 'Actif' : 'Inactif'}
                 </StatusBadge>
               </CardHeader>
-
+              
               <CardContent>
                 <Price>{plan.price} {plan.currency}</Price>
                 <Type>
                   {getPaymentTypeLabel(plan.paymentType)}
                   {plan.paymentType === 'one_time' && ` (${plan.accessDuration} jours)`}
                 </Type>
-
+                
                 <Description>
                   {plan.translations?.fr?.description || 'Aucune description'}
                 </Description>
-
+                
                 <Stats>
                   <span>👥 {plan.activeUsersCount || 0} utilisateurs</span>
                   <span>📊 Ordre: {plan.order}</span>
                 </Stats>
               </CardContent>
-
+              
               <CardActions>
                 <IconButton onClick={() => handleEdit(plan)} title="Modifier">
                   <FiEdit />
                 </IconButton>
-                <IconButton
-                  onClick={() => handleToggleStatus(plan)}
+                <IconButton 
+                  onClick={() => handleToggleStatus(plan)} 
                   title={plan.active ? 'Désactiver' : 'Activer'}
                 >
                   {plan.active ? <FiToggleRight /> : <FiToggleLeft />}
                 </IconButton>
-                <IconButton
-                  onClick={() => handleDelete(plan)}
+                <IconButton 
+                  onClick={() => handleDelete(plan)} 
                   className="danger"
                   title="Supprimer"
                 >
@@ -663,7 +693,7 @@ const CategoryPlanManagement = () => {
               </ModalTitle>
               <CloseButton onClick={() => setModalOpen(false)}>×</CloseButton>
             </ModalHeader>
-
+            
             <Form onSubmit={handleSubmit}>
               <FormGroup>
                 <Label>Catégorie *</Label>
@@ -694,7 +724,7 @@ const CategoryPlanManagement = () => {
                     required
                   />
                 </FormGroup>
-
+                
                 <FormGroup>
                   <Label>Devise</Label>
                   <Select
@@ -721,7 +751,7 @@ const CategoryPlanManagement = () => {
                     <option value="yearly">Annuel</option>
                   </Select>
                 </FormGroup>
-
+                
                 {formData.paymentType === 'one_time' && (
                   <FormGroup>
                     <Label>Durée d'accès (jours)</Label>

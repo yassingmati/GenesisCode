@@ -5,9 +5,9 @@ import { getApiUrl } from './apiConfig';
 
 // En production, utiliser le backend Render
 // En développement, utiliser localhost
-const baseURL = process.env.REACT_APP_API_BASE_URL ||
-  (process.env.NODE_ENV === 'production'
-    ? 'https://codegenesis-backend.onrender.com'
+const baseURL = process.env.REACT_APP_API_BASE_URL || 
+  (process.env.NODE_ENV === 'production' 
+    ? 'https://codegenesis-backend.onrender.com' 
     : getApiUrl(''));
 
 const api = axios.create({
@@ -19,16 +19,8 @@ const api = axios.create({
 // Add Authorization header if token exists in localStorage
 api.interceptors.request.use(cfg => {
   try {
-    const adminToken = localStorage.getItem('adminToken');
-    const clientToken = localStorage.getItem('token');
-
-    // Prioritize adminToken for admin routes
-    if (cfg.url && cfg.url.includes('/admin/') && adminToken) {
-      cfg.headers.Authorization = `Bearer ${adminToken}`;
-    } else {
-      const token = clientToken || adminToken;
-      if (token) cfg.headers.Authorization = `Bearer ${token}`;
-    }
+    const token = localStorage.getItem('token'); // adapte si tu utilises AuthContext
+    if (token) cfg.headers.Authorization = `Bearer ${token}`;
   } catch (e) { /* ignore */ }
   return cfg;
 }, err => Promise.reject(err));

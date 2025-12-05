@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import api from '../../utils/api';
+import axios from 'axios';
 import AdminTaskManagement from '../../components/admin/AdminTaskManagement';
 import {
   IconUsers,
@@ -15,7 +15,7 @@ import UserManagementPanel from './panels/UserManagementPanel';
 import PromoCodesPanel from './panels/PromoCodesPanel';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ totalUsers: 0, activeCourses: 0, revenue: 0, contentCreated: 0 });
+  const [stats, setStats] = useState({ users: 0, courses: 0, payments: 0, contentItems: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chartData] = useState([
@@ -30,7 +30,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     setLoading(true);
-    api.get('/api/admin/dashboard-stats')
+    axios.get('/api/admin/dashboard-stats')
       .then(res => {
         setStats(res.data);
         setLoading(false);
@@ -97,28 +97,28 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 mt-6">
             <StatCard
               title="Utilisateurs Totaux"
-              value={stats.totalUsers}
+              value={stats.users}
               icon={IconUsers}
               color="bg-blue-500"
               trend="+12%"
             />
             <StatCard
               title="Cours Actifs"
-              value={stats.activeCourses}
+              value={stats.courses}
               icon={IconBook}
               color="bg-indigo-500"
               trend="+5%"
             />
             <StatCard
               title="Revenus (Mois)"
-              value={`${stats.revenue}€`}
+              value={`${stats.payments}€`}
               icon={IconCreditCard}
               color="bg-emerald-500"
               trend="+8.2%"
             />
             <StatCard
               title="Contenus Créés"
-              value={stats.contentCreated}
+              value={stats.contentItems}
               icon={IconFiles}
               color="bg-purple-500"
               trend="+24%"

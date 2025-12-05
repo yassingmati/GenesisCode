@@ -1,5 +1,6 @@
 // src/pages/CategoryPlans.jsx
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
 import CategoryPaymentService from '../services/categoryPaymentService';
@@ -61,9 +62,12 @@ const CategoryPlans = () => {
   const [error, setError] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
 
+  const [searchParams] = useSearchParams();
+  const categoryIdParam = searchParams.get('category');
+
   useEffect(() => {
     fetchCategoryPlans();
-  }, []);
+  }, [categoryIdParam]);
 
   const fetchCategoryPlans = async () => {
     try {
@@ -86,7 +90,7 @@ const CategoryPlans = () => {
         }
       }));
 
-      setPlans(normalizedPlans);
+      setPlans(normalizedPlans.filter(p => !categoryIdParam || p.category === categoryIdParam || p.categoryId === categoryIdParam));
 
     } catch (error) {
       console.error('Error fetching category plans:', error);

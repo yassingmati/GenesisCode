@@ -1,6 +1,5 @@
 // src/components/CategoryPaymentCard.jsx
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
 import CategoryPaymentService from '../services/categoryPaymentService';
@@ -108,31 +107,30 @@ const CategoryPaymentCard = ({
   onPaymentInitiated
 }) => {
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  const handlePayment = () => {
-    // Rediriger vers la page de sélection de paiement
-    // On passe le plan de catégorie comme "plan"
-    // Note: CategoryPaymentPage attend un objet plan avec priceMonthly, etc.
-    // On adapte l'objet ici pour qu'il soit compatible
-    const adaptedPlan = {
-      ...categoryPlan,
-      priceMonthly: categoryPlan.price * 1000, // Conversion si nécessaire, ou juste passer tel quel
-      // Le composant PaymentSelectionPage utilise plan.priceMonthly / 100 pour l'affichage
-      // Si categoryPlan.price est déjà en TND (ex: 30), on doit le mettre en millimes (30000)
-      // pour que (30000 / 100) donne 300... wait.
-      // PaymentSelectionPage fait: (plan.priceMonthly / 100).toFixed(2)
-      // Si le prix est 30 TND, on veut afficher 30.00
-      // Donc priceMonthly doit être 3000.
-      // Vérifions CategoryPaymentCard: {categoryPlan.price} {categoryPlan.currency}
-      // Si price est 30, on veut afficher 30.
-      // Donc on passe priceMonthly = categoryPlan.price * 100.
-      priceMonthly: categoryPlan.price * 100,
-      interval: 'lifetime', // C'est souvent un achat unique pour les catégories
-      currency: categoryPlan.currency
-    };
+  const handlePayment = async () => {
+    setLoading(true);
 
-    navigate('/payment-selection', { state: { plan: adaptedPlan } });
+    try {
+      const returnUrl = `${window.location.origin}/payment/success`;
+      const cancelUrl = `${window.location.origin}/payment/cancel`;
+
+      const result = await CategoryPaymentService.initCategoryPayment(
+        categoryPlan.category._id || categoryPlan.category,
+        returnUrl,
+        cancelUrl
+      );
+
+      if (result.success) {
+        onPaymentInitiated && onPaymentInitiated(result);
+      }
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error(error.message || 'Erreur lors de l\'initialisation du paiement');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

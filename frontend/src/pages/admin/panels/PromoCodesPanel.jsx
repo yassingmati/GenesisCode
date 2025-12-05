@@ -22,7 +22,7 @@ import {
     SelectItem
 } from "@nextui-org/react";
 import { toast } from 'react-toastify';
-import api from '../../../utils/api';
+import api from '../../../config/api';
 import { format } from 'date-fns';
 
 export default function PromoCodesPanel() {
@@ -31,7 +31,6 @@ export default function PromoCodesPanel() {
     const { isOpen, onOpen, onOpenChange } = useDisclosure();
 
     // Form State
-    const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({
         code: '',
         discountType: 'percentage',
@@ -44,7 +43,7 @@ export default function PromoCodesPanel() {
     const loadPromoCodes = async () => {
         try {
             setLoading(true);
-            const res = await api.get('/api/admin/promo-codes');
+            const res = await api.get('/admin/promo-codes');
             setPromoCodes(res.data.promoCodes);
         } catch (err) {
             console.error('Erreur chargement codes promo:', err);
@@ -60,56 +59,21 @@ export default function PromoCodesPanel() {
 
     const handleSubmit = async (onClose) => {
         try {
-            if (editingId) {
-                await api.put(`/api/admin/promo-codes/${editingId}`, formData);
-                toast.success('Code promo mis à jour avec succès');
-            } else {
-                await api.post('/api/admin/promo-codes', formData);
-                toast.success('Code promo créé avec succès');
-            }
+            await api.post('/admin/promo-codes', formData);
+            toast.success('Code promo créé avec succès');
             loadPromoCodes();
             onClose();
-            resetForm();
+            setFormData({
+                code: '',
+                discountType: 'percentage',
+                discountValue: '',
+                expirationDate: '',
+                maxUsage: '',
+                active: true
+            });
         } catch (err) {
-            console.error('Erreur sauvegarde code promo:', err);
-            toast.error(err.response?.data?.message || 'Erreur lors de la sauvegarde');
-        }
-    };
-
-    const resetForm = () => {
-        setEditingId(null);
-        setFormData({
-            code: '',
-            discountType: 'percentage',
-            discountValue: '',
-            expirationDate: '',
-            maxUsage: '',
-            active: true
-        });
-    };
-
-    const handleEdit = (promo) => {
-        setEditingId(promo._id);
-        setFormData({
-            code: promo.code,
-            discountType: promo.type,
-            discountValue: promo.value,
-            expirationDate: promo.expiresAt ? format(new Date(promo.expiresAt), 'yyyy-MM-dd') : '',
-            maxUsage: promo.maxUses || '',
-            active: promo.active
-        });
-        onOpen();
-    };
-
-    const handleDelete = async (id) => {
-        if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce code promo ?')) return;
-        try {
-            await api.delete(`/api/admin/promo-codes/${id}`);
-            toast.success('Code promo supprimé');
-            loadPromoCodes();
-        } catch (err) {
-            console.error('Erreur suppression:', err);
-            toast.error('Erreur lors de la suppression');
+            console.error('Erreur création code promo:', err);
+            toast.error(err.response?.data?.message || 'Erreur lors de la création');
         }
     };
 
@@ -155,14 +119,9 @@ export default function PromoCodesPanel() {
                                     </Chip>
                                 </TableCell>
                                 <TableCell>
-                                    <div className="flex gap-2">
-                                        <Button size="sm" color="primary" variant="light" onPress={() => handleEdit(promo)}>
-                                            Modifier
-                                        </Button>
-                                        <Button size="sm" color="danger" variant="light" onPress={() => handleDelete(promo._id)}>
-                                            Supprimer
-                                        </Button>
-                                    </div>
+                                    <Button size="sm" color="danger" variant="light">
+                                        Désactiver
+                                    </Button>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -174,7 +133,7 @@ export default function PromoCodesPanel() {
                 <ModalContent>
                     {(onClose) => (
                         <>
-                            <ModalHeader>{editingId ? 'Modifier le Code Promo' : 'Créer un Code Promo'}</ModalHeader>
+                            <ModalHeader>Créer un Code Promo</ModalHeader>
                             <ModalBody>
                                 <Input
                                     label="Code"
@@ -218,7 +177,7 @@ export default function PromoCodesPanel() {
                                     Annuler
                                 </Button>
                                 <Button color="primary" onPress={() => handleSubmit(onClose)}>
-                                    {editingId ? 'Mettre à jour' : 'Créer'}
+                                    Créer
                                 </Button>
                             </ModalFooter>
                         </>

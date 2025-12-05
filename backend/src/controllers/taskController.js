@@ -11,64 +11,28 @@ exports.getTasks = async (req, res) => {
         }
 
         const query = { user: userId };
-        if (type) query.type = type;
 
-        let queryDate = new Date();
-        if (date) queryDate = new Date(date);
-
-        // Date ranges
-        const startOfDay = new Date(queryDate); startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(queryDate); endOfDay.setHours(23, 59, 59, 999);
-
-        if (type === 'daily' || !type) {
-            query.date = { $gte: startOfDay, $lte: endOfDay };
-        } else if (type === 'monthly') {
-            const startOfMonth = new Date(queryDate.getFullYear(), queryDate.getMonth(), 1);
-            const endOfMonth = new Date(queryDate.getFullYear(), queryDate.getMonth() + 1, 0, 23, 59, 59, 999);
-            query.date = { $gte: startOfMonth, $lte: endOfMonth };
+        if (type) {
+            query.type = type;
         }
 
-        let tasks = await Task.find(query).sort({ createdAt: -1 });
-
-        // --- Auto-Renewal Logic (Lazy) ---
-        // If requesting TODAY's daily tasks and none exist, check yesterday/previous days
-        const isToday = new Date().toDateString() === queryDate.toDateString();
-        if ((type === 'daily' || !type) && tasks.length === 0 && isToday) {
-            // Find the most recent daily tasks for this user
-            const lastTasks = await Task.find({
-                user: userId,
-                type: 'daily',
-                date: { $lt: startOfDay } // Strictly before today
-            })
-                .sort({ date: -1 })
-                .limit(20); // Limit to avoid processing too many
-
-            if (lastTasks.length > 0) {
-                // Get the date of the most recent task found
-                const lastDate = lastTasks[0].date;
-                const tasksToRenew = lastTasks.filter(t =>
-                    t.date.toDateString() === lastDate.toDateString()
-                );
-
-                // Clone them for today
-                const newTasks = await Promise.all(tasksToRenew.map(async (oldTask) => {
-                    const newTask = new Task({
-                        user: userId,
-                        title: oldTask.title,
-                        description: oldTask.description,
-                        type: 'daily',
-                        date: new Date(), // Set to NOW
-                        xpReward: oldTask.xpReward,
-                        createdBy: oldTask.createdBy,
-                        status: 'pending' // Reset status
-                    });
-                    return await newTask.save();
-                }));
-
-                tasks = newTasks; // Return the newly created tasks
+        if (date) {
+            const queryDate = new Date(date);
+            // For daily tasks, match the exact date (ignoring time)
+            if (type === 'daily' || !type) {
+                const startOfDay = new Date(queryDate.setHours(0, 0, 0, 0));
+                const endOfDay = new Date(queryDate.setHours(23, 59, 59, 999));
+                query.date = { $gte: startOfDay, $lte: endOfDay };
+            }
+            // For monthly tasks, match the month and year
+            else if (type === 'monthly') {
+                const startOfMonth = new Date(queryDate.getFullYear(), queryDate.getMonth(), 1);
+                const endOfMonth = new Date(queryDate.getFullYear(), queryDate.getMonth() + 1, 0, 23, 59, 59, 999);
+                query.date = { $gte: startOfMonth, $lte: endOfMonth };
             }
         }
 
+        const tasks = await Task.find(query).sort({ createdAt: -1 });
         res.json(tasks);
     } catch (error) {
         console.error('Error fetching tasks:', error);

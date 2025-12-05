@@ -80,7 +80,40 @@ export default function DashboardPage() {
           <div className="space-y-8 animate-fadeIn">
             <WelcomeCard onSelectOption={handleWelcomeSelect} t={t} navigate={navigate} />
 
+            {/* Section d'abonnement améliorée */}
+            <Card className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl border-none overflow-visible">
+              <CardBody className="p-8 md:p-10 relative">
+                {/* Decorative background elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
 
+                <div className="flex flex-col md:flex-row gap-8 items-center md:items-start relative z-10">
+                  <div className="flex-shrink-0 w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-lg">
+                    <IconRocket size={40} className="text-white" />
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-3xl font-bold mb-3">{t('dashboard.subscription.title')}</h3>
+                    <p className="text-white/90 text-lg mb-6 max-w-2xl">
+                      {t('dashboard.subscription.subtitle')}
+                    </p>
+                    <div className="flex flex-wrap justify-center md:justify-start gap-3 mb-2">
+                      <Chip variant="flat" classNames={{ base: "bg-white/20 border-white/20", content: "text-white font-medium" }} startContent={<span className="mr-1">✨</span>}>{t('dashboard.subscription.unlimited')}</Chip>
+                      <Chip variant="flat" classNames={{ base: "bg-white/20 border-white/20", content: "text-white font-medium" }} startContent={<span className="mr-1">🎯</span>}>{t('dashboard.subscription.personalized')}</Chip>
+                      <Chip variant="flat" classNames={{ base: "bg-white/20 border-white/20", content: "text-white font-medium" }} startContent={<span className="mr-1">📊</span>}>{t('dashboard.subscription.progress')}</Chip>
+                    </div>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                    <SubscriptionButton
+                      variant="premium"
+                      className="w-full sm:w-auto shadow-lg font-bold"
+                    />
+                    <SubscriptionButton
+                      variant="outline"
+                      className="w-full sm:w-auto bg-white/10 border-white/30 hover:bg-white/20 text-white font-medium"
+                    />
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
 
             {/* Les sections Notifications, Stats et Tâches ont été supprimées à la demande de l'utilisateur */}
 

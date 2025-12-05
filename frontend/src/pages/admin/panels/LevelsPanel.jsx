@@ -15,7 +15,13 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
 
 // Helper to get API URL
-import { getApiUrl } from '../../../utils/apiConfig';
+const getApiUrl = (path) => {
+  const baseUrl = process.env.REACT_APP_API_BASE_URL ||
+    (process.env.NODE_ENV === 'production'
+      ? 'https://codegenesis-backend.onrender.com'
+      : 'http://localhost:5000');
+  return `${baseUrl}${path}`;
+};
 
 export default function LevelsPanel({ onOpenCreate }) {
   const [paths, setPaths] = useState([]);

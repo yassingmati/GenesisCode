@@ -324,31 +324,3 @@ exports.getUsers = async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 };
-
-/**
- * Récupérer les statistiques du dashboard
- */
-exports.getDashboardStats = async (req, res) => {
-  try {
-    const User = require('../models/User');
-    const CategoryPlan = require('../models/CategoryPlan');
-    const Level = require('../models/Level');
-
-    const totalUsers = await User.countDocuments({});
-    const activeCourses = await CategoryPlan.countDocuments({ active: true });
-    const contentCreated = await Level.countDocuments({});
-
-    // Revenue placeholder
-    const revenue = 0;
-
-    res.json({
-      totalUsers,
-      activeCourses,
-      revenue,
-      contentCreated
-    });
-  } catch (err) {
-    console.error('getDashboardStats error:', err);
-    res.status(500).json({ message: 'Erreur lors de la récupération des statistiques' });
-  }
-};

@@ -247,9 +247,8 @@ exports.loginWithEmail = async (req, res) => {
         }
 
         // Authentification Firebase normale
-        const apiKey = process.env.FIREBASE_WEB_API_KEY || 'AIzaSyAyWwRXyunN_wKhvG6LKvNP3MIItuje_aQ';
         const response = await axios.post(
-            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_WEB_API_KEY}`,
             { email, password, returnSecureToken: true }
         );
 
