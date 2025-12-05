@@ -1,3 +1,4 @@
+```javascript
 // authController.js
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
@@ -88,7 +89,7 @@ exports.register = async (req, res) => {
 
             // Créer un nouvel utilisateur avec un firebaseUid généré
             const newUser = new User({
-                firebaseUid: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                firebaseUid: `local - ${ Date.now() } -${ Math.random().toString(36).substr(2, 9) } `,
                 email,
                 firstName: '', // Initialize as empty
                 lastName: '',  // Initialize as empty
@@ -224,7 +225,7 @@ exports.loginWithEmail = async (req, res) => {
             // Vérifier le type d'utilisateur si spécifié
             if (userType && dbUser.userType !== userType) {
                 return res.status(403).json({
-                    message: `Accès refusé. Ce compte est de type "${dbUser.userType}" mais vous essayez de vous connecter en tant que "${userType}".`
+                    message: `Accès refusé.Ce compte est de type "${dbUser.userType}" mais vous essayez de vous connecter en tant que "${userType}".`
                 });
             }
 
@@ -249,128 +250,128 @@ exports.loginWithEmail = async (req, res) => {
         // Authentification Firebase normale
         const response = await axios.post(
             `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_WEB_API_KEY}`,
-            { email, password, returnSecureToken: true }
+{ email, password, returnSecureToken: true }
         );
 
-        const { localId: uid } = response.data;
+const { localId: uid } = response.data;
 
-        // Find user by email first (to handle users created with simple auth)
-        let dbUser = await User.findOne({ email });
+// Find user by email first (to handle users created with simple auth)
+let dbUser = await User.findOne({ email });
 
-        if (dbUser) {
-            // User exists - update firebaseUid if different
-            if (dbUser.firebaseUid !== uid) {
-                // Check if another user already has this firebaseUid
-                const existingUserWithUid = await User.findOne({ firebaseUid: uid });
-                if (existingUserWithUid && existingUserWithUid._id.toString() !== dbUser._id.toString()) {
-                    // Another user has this firebaseUid - this shouldn't happen, but handle it
-                    console.error(`Conflict: User ${dbUser._id} has email ${email}, but user ${existingUserWithUid._id} has firebaseUid ${uid}`);
-                    // Use the existing user with this firebaseUid
-                    dbUser = existingUserWithUid;
-                } else {
-                    // Safe to update firebaseUid
-                    dbUser.firebaseUid = uid;
-                    await dbUser.save();
-                }
-            }
+if (dbUser) {
+    // User exists - update firebaseUid if different
+    if (dbUser.firebaseUid !== uid) {
+        // Check if another user already has this firebaseUid
+        const existingUserWithUid = await User.findOne({ firebaseUid: uid });
+        if (existingUserWithUid && existingUserWithUid._id.toString() !== dbUser._id.toString()) {
+            // Another user has this firebaseUid - this shouldn't happen, but handle it
+            console.error(`Conflict: User ${dbUser._id} has email ${email}, but user ${existingUserWithUid._id} has firebaseUid ${uid}`);
+            // Use the existing user with this firebaseUid
+            dbUser = existingUserWithUid;
         } else {
-            // User doesn't exist - try to find by firebaseUid
-            dbUser = await User.findOne({ firebaseUid: uid });
-
-            if (!dbUser) {
-                // User doesn't exist at all - create new user
-                try {
-                    const firebaseUser = await admin.auth().getUser(uid);
-                    dbUser = new User({
-                        firebaseUid: uid,
-                        email: firebaseUser.email || email,
-                        firstName: firebaseUser.displayName?.split(' ')[0] || '',
-                        lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
-                        userType: 'student',
-                    });
-                    await dbUser.save();
-                } catch (createError) {
-                    console.error('Error creating user from Firebase:', createError);
-                    // Create user with minimal info
-                    dbUser = new User({
-                        firebaseUid: uid,
-                        email,
-                        firstName: '',
-                        lastName: '',
-                        userType: 'student',
-                    });
-                    await dbUser.save();
-                }
-            }
+            // Safe to update firebaseUid
+            dbUser.firebaseUid = uid;
+            await dbUser.save();
         }
+    }
+} else {
+    // User doesn't exist - try to find by firebaseUid
+    dbUser = await User.findOne({ firebaseUid: uid });
 
-        // Update last login in Firestore (optional - MongoDB is primary DB)
-        if (isFirestoreAvailable()) {
-            try {
-                await usersCollection.doc(uid).set({
-                    lastLogin: admin.firestore.FieldValue.serverTimestamp()
-                }, { merge: true });
-            } catch (firestoreError) {
-                // Firestore update is optional - log but don't fail
-                console.warn('Firestore update failed (non-critical):', firestoreError.message);
-            }
-        }
-
-        // Generate JWT
-        const token = jwt.sign(
-            { id: dbUser._id, uid },
-            process.env.JWT_SECRET || 'devsecret',
-            { expiresIn: '1d' }
-        );
-
-        // Créer une entrée UserActivity pour suivre le temps passé
+    if (!dbUser) {
+        // User doesn't exist at all - create new user
         try {
-            const UserActivity = require('../models/UserActivity');
-            const crypto = require('crypto');
-            const sessionId = crypto.randomBytes(16).toString('hex');
-
-            await UserActivity.create({
-                user: dbUser._id,
-                sessionId,
-                loginTime: new Date(),
-                activities: [{
-                    type: 'login',
-                    timestamp: new Date(),
-                    metadata: {
-                        userAgent: req.headers['user-agent']
-                    }
-                }]
+            const firebaseUser = await admin.auth().getUser(uid);
+            dbUser = new User({
+                firebaseUid: uid,
+                email: firebaseUser.email || email,
+                firstName: firebaseUser.displayName?.split(' ')[0] || '',
+                lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || '',
+                userType: 'student',
             });
-            console.log('✅ UserActivity créée pour la session:', sessionId);
-        } catch (activityError) {
-            console.error('⚠️ Erreur création UserActivity:', activityError.message);
-            // Ne pas bloquer le login pour ça
+            await dbUser.save();
+        } catch (createError) {
+            console.error('Error creating user from Firebase:', createError);
+            // Create user with minimal info
+            dbUser = new User({
+                firebaseUid: uid,
+                email,
+                firstName: '',
+                lastName: '',
+                userType: 'student',
+            });
+            await dbUser.save();
         }
+    }
+}
 
-        res.json({
-            token,
-            user: formatUserResponse(dbUser),
-            message: 'Login successful.',
-        });
+// Update last login in Firestore (optional - MongoDB is primary DB)
+if (isFirestoreAvailable()) {
+    try {
+        await usersCollection.doc(uid).set({
+            lastLogin: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+    } catch (firestoreError) {
+        // Firestore update is optional - log but don't fail
+        console.warn('Firestore update failed (non-critical):', firestoreError.message);
+    }
+}
+
+// Generate JWT
+const token = jwt.sign(
+    { id: dbUser._id, uid },
+    process.env.JWT_SECRET || 'devsecret',
+    { expiresIn: '1d' }
+);
+
+// Créer une entrée UserActivity pour suivre le temps passé
+try {
+    const UserActivity = require('../models/UserActivity');
+    const crypto = require('crypto');
+    const sessionId = crypto.randomBytes(16).toString('hex');
+
+    await UserActivity.create({
+        user: dbUser._id,
+        sessionId,
+        loginTime: new Date(),
+        activities: [{
+            type: 'login',
+            timestamp: new Date(),
+            metadata: {
+                userAgent: req.headers['user-agent']
+            }
+        }]
+    });
+    console.log('✅ UserActivity créée pour la session:', sessionId);
+} catch (activityError) {
+    console.error('⚠️ Erreur création UserActivity:', activityError.message);
+    // Ne pas bloquer le login pour ça
+}
+
+res.json({
+    token,
+    user: formatUserResponse(dbUser),
+    message: 'Login successful.',
+});
 
     } catch (error) {
-        console.error('Login Error:', error);
+    console.error('Login Error:', error);
 
-        if (error.response?.data?.error) {
-            const firebaseError = error.response.data.error;
-            switch (firebaseError.message) {
-                case 'EMAIL_NOT_FOUND':
-                    return res.status(404).json({ message: 'No account is associated with this email.' });
-                case 'INVALID_PASSWORD':
-                    return res.status(401).json({ message: 'Incorrect password.' });
-                case 'USER_DISABLED':
-                    return res.status(403).json({ message: 'This account has been disabled.' });
-                default:
-                    return res.status(400).json({ message: 'Authentication error', details: firebaseError.message });
-            }
+    if (error.response?.data?.error) {
+        const firebaseError = error.response.data.error;
+        switch (firebaseError.message) {
+            case 'EMAIL_NOT_FOUND':
+                return res.status(404).json({ message: 'No account is associated with this email.' });
+            case 'INVALID_PASSWORD':
+                return res.status(401).json({ message: 'Incorrect password.' });
+            case 'USER_DISABLED':
+                return res.status(403).json({ message: 'This account has been disabled.' });
+            default:
+                return res.status(400).json({ message: 'Authentication error', details: firebaseError.message });
         }
-        res.status(500).json({ message: 'Failed to log in.', error: error.message });
     }
+    res.status(500).json({ message: 'Failed to log in.', error: error.message });
+}
 }
 
 /**
