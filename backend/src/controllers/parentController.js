@@ -3,7 +3,7 @@ const ParentChild = require('../models/ParentChild');
 const User = require('../models/User');
 const UserProgress = require('../models/UserProgress');
 const UserActivity = require('../models/UserActivity');
-const UserActivity = require('../models/UserActivity');
+
 const NotificationController = require('./notificationController');
 const mongoose = require('mongoose');
 

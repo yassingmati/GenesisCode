@@ -39,6 +39,7 @@ async function initCategoryPayment(categoryId, returnUrl, cancelUrl) {
   return httpJson(url, {
     method: 'POST',
     headers: authHeaders(),
+    credentials: 'include',
     body: JSON.stringify({ categoryId, returnUrl, cancelUrl })
   });
 }
