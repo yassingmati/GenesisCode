@@ -4,7 +4,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../hooks/useTranslation';
 import KonnectService from '../services/konnectService';
 import SubscriptionService from '../services/subscriptionService';
-import CategoryPaymentService from '../services/categoryPaymentService';
 import { FiLoader, FiCheckCircle, FiXCircle, FiAlertCircle, FiExternalLink, FiCreditCard } from 'react-icons/fi';
 import './KonnectPaymentHandler.css';
 
@@ -81,21 +80,16 @@ const KonnectPaymentHandler = ({
             throw new Error(result.message || result.error || 'Erreur lors de l\'abonnement');
           }
         } else {
-          // Plan de catégorie - utiliser CategoryPaymentService.initCategoryPayment
-          console.log('💳 Utilisation CategoryPaymentService pour plan catégorie:', planId);
-
-          // Extraire l'ID de la catégorie
-          // Le plan contient category qui peut être un objet ou un ID
-          const categoryId = plan.category?._id || plan.category || plan.targetId;
-
-          if (!categoryId) {
-            throw new Error("ID de la catégorie introuvable dans le plan");
-          }
-
-          const returnUrl = `${window.location.origin}/payment/success`;
-          const cancelUrl = `${window.location.origin}/payment/cancel`;
-
-          result = await CategoryPaymentService.initCategoryPayment(categoryId, returnUrl, cancelUrl);
+          // Plan de catégorie - utiliser KonnectService.initPayment
+          console.log('💳 Utilisation KonnectService pour plan catégorie:', planId);
+          const paymentData = {
+            planId: undefined,
+            categoryPlanId: plan.raw?._id || planId,
+            customerEmail: customerEmail,
+            returnUrl: `${window.location.origin}/payment/success`,
+            cancelUrl: `${window.location.origin}/payment/cancel`
+          };
+          result = await KonnectService.initPayment(paymentData);
         }
       } catch (e) {
         // Ne pas utiliser buildPaymentUrl car elle construit une URL incorrecte
@@ -105,20 +99,20 @@ const KonnectPaymentHandler = ({
       }
 
       if (result.success) {
-        if (result.freeAccess) {
-          // Accès gratuit - pas de paiement nécessaire
+        if (result.freeAccess || result.alreadyHasAccess) {
+          // Accès gratuit ou déjà acquis - pas de paiement nécessaire
           setPaymentStatus('success');
-          setIsFreeAccess(true);
+          setIsFreeAccess(true); // En termes d'UI, c'est similaire (pas de paiement)
           setPaymentUrl(null);
           setPaymentId(null);
 
-          console.log('✅ Accès gratuit accordé:', result.plan);
+          console.log('✅ Accès accordé (Gratuit ou Déjà acquis):', result.plan || result.categoryPlan);
 
           // Appeler le callback de succès
           if (onSuccess) {
             onSuccess({
-              type: 'free_access',
-              plan: result.plan,
+              type: result.alreadyHasAccess ? 'already_has_access' : 'free_access',
+              plan: result.plan || result.categoryPlan,
               message: result.message
             });
           }
@@ -133,6 +127,7 @@ const KonnectPaymentHandler = ({
 
           console.log('🔗 URL de paiement générée:', result.paymentUrl);
         } else {
+          console.error('❌ Résultat inattendu:', result);
           throw new Error('URL de paiement non générée');
         }
       } else {
