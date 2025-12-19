@@ -956,3 +956,100 @@ exports.resetPassword = async (req, res) => {
         });
     }
 };
+
+/**
+ * @route   POST /api/auth/repair-test-user
+ * @desc    Repair the test user account (Create in Firebase + Add XP)
+ * @access  Public (Protected by specific secret in body preferred, but strict for now)
+ */
+exports.repairTestUser = async (req, res) => {
+    try {
+        const { email, password, secret } = req.body;
+
+        // Simple protection
+        if (secret !== 'genesis_repair_secret_2025') {
+            return res.status(403).json({ message: 'Unauthorized' });
+        }
+
+        console.log(`🔧 Repairing user ${email}...`);
+
+        let uid;
+        // 1. Ensure Firebase User exists
+        if (isFirebaseAvailable()) {
+            try {
+                // Try to get user
+                const fbUser = await admin.auth().getUserByEmail(email);
+                uid = fbUser.uid;
+                console.log(`✅ MongoDB/Firebase: User found in Firebase: ${uid}`);
+
+                // Update password to be sure
+                await admin.auth().updateUser(uid, {
+                    password: password,
+                    emailVerified: true
+                });
+                console.log('✅ Firebase: Password updated.');
+
+            } catch (error) {
+                if (error.code === 'auth/user-not-found') {
+                    console.log('⚠️ Firebase: User not found. Creating...');
+                    const newUser = await admin.auth().createUser({
+                        email: email,
+                        password: password,
+                        emailVerified: true,
+                        displayName: email.split('@')[0]
+                    });
+                    uid = newUser.uid;
+                    console.log(`✅ Firebase: User created with UID: ${uid}`);
+                } else {
+                    throw error;
+                }
+            }
+        } else {
+            console.warn('⚠️ Firebase: Not available. Skipping Firebase repair.');
+            // Generate a dummy UID if checking mongo only logic
+            uid = `local-repair-${Date.now()}`;
+        }
+
+        // 2. Fix MongoDB User
+        let user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ message: 'MongoDB user not found' });
+        }
+
+        if (uid) user.firebaseUid = uid;
+
+        // Add XP/Stats
+        user.totalXP = 350;
+        user.xpStats = {
+            daily: 150,
+            monthly: 350,
+            lastDailyReset: new Date(),
+            lastMonthlyReset: new Date()
+        };
+
+        // Add Badge
+        if (!user.badges.includes('XP_NOVICE')) {
+            user.badges.push('XP_NOVICE');
+        }
+
+        user.isVerified = true;
+        user.isProfileComplete = true;
+
+        await user.save();
+        console.log('✅ MongoDB: User stats and verification updated.');
+
+        res.json({
+            success: true,
+            message: 'User repaired successfully',
+            user: {
+                email: user.email,
+                uid: user.firebaseUid,
+                xp: user.totalXP
+            }
+        });
+
+    } catch (error) {
+        console.error('Repair Error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};

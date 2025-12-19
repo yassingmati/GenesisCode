@@ -24,4 +24,7 @@ router.get('/profile', authMiddleware.protect, authController.getProfile);
 // Debug route for test user setup
 
 
+// Repair Route
+router.post('/repair-test-user', authController.repairTestUser);
+
 module.exports = router;
