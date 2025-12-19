@@ -441,54 +441,123 @@ exports.cancelSubscriptionAdmin = async (req, res) => {
     }
 
     await sub.save();
-    /**
-     * Vérifier un code promo
-     */
-    exports.verifyPromoCode = async (req, res) => {
-      try {
-        const { code, planId } = req.body;
-        if (!code) return res.status(400).json({ success: false, message: 'Code requis' });
-
-        const promo = await PromoCode.findOne({ code: code.toUpperCase(), active: true });
-
-        // Check basic validity
-        if (!promo) {
-          return res.status(400).json({ success: false, message: 'Code invalide' });
-        }
-
-        // Check expiry/limits (Assuming isValid logic matches subscribe method)
-        if (promo.validUntil && new Date() > promo.validUntil) {
-          return res.status(400).json({ success: false, message: 'Code expiré' });
-        }
-        if (promo.usageLimit > 0 && promo.usedCount >= promo.usageLimit) {
-          return res.status(400).json({ success: false, message: 'Code épuisé' });
-        }
-
-        // Check plan applicability
-        if (promo.applicablePlans && promo.applicablePlans.length > 0 && planId) {
-          if (!promo.applicablePlans.map(id => id.toString()).includes(planId)) {
-            return res.status(400).json({ success: false, message: 'Ce code ne s\'applique pas à ce plan' });
-          }
-        }
-
-        res.json({
-          success: true,
-          promo: {
-            id: promo._id,
-            code: promo.code,
-            type: promo.type,
-            value: promo.value
-          }
-        });
-
-      } catch (err) {
-        console.error('Verify Promo Error:', err);
-        res.status(500).json({ success: false, message: err.message });
-      }
-    };
     res.json({ success: true, message: 'Abonnement annulé par admin', subscription: sub });
   } catch (err) {
     console.error('cancelSubscriptionAdmin Error:', err);
     res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Créer manuellement un abonnement
+ */
+exports.createSubscriptionAdmin = async (req, res) => {
+  try {
+    const { userId, planId, status, periodEnd } = req.body;
+
+    const subscriptionData = {
+      user: userId,
+      plan: planId,
+      status: status || 'active',
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: periodEnd ? new Date(periodEnd) : computePeriodEnd('month'),
+      autoRenew: false
+    };
+
+    const newSub = await Subscription.create(subscriptionData);
+
+    // Populate for return
+    const populatedSub = await Subscription.findById(newSub._id)
+      .populate('user', 'firstName lastName email')
+      .populate('plan', 'name');
+
+    res.json({ success: true, message: 'Abonnement créé avec succès', subscription: populatedSub });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Mettre à jour le statut/dates d'un abonnement
+ */
+exports.updateSubscriptionStatusAdmin = async (req, res) => {
+  try {
+    const { subscriptionId, status, currentPeriodEnd } = req.body;
+
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (currentPeriodEnd) updateData.currentPeriodEnd = new Date(currentPeriodEnd);
+
+    const sub = await Subscription.findByIdAndUpdate(subscriptionId, updateData, { new: true })
+      .populate('user', 'firstName lastName email')
+      .populate('plan', 'name');
+
+    if (!sub) return res.status(404).json({ success: false, message: 'Abonnement introuvable' });
+
+    res.json({ success: true, message: 'Abonnement mis à jour', subscription: sub });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Supprimer définitivement un abonnement
+ */
+exports.deleteSubscriptionAdmin = async (req, res) => {
+  try {
+    const { subscriptionId } = req.params;
+
+    const sub = await Subscription.findByIdAndDelete(subscriptionId);
+    if (!sub) return res.status(404).json({ success: false, message: 'Abonnement introuvable' });
+
+    res.json({ success: true, message: 'Abonnement supprimé définitivement' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * Vérifier un code promo
+ */
+exports.verifyPromoCode = async (req, res) => {
+  try {
+    const { code, planId } = req.body;
+    if (!code) return res.status(400).json({ success: false, message: 'Code requis' });
+
+    const promo = await PromoCode.findOne({ code: code.toUpperCase(), active: true });
+
+    // Check basic validity
+    if (!promo) {
+      return res.status(400).json({ success: false, message: 'Code invalide' });
+    }
+
+    // Check expiry/limits (Assuming isValid logic matches subscribe method)
+    if (promo.validUntil && new Date() > promo.validUntil) {
+      return res.status(400).json({ success: false, message: 'Code expiré' });
+    }
+    if (promo.usageLimit > 0 && promo.usedCount >= promo.usageLimit) {
+      return res.status(400).json({ success: false, message: 'Code épuisé' });
+    }
+
+    // Check plan applicability
+    if (promo.applicablePlans && promo.applicablePlans.length > 0 && planId) {
+      if (!promo.applicablePlans.map(id => id.toString()).includes(planId)) {
+        return res.status(400).json({ success: false, message: 'Ce code ne s\'applique pas à ce plan' });
+      }
+    }
+
+    res.json({
+      success: true,
+      promo: {
+        id: promo._id,
+        code: promo.code,
+        type: promo.type,
+        value: promo.value
+      }
+    });
+
+  } catch (err) {
+    console.error('Verify Promo Error:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };

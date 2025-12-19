@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardHeader, CardBody, CardFooter, Button, Input, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Select, SelectItem, Textarea } from "@nextui-org/react";
-import { IconPlus, IconEdit, IconTrash, IconCurrencyDollar } from '@tabler/icons-react';
+import { Card, Button, Input, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Select, SelectItem, Textarea } from "@nextui-org/react";
+import { IconPlus, IconEdit, IconTrash } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
-import { api } from '../components/common';
+import { systemApi as api } from './components/common';
 
 export default function PlansManagement() {
     const [plans, setPlans] = useState([]);
+    const [categories, setCategories] = useState([]);
+    const [paths, setPaths] = useState([]);
     const [loading, setLoading] = useState(true);
     const { isOpen, onOpen, onOpenChange } = useDisclosure();
     const [editingPlan, setEditingPlan] = useState(null);
@@ -18,11 +20,13 @@ export default function PlansManagement() {
         currency: 'TND',
         interval: 'month',
         type: 'global',
+        targetId: '', // For Category or Path ID
         features: ''
     });
 
     useEffect(() => {
         fetchPlans();
+        fetchMetadata();
     }, []);
 
     const fetchPlans = async () => {
@@ -33,6 +37,23 @@ export default function PlansManagement() {
             toast.error("Impossible de charger les plans");
         } finally {
             setLoading(false);
+        }
+    };
+
+    const fetchMetadata = async () => {
+        try {
+            // Need public or admin endpoints
+            const [catsRes, pathsRes] = await Promise.all([
+                api.get('/categories'), // Assuming this exists or similar
+                api.get('/paths')      // Assuming this exists
+            ]).catch(() => [[], []]); // Fail gracefully if endpoints differ
+
+            // Adjust depending on actual API structure for picking lists
+            // For now, assuming standard structure or fail safe
+            if (catsRes && catsRes.data) setCategories(catsRes.data);
+            if (pathsRes && pathsRes.data) setPaths(pathsRes.data);
+        } catch (e) {
+            console.log("Error loading metadata", e);
         }
     };
 
@@ -47,6 +68,7 @@ export default function PlansManagement() {
                 currency: plan.currency,
                 interval: plan.interval || 'month',
                 type: plan.type || 'global',
+                targetId: plan.targetId || '',
                 features: plan.features.join('\n')
             });
         } else {
@@ -59,6 +81,7 @@ export default function PlansManagement() {
                 currency: 'TND',
                 interval: 'month',
                 type: 'global',
+                targetId: '',
                 features: ''
             });
         }
@@ -133,6 +156,7 @@ export default function PlansManagement() {
                                 <TableCell>
                                     <Chip size="sm" color={plan.type === 'global' ? "primary" : "secondary"}>
                                         {plan.type}
+                                        {plan.targetId && <span className="ml-1 text-[10px] opacity-70">({plan.targetId})</span>}
                                     </Chip>
                                 </TableCell>
                                 <TableCell>
@@ -193,9 +217,44 @@ export default function PlansManagement() {
                                         onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                                     >
                                         <SelectItem key="global" value="global">Global (Tout le site)</SelectItem>
-                                        <SelectItem key="Category" value="Category">Par Catégorie</SelectItem>
-                                        <SelectItem key="Path" value="Path">Par Parcours</SelectItem>
+                                        <SelectItem key="category" value="category">Par Catégorie</SelectItem>
+                                        <SelectItem key="path" value="path">Par Parcours</SelectItem>
                                     </Select>
+
+                                    {/* DYNAMIC TARGET SELECTOR */}
+                                    {formData.type === 'category' && (
+                                        <Select
+                                            label="Choisir la Catégorie"
+                                            placeholder="Sélectionner..."
+                                            selectedKeys={formData.targetId ? [formData.targetId] : []}
+                                            onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
+                                        >
+                                            {/* Attempt to render categories if loaded, else allow text input fallback? 
+                                                Actually, if categories list is empty, this Select is empty.
+                                                Ideally we fetch categories. Assuming 'categories' state has objects with _id and name/title 
+                                            */}
+                                            {categories.map(cat => (
+                                                <SelectItem key={cat._id} value={cat._id}>
+                                                    {cat.name || (cat.translations && cat.translations.fr && cat.translations.fr.name) || cat._id}
+                                                </SelectItem>
+                                            ))}
+                                        </Select>
+                                    )}
+
+                                    {formData.type === 'path' && (
+                                        <Select
+                                            label="Choisir le Parcours"
+                                            placeholder="Sélectionner..."
+                                            selectedKeys={formData.targetId ? [formData.targetId] : []}
+                                            onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
+                                        >
+                                            {paths.map(p => (
+                                                <SelectItem key={p._id} value={p._id}>
+                                                    {p.name || (p.translations && p.translations.fr && p.translations.fr.name) || p._id}
+                                                </SelectItem>
+                                            ))}
+                                        </Select>
+                                    )}
 
                                     <div className="col-span-2">
                                         <Textarea

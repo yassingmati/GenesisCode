@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, Chip, Button, Pagination } from "@nextui-org/react";
 import { IconCreditCard, IconReceipt } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
-import { api } from '../components/common';
+import { systemApi as api } from './components/common';
 
 export default function PaymentHistory() {
     const [payments, setPayments] = useState([]);

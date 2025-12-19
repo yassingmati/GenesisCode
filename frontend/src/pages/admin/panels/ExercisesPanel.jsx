@@ -12,7 +12,7 @@ import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
-import ScratchEditor from '../../components/ui/ScratchEditor';
+import ScratchEditor from '../../../components/ui/ScratchEditor';
 
 export default function ExercisesPanel({ onOpenCreate }) {
   const [paths, setPaths] = useState([]);

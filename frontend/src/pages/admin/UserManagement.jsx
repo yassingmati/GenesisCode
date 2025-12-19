@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Card, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell, User, Chip, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Select, SelectItem } from "@nextui-org/react";
 import { IconDotsVertical, IconTrash, IconShield } from '@tabler/icons-react';
 import { toast } from 'react-toastify';
-import { api } from '../components/common';
+import { systemApi as api } from './components/common';
 
 export default function UserManagement() {
   const [users, setUsers] = useState([]);

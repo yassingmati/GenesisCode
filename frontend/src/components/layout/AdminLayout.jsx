@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
+import logo from '../../assets/icons/logo.png'; // Make sure path is correct relative to this file
 
 // Animations
 const slideIn = keyframes`
@@ -23,113 +24,126 @@ const pulse = keyframes`
 const Container = styled.div`
   display: flex;
   min-height: 100vh;
-  background: #f5f7fa;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #f0f2f5;
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 `;
 
 const Sidebar = styled.aside`
   width: 280px;
-  background: linear-gradient(135deg, #2c3e50 0%, #1a2530 100%);
+  background: #111827;
   color: #fff;
-  padding: 1.5rem 0;
+  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
-  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.1);
-  z-index: 10;
-  transition: all 0.3s ease;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05);
+  z-index: 20;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
+  border-right: 1px solid rgba(255,255,255,0.05);
   
   @media (max-width: 768px) {
     width: 80px;
     align-items: center;
+    padding: 1rem 0.5rem;
   }
 `;
 
 const SidebarHeader = styled.div`
-  padding: 0 1.5rem 1.5rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0 0.5rem 2rem;
+  margin-bottom: 0.5rem;
   animation: ${slideIn} 0.4s ease-out;
+  display: flex;
+  justify-content: center;
   
   @media (max-width: 768px) {
-    padding: 0 0.5rem 1rem;
-    text-align: center;
+    padding: 0 0 1rem;
   }
 `;
 
 const Logo = styled.div`
   display: flex;
   align-items: center;
-  gap: 0.8rem;
-  font-size: 1.6rem;
-  font-weight: 700;
+  gap: 1rem;
+  font-size: 1.4rem;
+  font-weight: 800;
   color: #fff;
+  letter-spacing: -0.5px;
+  width: 100%;
   
   @media (max-width: 768px) {
-    flex-direction: column;
-    gap: 0.2rem;
+    justify-content: center;
   }
 `;
 
-const LogoIcon = styled.div`
-  width: 42px;
-  height: 42px;
-  background: #3498db;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.5rem;
-  animation: ${pulse} 2s infinite;
+const LogoImage = styled.img`
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  /* Removed background/shadow as we use png now, or keep if user wants box */
+  /* background: linear-gradient(135deg, #6366f1, #8b5cf6); */ 
+  /* border-radius: 12px; */
+  /* padding: 4px; */ 
+  animation: ${pulse} 3s infinite;
 `;
 
 const LogoText = styled.span`
-  font-size: 1.5rem;
-  
-  @media (max-width: 768px) {
-    font-size: 0.8rem;
-  }
+  background: linear-gradient(to right, #fff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
 const NavItems = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 0 1rem;
+  gap: 0.4rem;
+  overflow-y: auto;
+  padding-right: 4px;
+
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.1);
+    border-radius: 4px;
+  }
 `;
 
 const LinkItem = styled(NavLink)`
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem 1.5rem;
-  border-radius: 10px;
-  margin: 0.25rem 0;
-  color: rgba(255, 255, 255, 0.8);
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
+  margin: 0.1rem 0;
+  color: #94a3b8;
   text-decoration: none;
-  transition: all 0.3s ease;
-  animation: ${slideIn} 0.5s ease-out;
+  transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 0.95rem;
+  border: 1px solid transparent;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
     color: #fff;
-    transform: translateX(5px);
+    transform: translateX(3px);
   }
   
   &.active {
-    background: rgba(52, 152, 219, 0.2);
+    background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
     color: #fff;
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1);
     
     & > div:first-child {
-      background: #3498db;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: white;
+      box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.4);
     }
   }
   
   @media (max-width: 768px) {
-    padding: 1rem;
+    padding: 0.85rem;
     justify-content: center;
     
     & > span {
@@ -139,15 +153,15 @@ const LinkItem = styled(NavLink)`
 `;
 
 const LinkIcon = styled.div`
-  width: 36px;
-  height: 36px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.2rem;
-  transition: all 0.3s ease;
+  font-size: 1.1rem;
+  transition: all 0.2s ease;
+  color: inherit;
 `;
 
 const LinkText = styled.span`
@@ -177,15 +191,16 @@ const Content = styled.main`
 `;
 
 const Header = styled.header`
-  background: #fff;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px);
+  padding: 1rem 2.5rem;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
   display: flex;
   justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
-  z-index: 5;
+  z-index: 15;
   
   @media (max-width: 768px) {
     padding: 1rem;
@@ -193,11 +208,10 @@ const Header = styled.header`
 `;
 
 const PageTitle = styled.h1`
-  color: #2c3e50;
-  font-size: 1.6rem;
+  color: #1e293b;
+  font-size: 1.5rem;
   font-weight: 700;
-  margin: 0;
-  animation: ${fadeIn} 0.4s ease-out;
+  letter-spacing: -0.5px;
 `;
 
 const UserProfile = styled.div`
@@ -215,20 +229,22 @@ const UserProfile = styled.div`
 `;
 
 const Avatar = styled.div`
-  width: 42px;
-  height: 42px;
-  background: linear-gradient(135deg, #3498db, #9b59b6);
-  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
-  font-weight: 600;
-  transition: all 0.3s ease;
+  font-weight: 700;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
 `;
 
 const UserInfo = styled.div`
   text-align: right;
+  margin-right: 0.5rem;
   
   @media (max-width: 768px) {
     display: none;
@@ -237,12 +253,16 @@ const UserInfo = styled.div`
 
 const UserName = styled.div`
   font-weight: 600;
-  color: #2c3e50;
+  color: #0f172a;
+  font-size: 0.95rem;
 `;
 
 const UserRole = styled.div`
-  font-size: 0.85rem;
-  color: #7f8c8d;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 `;
 
 const ContentArea = styled.div`
@@ -280,36 +300,30 @@ const CollapseButton = styled.button`
 
 // Tableau de correspondance entre les routes et les titres
 const pageTitles = {
-  '/admin/dashboard': 'Dashboard Administrateur',
-  '/admin/users': 'Gestion des Utilisateurs',
-  '/admin/courses': 'Gestion des Cours',
-  '/admin/payments': 'Gestion des Paiements',
-  '/admin/Subscription': 'Gestion du Subscription',
-  '/admin/category-plans': 'Plans de Catégories',
-  '/admin/tasks': 'Gestion des Tâches',
-  '/admin/settings': 'Paramètres Administrateur',
+  '/admin/dashboard': 'Dashboard',
+  '/admin/users': 'Utilisateurs',
+  '/admin/courses': 'Cours',
+  '/admin/payments': 'Paiements',
+  '/admin/Subscription': 'Abonnements',
+  '/admin/category-plans': 'Plans Catégories',
+  '/admin/tasks': 'Tâches',
+  '/admin/settings': 'Paramètres',
 };
 
 export default function AdminLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const location = useLocation();
 
-  const toggleSidebar = () => {
-    setSidebarCollapsed(!sidebarCollapsed);
-  };
-
-  // Obtenir le titre de la page en fonction de l'URL
-  const getPageTitle = () => {
-    return pageTitles[location.pathname] || 'Dashboard Administrateur';
-  };
+  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
+  const getPageTitle = () => pageTitles[location.pathname] || 'Admin Panel';
 
   return (
     <Container>
       <Sidebar style={{ width: sidebarCollapsed ? '80px' : '280px' }}>
         <SidebarHeader>
           <Logo>
-            <LogoIcon>📋</LogoIcon>
-            {!sidebarCollapsed && <LogoText>Admin Panel</LogoText>}
+            <LogoImage src={logo} alt="Genesis Logo" />
+            {!sidebarCollapsed && <LogoText>Genesis</LogoText>}
           </Logo>
         </SidebarHeader>
 
@@ -319,41 +333,46 @@ export default function AdminLayout() {
             {!sidebarCollapsed && <LinkText>Dashboard</LinkText>}
           </LinkItem>
 
+          <div className="my-2 border-t border-gray-800 mx-4 opacity-50"></div>
+
           <LinkItem to="/admin/users">
             <LinkIcon>👥</LinkIcon>
-            {!sidebarCollapsed && <LinkText>User Management</LinkText>}
+            {!sidebarCollapsed && <LinkText>Utilisateurs</LinkText>}
           </LinkItem>
 
           <LinkItem to="/admin/courses">
             <LinkIcon>📚</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Course Management</LinkText>}
+            {!sidebarCollapsed && <LinkText>Cours</LinkText>}
           </LinkItem>
 
           <LinkItem to="/admin/plans">
-            <LinkIcon>🏷️</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Gestion des Plans</LinkText>}
+            <LinkIcon>💎</LinkIcon>
+            {!sidebarCollapsed && <LinkText>Plans</LinkText>}
+          </LinkItem>
+
+          <LinkItem to="/admin/Subscription">
+            <LinkIcon>🔄</LinkIcon>
+            {!sidebarCollapsed && <LinkText>Abonnements</LinkText>}
           </LinkItem>
 
           <LinkItem to="/admin/payments">
             <LinkIcon>💳</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Historique Paiements</LinkText>}
+            {!sidebarCollapsed && <LinkText>Paiements</LinkText>}
           </LinkItem>
 
-          <LinkItem to="/admin/Subscription">
-            <LinkIcon>📝</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Abonnements</LinkText>}
-          </LinkItem>
+          <div className="my-2 border-t border-gray-800 mx-4 opacity-50"></div>
 
           <LinkItem to="/admin/tasks">
             <LinkIcon>✅</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Task Management</LinkText>}
+            {!sidebarCollapsed && <LinkText>Tâches</LinkText>}
           </LinkItem>
 
           <LinkItem to="/admin/settings">
             <LinkIcon>⚙️</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Settings</LinkText>}
+            {!sidebarCollapsed && <LinkText>Paramètres</LinkText>}
           </LinkItem>
         </NavItems>
+
 
         {!sidebarCollapsed && (
           <SidebarFooter>

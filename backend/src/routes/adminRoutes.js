@@ -32,6 +32,9 @@ try {
 // Routes pour la gestion des abonnements (Admin)
 const subscriptionController = require('../controllers/subscriptionController');
 router.get('/subscriptions', adminProtect, adminOnly, subscriptionController.getAllSubscriptionsAdmin);
+router.post('/subscriptions', adminProtect, adminOnly, subscriptionController.createSubscriptionAdmin);
+router.put('/subscriptions/status', adminProtect, adminOnly, subscriptionController.updateSubscriptionStatusAdmin);
+router.delete('/subscriptions/:subscriptionId', adminProtect, adminOnly, subscriptionController.deleteSubscriptionAdmin);
 router.post('/subscriptions/cancel', adminProtect, adminOnly, subscriptionController.cancelSubscriptionAdmin);
 
 router.post('/migrate-plans', adminController.migratePlans);

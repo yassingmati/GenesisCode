@@ -12,6 +12,19 @@ export const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+export const systemApi = axios.create({
+  baseURL: `${API_BASE_URL}/api`,
+  headers: { 'Content-Type': 'application/json' },
+});
+
+systemApi.interceptors.request.use(config => {
+  const adminToken = localStorage.getItem('adminToken');
+  const userToken = localStorage.getItem('token');
+  const token = adminToken || userToken;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 api.interceptors.request.use(config => {
   // Essayer d'abord le token admin, puis le token user
   const adminToken = localStorage.getItem('adminToken');
