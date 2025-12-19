@@ -69,12 +69,45 @@ import AdminLayout from './components/layout/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserManagement from './pages/admin/UserManagement';
 import CourseManagement from './pages/admin/CourseManagement';
-import PaymentManagement from './pages/admin/PaymentManagement';
+import PaymentHistory from './pages/admin/PaymentHistory'; // UPDATED
 import TaskManagement from './pages/admin/TaskManagement';
 import ChildTasks from './pages/parent/ChildTasks';
-import SubscriptionManagement from './pages/admin/SubscriptionManagementSimple';
+import AdminSubscriptionManagement from './pages/admin/AdminSubscriptionManagement'; // UPDATED
+import PlansManagement from './pages/admin/PlansManagement'; // NEW
 import CategoryPlanManagement from './pages/admin/CategoryPlanManagement';
 import CategoryPlanManagementPublic from './pages/admin/CategoryPlanManagementPublic';
+
+// ... (Rest of imports/styles are fine)
+
+/**
+// ... (skip down to routes)
+*/
+
+// ...
+
+{/* ADMIN PRIVATE - nested admin routes */ }
+<Route
+  path="/admin/*"
+  element={
+    <PrivateRoute role="admin">
+      <AdminLayout />
+    </PrivateRoute>
+  }
+>
+  <Route index element={<AdminDashboard />} />
+  <Route path="dashboard" element={<AdminDashboard />} />
+  <Route path="users" element={<UserManagement />} />
+  <Route path="courses" element={<CourseManagement />} />
+
+  <Route path="payments" element={<PaymentHistory />} />
+  <Route path="tasks" element={<TaskManagement />} />
+
+  <Route path="Subscription" element={<AdminSubscriptionManagement />} />
+  {/* Note: Kept 'Subscription' capitalized to match AdminLayout link, though lowercase is better convention */}
+
+  <Route path="plans" element={<PlansManagement />} />
+  <Route path="category-plans" element={<CategoryPlanManagement />} />
+</Route>
 
 // Styles globaux
 const GlobalStyle = createGlobalStyle`
@@ -432,9 +465,10 @@ export default function AppRouter() {
               <Route path="dashboard" element={<AdminDashboard />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="courses" element={<CourseManagement />} />
-              <Route path="payments" element={<PaymentManagement />} />
+              <Route path="payments" element={<PaymentHistory />} />
               <Route path="tasks" element={<TaskManagement />} />
-              <Route path="subscriptions" element={<SubscriptionManagement />} />
+              <Route path="Subscription" element={<AdminSubscriptionManagement />} />
+              <Route path="plans" element={<PlansManagement />} />
               <Route path="category-plans" element={<CategoryPlanManagement />} />
             </Route>
 

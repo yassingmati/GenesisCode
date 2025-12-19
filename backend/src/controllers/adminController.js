@@ -322,6 +322,167 @@ exports.getUsers = async (req, res) => {
     res.json({ success: true, users });
   } catch (err) {
     console.error('getUsers error:', err);
+  }
+};
+
+/**
+ * --- GESTION DES PLANS ---
+ */
+
+exports.getAllPlans = async (req, res) => {
+  try {
+    const Plan = require('../models/Plan');
+    const plans = await Plan.find({}).sort({ createdAt: -1 });
+    res.json({ success: true, plans });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.createPlan = async (req, res) => {
+  try {
+    const Plan = require('../models/Plan');
+    const { _id, name, priceMonthly, currency, type, targetId, interval, features, translations } = req.body;
+
+    const existing = await Plan.findById(_id);
+    if (existing) return res.status(400).json({ message: 'ID du plan déjà utilisé' });
+
+    const newPlan = new Plan({
+      _id,
+      name,
+      priceMonthly,
+      currency,
+      type,
+      targetId,
+      interval,
+      features,
+      translations
+    });
+
+    await newPlan.save();
+    res.status(201).json({ success: true, plan: newPlan });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.updatePlan = async (req, res) => {
+  try {
+    const Plan = require('../models/Plan');
+    const { id } = req.params;
+    const updates = req.body;
+
+    // Prevent ID Update
+    delete updates._id;
+
+    const updatedPlan = await Plan.findByIdAndUpdate(id, updates, { new: true });
+    if (!updatedPlan) return res.status(404).json({ message: 'Plan introuvable' });
+
+    res.json({ success: true, plan: updatedPlan });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.deletePlan = async (req, res) => {
+  try {
+    const Plan = require('../models/Plan');
+    const { id } = req.params;
+
+    const deleted = await Plan.findByIdAndDelete(id);
+    if (!deleted) return res.status(404).json({ message: 'Plan introuvable' });
+
+    res.json({ success: true, message: 'Plan supprimé' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * --- HISTORIQUE DES PAIEMENTS ---
+ */
+exports.getAllPayments = async (req, res) => {
+  try {
+    const Payment = require('../models/Payment');
+    const limit = parseInt(req.query.limit) || 50;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+
+    const total = await Payment.countDocuments();
+    const payments = await Payment.find({})
+      .populate('user', 'email firstName lastName')
+      .populate('plan', 'name')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    res.json({
+      success: true,
+      payments,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      }
+    });
+
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * --- GESTION UTILISATEURS AVANCÉE ---
+ */
+exports.updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roles } = req.body; // e.g., ['admin', 'student']
+
+    const user = await User.findByIdAndUpdate(id, { roles }, { new: true });
+    if (!user) return res.status(404).json({ message: 'Utilisateur introuvable' });
+
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await User.findByIdAndDelete(id);
+    res.json({ success: true, message: 'Utilisateur supprimé définitivement' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * --- DASHBOARD STATS ---
+ */
+exports.getDashboardStats = async (req, res) => {
+  try {
+    const User = require('../models/User');
+    const Payment = require('../models/Payment');
+    const Course = require('../models/Plan'); // Using Plans as proxy for "courses/access" or just count actual content if we had models
+    // For "Courses", maybe we count Levels or Categories?
+    const Category = require('../models/Category');
+
+    const totalUsers = await User.countDocuments();
+    const totalCourses = await Category.countDocuments();
+
+    // Revenue calc
+    const payments = await Payment.find({ status: 'completed' });
+    const totalRevenue = payments.reduce((acc, curr) => acc + (curr.amount || 0), 0) / 1000; // Convert millimes to TND
+
+    res.json({
+      users: totalUsers,
+      courses: totalCourses,
+      payments: totalRevenue.toFixed(2),
+      contentItems: 0 // Placeholder or real count
+    });
+  } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 };

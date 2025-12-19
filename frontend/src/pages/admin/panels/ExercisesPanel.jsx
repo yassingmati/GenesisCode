@@ -12,6 +12,7 @@ import SearchBar from '../components/SearchBar';
 import Pagination from '../components/Pagination';
 import ConfirmDialog from '../components/ConfirmDialog';
 import FormModal from '../components/FormModal';
+import ScratchEditor from '../../components/ui/ScratchEditor';
 
 export default function ExercisesPanel({ onOpenCreate }) {
   const [paths, setPaths] = useState([]);
@@ -36,8 +37,10 @@ export default function ExercisesPanel({ onOpenCreate }) {
     elements: [],
     targets: [],
     testCases: [],
+    testCases: [],
     initialXml: '',
-    scratchBlocks: []
+    scratchBlocks: [],
+    validationRules: []
   });
   const [confirm, setConfirm] = useState({ open: false, id: null });
 
@@ -149,7 +152,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
         targets: data.targets || [],
         testCases: data.testCases || [],
         initialXml: data.initialXml || '',
-        scratchBlocks: data.scratchBlocks || []
+        initialXml: data.initialXml || '',
+        scratchBlocks: data.scratchBlocks || [],
+        validationRules: data.validationRules || []
       });
       setModalOpen(true);
     } catch (err) {
@@ -190,7 +195,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
       payload.solutions = form.solutions;
     } else if (form.type === 'Scratch') {
       payload.initialXml = form.initialXml;
+      payload.initialXml = form.initialXml;
       payload.scratchBlocks = form.scratchBlocks; // Optional: expected blocks
+      payload.validationRules = form.validationRules;
     } else if (form.type === 'ScratchBlocks') {
       payload.scratchBlocks = form.scratchBlocks;
       payload.solutions = form.solutions; // Optional: if order matters
@@ -259,15 +266,47 @@ export default function ExercisesPanel({ onOpenCreate }) {
   }));
 
   // ScratchBlocks helpers
-  const addScratchBlock = () => setForm(f => ({ ...f, scratchBlocks: [...f.scratchBlocks, ''] }));
-  const updateScratchBlock = (idx, value) => setForm(f => ({
+  const addScratchBlock = () => setForm(f => ({
     ...f,
-    scratchBlocks: f.scratchBlocks.map((b, i) => i === idx ? value : b)
+    scratchBlocks: [...f.scratchBlocks, { text: '', category: 'motion', type: 'command' }]
   }));
+
+  const updateScratchBlock = (idx, field, value) => setForm(f => ({
+    ...f,
+    scratchBlocks: f.scratchBlocks.map((b, i) => {
+      if (i !== idx) return b;
+      // Handle legacy string data if encountered
+      const currentBlock = typeof b === 'string' ? { text: b, category: 'motion', type: 'command' } : b;
+      return { ...currentBlock, [field]: value };
+    })
+  }));
+
   const removeScratchBlock = (idx) => setForm(f => ({
     ...f,
     scratchBlocks: f.scratchBlocks.filter((_, i) => i !== idx)
   }));
+
+  // Validation Rules Helpers
+  const addValidationRule = () => setForm(f => ({
+    ...f,
+    validationRules: [...(f.validationRules || []), { type: 'mustUseBlock', value: '', message: '' }]
+  }));
+
+  const updateValidationRule = (idx, field, value) => setForm(f => ({
+    ...f,
+    validationRules: f.validationRules.map((r, i) => i === idx ? { ...r, [field]: value } : r)
+  }));
+
+  const removeValidationRule = (idx) => setForm(f => ({
+    ...f,
+    validationRules: f.validationRules.filter((_, i) => i !== idx)
+  }));
+
+  // Helper to ensure block is an object for rendering
+  const getBlockObject = (block) => {
+    if (typeof block === 'string') return { text: block, category: 'motion', type: 'command' };
+    return block;
+  };
 
   return (
     <>
@@ -546,15 +585,53 @@ export default function ExercisesPanel({ onOpenCreate }) {
           )}
 
           {form.type === 'Scratch' && (
-            <div className="col-span-2 border p-4 rounded-lg">
-              <span className="text-small font-bold block mb-2">Configuration Scratch</span>
-              <Textarea
-                label="XML Initial"
-                placeholder="<xml>...</xml>"
-                value={form.initialXml}
-                onValueChange={v => setForm(f => ({ ...f, initialXml: v }))}
-                minRows={5}
-              />
+            <div className="col-span-2 border p-4 rounded-lg flex flex-col gap-4">
+              <span className="text-small font-bold">Éditeur Visuel (Initial XML)</span>
+              <div style={{ height: '400px' }}>
+                <ScratchEditor
+                  initialXml={form.initialXml}
+                  onXmlChange={(xml) => setForm(f => ({ ...f, initialXml: xml }))}
+                />
+              </div>
+
+              <Divider className="my-2" />
+
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-small font-bold">Règles de validation</span>
+                <Button size="sm" variant="flat" onPress={addValidationRule}>Ajouter règle</Button>
+              </div>
+
+              {form.validationRules && form.validationRules.map((rule, idx) => (
+                <div key={idx} className="grid grid-cols-[150px_1fr_1fr_auto] gap-2 items-center mb-2 border p-2 rounded bg-gray-50">
+                  <Select
+                    size="sm"
+                    selectedKeys={[rule.type]}
+                    onChange={(e) => updateValidationRule(idx, 'type', e.target.value)}
+                  >
+                    <SelectItem key="mustUseBlock" value="mustUseBlock">Doit utiliser un bloc</SelectItem>
+                    <SelectItem key="maxBlocks" value="maxBlocks">Nb max blocs</SelectItem>
+                    <SelectItem key="whitelist" value="whitelist">Liste blanche</SelectItem>
+                  </Select>
+
+                  <Input
+                    size="sm"
+                    placeholder={rule.type === 'maxBlocks' ? 'Ex: 10' : 'Type de bloc (ex: controls_repeat)'}
+                    value={rule.value}
+                    onValueChange={(v) => updateValidationRule(idx, 'value', v)}
+                  />
+
+                  <Input
+                    size="sm"
+                    placeholder="Message d'erreur personnalisé"
+                    value={rule.message}
+                    onValueChange={(v) => updateValidationRule(idx, 'message', v)}
+                  />
+
+                  <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeValidationRule(idx)}>
+                    <IconX size={16} />
+                  </Button>
+                </div>
+              ))}
             </div>
           )}
 
@@ -564,19 +641,50 @@ export default function ExercisesPanel({ onOpenCreate }) {
                 <span className="text-small font-bold">Blocs disponibles</span>
                 <Button size="sm" variant="flat" onPress={addScratchBlock}>Ajouter bloc</Button>
               </div>
-              {form.scratchBlocks.map((block, idx) => (
-                <div key={idx} className="flex gap-2 items-center mb-2">
-                  <Input
-                    value={block}
-                    onValueChange={v => updateScratchBlock(idx, v)}
-                    placeholder="Type de bloc (ex: event_whenflagclicked)"
-                    size="sm"
-                  />
-                  <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeScratchBlock(idx)}>
-                    <IconX size={16} />
-                  </Button>
-                </div>
-              ))}
+              {form.scratchBlocks.map((block, idx) => {
+                const b = getBlockObject(block);
+                return (
+                  <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center mb-2">
+                    <Input
+                      value={b.text}
+                      onValueChange={v => updateScratchBlock(idx, 'text', v)}
+                      placeholder="Texte (ex: avancer de 10)"
+                      size="sm"
+                    />
+                    <Select
+                      selectedKeys={b.category ? [b.category] : ['motion']}
+                      onChange={e => updateScratchBlock(idx, 'category', e.target.value)}
+                      size="sm"
+                      placeholder="Catégorie"
+                    >
+                      <SelectItem key="motion" value="motion">Mouvement</SelectItem>
+                      <SelectItem key="looks" value="looks">Apparence</SelectItem>
+                      <SelectItem key="sound" value="sound">Son</SelectItem>
+                      <SelectItem key="events" value="events">Événements</SelectItem>
+                      <SelectItem key="control" value="control">Contrôle</SelectItem>
+                      <SelectItem key="sensing" value="sensing">Capteurs</SelectItem>
+                      <SelectItem key="operators" value="operators">Opérateurs</SelectItem>
+                      <SelectItem key="variables" value="variables">Variables</SelectItem>
+                    </Select>
+                    <Select
+                      selectedKeys={b.type ? [b.type] : ['command']}
+                      onChange={e => updateScratchBlock(idx, 'type', e.target.value)}
+                      size="sm"
+                      placeholder="Type"
+                    >
+                      <SelectItem key="command" value="command">Commande</SelectItem>
+                      <SelectItem key="reporter" value="reporter">Valeur</SelectItem>
+                      <SelectItem key="boolean" value="boolean">Condition</SelectItem>
+                      <SelectItem key="hat" value="hat">Début</SelectItem>
+                      <SelectItem key="c-block" value="c-block">Boucle (C)</SelectItem>
+                    </Select>
+
+                    <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeScratchBlock(idx)}>
+                      <IconX size={16} />
+                    </Button>
+                  </div>
+                );
+              })}
             </div>
           )}
 

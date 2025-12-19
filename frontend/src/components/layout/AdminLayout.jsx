@@ -329,19 +329,19 @@ export default function AdminLayout() {
             {!sidebarCollapsed && <LinkText>Course Management</LinkText>}
           </LinkItem>
 
+          <LinkItem to="/admin/plans">
+            <LinkIcon>🏷️</LinkIcon>
+            {!sidebarCollapsed && <LinkText>Gestion des Plans</LinkText>}
+          </LinkItem>
+
           <LinkItem to="/admin/payments">
             <LinkIcon>💳</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Payment Management</LinkText>}
+            {!sidebarCollapsed && <LinkText>Historique Paiements</LinkText>}
           </LinkItem>
 
           <LinkItem to="/admin/Subscription">
             <LinkIcon>📝</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Subscription Management</LinkText>}
-          </LinkItem>
-
-          <LinkItem to="/admin/category-plans">
-            <LinkIcon>🏷️</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Plans de Catégories</LinkText>}
+            {!sidebarCollapsed && <LinkText>Abonnements</LinkText>}
           </LinkItem>
 
           <LinkItem to="/admin/tasks">

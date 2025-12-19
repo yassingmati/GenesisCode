@@ -19,6 +19,7 @@ import FlowChartExercise from './exercises/FlowChartExercise';
 import PseudoCodeExercise from './exercises/PseudoCodeExercise';
 import VisualProgrammingExercise from './exercises/VisualProgrammingExercise';
 import ScratchBlocksExercise from './exercises/ScratchBlocksExercise';
+import ScratchExercise from './exercises/ScratchExercise';
 import OrderBlocksExercise from './exercises/OrderBlocksExercise';
 import SpotTheErrorExercise from './exercises/SpotTheErrorExercise';
 import TextInputExercise from './exercises/TextInputExercise';
@@ -63,7 +64,7 @@ const ExerciseMeta = styled.div`
 
 const MetaBadge = styled.span`
   background: ${props => {
-    switch(props.type) {
+    switch (props.type) {
       case 'difficulty': return props.level === 'easy' ? '#dcfce7' : props.level === 'medium' ? '#fef3c7' : '#fee2e2';
       case 'points': return '#e0e7ff';
       case 'type': return '#f0f9ff';
@@ -71,7 +72,7 @@ const MetaBadge = styled.span`
     }
   }};
   color: ${props => {
-    switch(props.type) {
+    switch (props.type) {
       case 'difficulty': return props.level === 'easy' ? '#166534' : props.level === 'medium' ? '#92400e' : '#991b1b';
       case 'points': return '#3730a3';
       case 'type': return '#0c4a6e';
@@ -127,10 +128,10 @@ const LoadingSpinner = styled.div`
   }
 `;
 
-export default function UnifiedExerciseInterface({ 
-  exercise, 
-  onSubmissionResult, 
-  onError 
+export default function UnifiedExerciseInterface({
+  exercise,
+  onSubmissionResult,
+  onError
 }) {
   const [userAnswer, setUserAnswer] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -154,6 +155,8 @@ export default function UnifiedExerciseInterface({
     'pseudocode': PseudoCodeExercise,
     'visual-programming': VisualProgrammingExercise,
     'scratch-blocks': ScratchBlocksExercise,
+    'Scratch': ScratchExercise,
+    'scratch': ScratchExercise,
     'order-blocks': OrderBlocksExercise,
     'spot-the-error': SpotTheErrorExercise,
     'text-input': TextInputExercise,
@@ -175,7 +178,7 @@ export default function UnifiedExerciseInterface({
 
     try {
       setIsSubmitting(true);
-      
+
       // Simulate API call
       const result = await new Promise((resolve) => {
         setTimeout(() => {
@@ -186,8 +189,8 @@ export default function UnifiedExerciseInterface({
             pointsEarned: isCorrect ? (exercise.points || 10) : 0,
             pointsMax: exercise.points || 10,
             xpEarned: isCorrect ? Math.floor((exercise.points || 10) / 2) : 0,
-            explanation: isCorrect 
-              ? 'Excellent travail ! Votre réponse est correcte.' 
+            explanation: isCorrect
+              ? 'Excellent travail ! Votre réponse est correcte.'
               : 'Pas tout à fait. Réessayez en réfléchissant à la logique de l\'exercice.',
             details: {
               type: exercise.type,
@@ -246,7 +249,7 @@ export default function UnifiedExerciseInterface({
       </ExerciseContent>
 
       <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-        <SubmitButton 
+        <SubmitButton
           onClick={handleSubmit}
           disabled={!userAnswer || isSubmitting || hasSubmitted}
         >

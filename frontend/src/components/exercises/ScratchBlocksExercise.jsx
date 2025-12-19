@@ -6,32 +6,66 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState(null);
 
+  // Helper to normalize blocks (handle legacy strings vs new objects)
+  const normalizeBlock = (block, index) => {
+    if (typeof block === 'string') {
+      // Basic heuristics for legacy data
+      let category = 'motion';
+      if (block.includes('dire') || block.includes('costume')) category = 'looks';
+      if (block.includes('son') || block.includes('jouer')) category = 'sound';
+      if (block.includes('quand') || block.includes('cliqué')) category = 'events';
+      if (block.includes('si') || block.includes('épéter')) category = 'control';
+
+      return {
+        id: `legacy-${index}-${block.replace(/\s+/g, '')}`,
+        text: block,
+        category,
+        type: 'command'
+      };
+    }
+    // Ensure object has an ID
+    return {
+      ...block,
+      id: block.id || `block-${index}-${block.text?.replace(/\s+/g, '')}`
+    };
+  };
+
   const getBlocks = () => {
-    return exercise.scratchBlocks || [];
+    return (exercise.scratchBlocks || []).map((b, i) => normalizeBlock(b, i));
   };
 
   const getExpectedBlocks = () => {
-    return exercise.expectedBlocks || [];
+    // If expectedBlocks is explicitly defined (new format)
+    if (exercise.expectedBlocks && exercise.expectedBlocks.length > 0) {
+      return exercise.expectedBlocks.map((b, i) => normalizeBlock(b, i));
+    }
+
+    // Fallback: assume the scratchBlocks (if simple list) implies using them all?
+    // Or check if exercise.solutions exists and use indices
+    return (exercise.scratchBlocks || []).map((b, i) => normalizeBlock(b, i));
   };
 
   const getTestCases = () => {
     return exercise.testCases || [];
   };
 
-  const getWorkspace = () => {
-    return exercise.scratchWorkspace || {};
-  };
-
   const handleBlockSelect = (block) => {
-    const newBlocks = [...selectedBlocks, { ...block, id: Date.now() }];
+    // Create a unique instance for the workspace
+    const newBlock = {
+      ...block,
+      instanceId: Date.now() + Math.random() // Unique ID for the workspace instance
+    };
+    const newBlocks = [...selectedBlocks, newBlock];
     setSelectedBlocks(newBlocks);
     onAnswerChange({ blocks: newBlocks });
+    setValidationResult(null);
   };
 
-  const handleBlockRemove = (blockId) => {
-    const newBlocks = selectedBlocks.filter(block => block.id !== blockId);
+  const handleBlockRemove = (instanceId) => {
+    const newBlocks = selectedBlocks.filter(block => block.instanceId !== instanceId);
     setSelectedBlocks(newBlocks);
     onAnswerChange({ blocks: newBlocks });
+    setValidationResult(null);
   };
 
   const handleBlockMove = (fromIndex, toIndex) => {
@@ -40,6 +74,7 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     newBlocks.splice(toIndex, 0, moved);
     setSelectedBlocks(newBlocks);
     onAnswerChange({ blocks: newBlocks });
+    setValidationResult(null);
   };
 
   const handleReset = () => {
@@ -50,34 +85,47 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
 
   const handleAutoComplete = () => {
     const expectedBlocks = getExpectedBlocks();
-    setSelectedBlocks(expectedBlocks);
-    onAnswerChange({ blocks: expectedBlocks });
+    // Map expected blocks to have instanceIds
+    const blocksWithInstances = expectedBlocks.map(b => ({
+      ...b,
+      instanceId: Date.now() + Math.random()
+    }));
+    setSelectedBlocks(blocksWithInstances);
+    onAnswerChange({ blocks: blocksWithInstances });
   };
 
   const handleValidate = async () => {
     setIsValidating(true);
-    
+
     try {
-      // Simulation de validation
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      await new Promise(resolve => setTimeout(resolve, 800));
+
       const expectedBlocks = getExpectedBlocks();
-      const userBlockIds = selectedBlocks.map(block => block.id);
-      const expectedBlockIds = expectedBlocks.map(block => block.id);
-      
-      const isCorrect = JSON.stringify(userBlockIds.sort()) === JSON.stringify(expectedBlockIds.sort());
-      
+
+      // Compare based on 'text' and 'category' (content), NOT instanceId
+      const userContent = selectedBlocks.map(b => `${b.category}:${b.text.trim()}`);
+      const expectedContent = expectedBlocks.map(b => `${b.category}:${b.text.trim()}`);
+
+      const isCorrect = JSON.stringify(userContent) === JSON.stringify(expectedContent);
+
+      // Calculate basic similarity score for partial credit
+      let matchCount = 0;
+      userContent.forEach((u, i) => {
+        if (u === expectedContent[i]) matchCount++;
+      });
+      const score = Math.round((matchCount / Math.max(userContent.length, expectedContent.length)) * 100);
+
       const result = {
         isCorrect,
-        score: isCorrect ? 100 : 0,
+        score: isCorrect ? 100 : score,
         message: isCorrect ? 'Programme Scratch correct !' : 'Le programme contient des erreurs.',
         details: {
           userBlocks: selectedBlocks,
           expectedBlocks,
-          differences: isCorrect ? [] : ['Des différences ont été détectées']
+          differences: isCorrect ? [] : ['L\'ordre ou le contenu des blocs est incorrect']
         }
       };
-      
+
       setValidationResult(result);
       return result;
     } finally {
@@ -88,8 +136,8 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
   const getBlockStats = () => {
     const totalBlocks = getBlocks().length;
     const selectedCount = selectedBlocks.length;
-    const completionRate = totalBlocks > 0 ? (selectedCount / totalBlocks) * 100 : 0;
-    
+    const completionRate = Math.min(100, totalBlocks > 0 ? (selectedCount / totalBlocks) * 100 : 0);
+
     return {
       totalBlocks,
       selectedCount,
@@ -97,12 +145,21 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     };
   };
 
-  const getBlockCategory = (block) => {
-    return block.category || 'unknown';
-  };
+  const getBlockCategory = (block) => block.category || 'motion';
 
   const getBlockIcon = (block) => {
-    return block.icon || '🧩';
+    if (block.icon) return block.icon;
+    switch (getBlockCategory(block)) {
+      case 'motion': return '🏃';
+      case 'looks': return '👁️';
+      case 'sound': return '🔊';
+      case 'events': return '🚩';
+      case 'control': return '🔄';
+      case 'sensing': return '🤔';
+      case 'operators': return '➕';
+      case 'variables': return '📦';
+      default: return '🧩';
+    }
   };
 
   const getBlockColor = (category) => {
@@ -121,88 +178,80 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     return colors[category] || colors.unknown;
   };
 
-  const getBlockDescription = (block) => {
-    return block.description || block.text || 'Description non disponible';
+  // Helper to make the block look like a Scratch block
+  const getBlockStyle = (block) => {
+    const color = getBlockColor(getBlockCategory(block));
+    return {
+      backgroundColor: color,
+      borderColor: 'rgba(0,0,0,0.2)',
+      color: 'white',
+      borderStyle: 'solid',
+      borderWidth: '1px',
+      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.3), 0 2px 2px rgba(0,0,0,0.1)',
+      cursor: 'pointer'
+    };
   };
 
   const getBlockUsage = () => {
     const blocks = getBlocks();
     const usage = blocks.map(block => ({
       block,
-      used: selectedBlocks.some(selected => selected.id === block.id),
-      count: selectedBlocks.filter(selected => selected.id === block.id).length
+      used: selectedBlocks.some(selected => selected.text === block.text),
+      count: selectedBlocks.filter(selected => selected.text === block.text).length
     }));
-    
     return usage;
   };
 
   const getProgramQuality = () => {
     const stats = getBlockStats();
-    const blockUsage = getBlockUsage();
-    const usedBlocks = blockUsage.filter(b => b.used);
-    
     let qualityScore = 0;
     let feedback = [];
-    
-    // Vérification de la complétude
-    if (stats.completionRate >= 80) {
+
+    // Simple heuristics
+    if (stats.selectedCount > 0) qualityScore += 20;
+    if (stats.completionRate >= 100) {
       qualityScore += 30;
-      feedback.push('✅ Programme complet');
-    } else {
+      feedback.push('✅ Longueur correcte');
+    } else if (stats.completionRate > 0) {
       feedback.push('⚠️ Programme incomplet');
     }
-    
+
+    const hasEvents = selectedBlocks.some(b => b.category === 'events');
+    if (hasEvents) {
+      qualityScore += 20;
+      feedback.push('✅ Contient un événement');
+    } else {
+      feedback.push('⚠️ Manque un événement de départ');
+    }
+
     // Vérification de la diversité
     const categories = [...new Set(selectedBlocks.map(block => block.category))];
-    if (categories.length >= 3) {
-      qualityScore += 25;
+    if (categories.length >= 2) {
+      qualityScore += 30;
       feedback.push('✅ Diversité des blocs');
-    } else {
-      feedback.push('⚠️ Peu de diversité');
     }
-    
-    // Vérification de la logique
-    if (selectedBlocks.length > 0) {
-      qualityScore += 25;
-      feedback.push('✅ Logique présente');
-    } else {
-      feedback.push('❌ Aucune logique');
-    }
-    
-    // Vérification de la cohérence
-    if (selectedBlocks.length >= 3) {
-      qualityScore += 20;
-      feedback.push('✅ Programme cohérent');
-    } else {
-      feedback.push('⚠️ Programme trop court');
-    }
-    
+
     return {
-      score: qualityScore,
+      score: Math.min(100, qualityScore),
       feedback,
       level: qualityScore >= 80 ? 'excellent' : qualityScore >= 60 ? 'bon' : qualityScore >= 40 ? 'moyen' : 'faible'
     };
   };
 
   const getProgramExecution = () => {
-    const blocks = selectedBlocks;
-    const execution = 'Simulation d\'exécution du programme Scratch...';
-    
     return {
-      blocks,
-      execution,
-      result: 'Programme exécuté avec succès'
+      blocks: selectedBlocks,
+      execution: 'Simulation...',
+      result: 'Prêt à exécuter'
     };
   };
 
   const blocks = getBlocks();
-  const expectedBlocks = getExpectedBlocks();
   const testCases = getTestCases();
-  const workspace = getWorkspace();
   const stats = getBlockStats();
   const blockUsage = getBlockUsage();
   const programQuality = getProgramQuality();
-  const programExecution = getProgramExecution();
+  // const programExecution = getProgramExecution(); // Unused for now
 
   return (
     <div className="scratch-blocks-exercise">
@@ -219,13 +268,13 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
             </span>
           </div>
         </div>
-        
+
         <div className="header-actions">
           <button onClick={handleReset} className="reset-btn">
             🔄 Réinitialiser
           </button>
           <button onClick={handleAutoComplete} className="auto-btn">
-            ▶️ Complétion automatique
+            ▶️ Complétion
           </button>
         </div>
       </div>
@@ -235,13 +284,8 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
         <div className="available-blocks-section">
           <div className="section-header">
             <h5>📦 Blocs disponibles</h5>
-            <div className="blocks-info">
-              <span className="blocks-count">
-                {blocks.length} bloc{blocks.length > 1 ? 's' : ''} disponible{blocks.length > 1 ? 's' : ''}
-              </span>
-            </div>
           </div>
-          
+
           <div className="blocks-content">
             {blocks.length === 0 ? (
               <div className="empty-blocks">
@@ -250,37 +294,16 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
             ) : (
               <div className="blocks-grid">
                 {blocks.map((block, index) => {
-                  const isUsed = blockUsage[index]?.used;
-                  const usageCount = blockUsage[index]?.count || 0;
-                  
                   return (
                     <div
                       key={block.id}
-                      className={`scratch-block ${getBlockCategory(block)} ${isUsed ? 'used' : 'available'}`}
-                      onClick={() => !isUsed && handleBlockSelect(block)}
-                      style={{ borderColor: getBlockColor(getBlockCategory(block)) }}
+                      className={`scratch-block ${getBlockCategory(block)} available`}
+                      onClick={() => handleBlockSelect(block)}
+                      style={getBlockStyle(block)}
                     >
-                      <div className="block-header">
-                        <span className="block-icon">{getBlockIcon(block)}</span>
-                        <span className="block-category">{getBlockCategory(block)}</span>
-                        {usageCount > 0 && (
-                          <span className="usage-count">{usageCount}</span>
-                        )}
-                      </div>
-                      
-                      <div className="block-content">
-                        <div className="block-text">{block.text}</div>
-                        <div className="block-description">
-                          {getBlockDescription(block)}
-                        </div>
-                      </div>
-                      
-                      <div className="block-status">
-                        {isUsed ? (
-                          <span className="used-badge">✅ Utilisé</span>
-                        ) : (
-                          <span className="available-badge">🔄 Disponible</span>
-                        )}
+                      <div className="block-header" style={{ border: 'none', padding: '8px' }}>
+                        <span className="block-icon" style={{ marginRight: '8px' }}>{getBlockIcon(block)}</span>
+                        <span className="block-text font-bold">{block.text}</span>
                       </div>
                     </div>
                   );
@@ -293,64 +316,59 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
         {/* Programme assemblé */}
         <div className="program-section">
           <div className="section-header">
-            <h5>🎯 Programme assemblé</h5>
-            <div className="program-info">
-              <span className="program-blocks">
-                {selectedBlocks.length} bloc{selectedBlocks.length > 1 ? 's' : ''} sélectionné{selectedBlocks.length > 1 ? 's' : ''}
-              </span>
-            </div>
+            <h5>🎯 Votre Programme</h5>
           </div>
-          
-          <div className="program-content">
+
+          <div className="program-content" style={{ minHeight: '300px', background: '#f9fafb', borderRadius: '8px', padding: '16px' }}>
             {selectedBlocks.length === 0 ? (
               <div className="empty-program">
-                <p>Aucun bloc sélectionné</p>
-                <p>Cliquez sur des blocs pour commencer</p>
+                <p>Glissez ou cliquez sur des blocs pour construire votre programme</p>
               </div>
             ) : (
-              <div className="program-blocks">
+              <div className="program-blocks flex flex-col gap-2">
                 {selectedBlocks.map((block, index) => (
                   <div
-                    key={block.id}
-                    className={`program-block ${getBlockCategory(block)}`}
-                    style={{ borderColor: getBlockColor(getBlockCategory(block)) }}
+                    key={block.instanceId}
+                    className={`program-block ${getBlockCategory(block)} transform transition-all hover:scale-[1.02]`}
+                    style={{
+                      ...getBlockStyle(block),
+                      position: 'relative',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
                   >
-                    <div className="block-header">
+                    <div className="flex items-center gap-3">
+                      <span className="block-position opacity-50 font-mono text-xs">{index + 1}</span>
                       <span className="block-icon">{getBlockIcon(block)}</span>
-                      <span className="block-position">{index + 1}</span>
-                      <button
-                        onClick={() => handleBlockRemove(block.id)}
-                        className="remove-block-btn"
-                        title="Retirer ce bloc"
-                      >
-                        ×
-                      </button>
+                      <span className="block-text font-bold">{block.text}</span>
                     </div>
-                    
-                    <div className="block-content">
-                      <div className="block-text">{block.text}</div>
-                      <div className="block-description">
-                        {getBlockDescription(block)}
-                      </div>
-                    </div>
-                    
-                    <div className="block-controls">
+
+                    <div className="block-controls flex gap-1 opacity-80 hover:opacity-100">
                       <button
-                        onClick={() => index > 0 && handleBlockMove(index, index - 1)}
-                        className="move-btn up"
+                        onClick={(e) => { e.stopPropagation(); index > 0 && handleBlockMove(index, index - 1); }}
+                        className="p-1 hover:bg-white/20 rounded"
                         disabled={index === 0}
-                        title="Déplacer vers le haut"
+                        title="Monter"
                       >
                         ↑
                       </button>
-                      
                       <button
-                        onClick={() => index < selectedBlocks.length - 1 && handleBlockMove(index, index + 1)}
-                        className="move-btn down"
+                        onClick={(e) => { e.stopPropagation(); index < selectedBlocks.length - 1 && handleBlockMove(index, index + 1); }}
+                        className="p-1 hover:bg-white/20 rounded"
                         disabled={index === selectedBlocks.length - 1}
-                        title="Déplacer vers le bas"
+                        title="Descendre"
                       >
                         ↓
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleBlockRemove(block.instanceId); }}
+                        className="p-1 hover:bg-red-500/20 rounded text-red-50 ml-1"
+                        title="Supprimer"
+                      >
+                        ×
                       </button>
                     </div>
                   </div>
@@ -363,14 +381,12 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
         {/* Qualité du programme */}
         <div className="quality-section">
           <div className="section-header">
-            <h5>📊 Qualité du programme</h5>
+            <h5>📊 Analyse</h5>
             <div className="quality-info">
-              <span className="quality-score">
-                Score: {programQuality.score}%
-              </span>
+              <span className="quality-score">Score: {programQuality.score}%</span>
             </div>
           </div>
-          
+
           <div className="quality-content">
             <div className="quality-feedback">
               {programQuality.feedback.map((feedback, index) => (
@@ -382,43 +398,19 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
           </div>
         </div>
 
-        {/* Simulation d'exécution */}
-        <div className="execution-section">
-          <div className="section-header">
-            <h5>⚡ Simulation d'exécution</h5>
-            <div className="execution-info">
-              <span className="execution-status">En cours...</span>
-            </div>
-          </div>
-          
-          <div className="execution-content">
-            <div className="execution-output">
-              <pre className="execution-text">{programExecution.execution}</pre>
-              <div className="execution-result">
-                {programExecution.result}
-              </div>
-            </div>
-          </div>
-        </div>
-
         {/* Contrôles de validation */}
         <div className="validation-controls">
           <div className="controls-header">
-            <h5>🎮 Contrôles de validation</h5>
-            <div className="controls-info">
-              <span className="validation-status">
-                {validationResult ? '✅ Validé' : '⏳ En attente'}
-              </span>
-            </div>
+            <h5>Validation</h5>
           </div>
-          
+
           <div className="controls-content">
-            <button 
-              onClick={handleValidate} 
+            <button
+              onClick={handleValidate}
               className="validate-btn"
               disabled={isValidating || selectedBlocks.length === 0}
             >
-              {isValidating ? '⏳ Validation...' : '✅ Valider le programme'}
+              {isValidating ? '⏳ Vérification...' : '✅ Vérifier mon programme'}
             </button>
           </div>
         </div>
@@ -427,128 +419,23 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
         {validationResult && (
           <div className="validation-result">
             <div className="result-header">
-              <h5>📋 Résultat de validation</h5>
               <div className="result-info">
                 <span className={`result-status ${validationResult.isCorrect ? 'correct' : 'incorrect'}`}>
-                  {validationResult.isCorrect ? '✅ Correct' : '❌ Incorrect'}
+                  {validationResult.isCorrect ? '✅ Excellent !' : '❌ Pas tout à fait...'}
                 </span>
+                <span className="result-message">{validationResult.message}</span>
               </div>
             </div>
-            
-            <div className="result-content">
-              <div className="result-message">
-                {validationResult.message}
+
+            {!validationResult.isCorrect && validationResult.details?.differences && (
+              <div className="result-content">
+                <p className="text-sm text-red-500 mt-2">
+                  {validationResult.details.differences[0]}
+                </p>
               </div>
-              
-              {validationResult.details && (
-                <div className="result-details">
-                  <div className="details-section">
-                    <h6>Votre programme :</h6>
-                    <div className="program-comparison">
-                      {validationResult.details.userBlocks.map((block, index) => (
-                        <div key={index} className="program-item">
-                          <span className="block-position">{index + 1}.</span>
-                          <span className="block-text">{block.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="details-section">
-                    <h6>Programme attendu :</h6>
-                    <div className="program-comparison">
-                      {validationResult.details.expectedBlocks.map((block, index) => (
-                        <div key={index} className="program-item">
-                          <span className="block-position">{index + 1}.</span>
-                          <span className="block-text">{block.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
         )}
-
-        {/* Cas de test */}
-        {testCases.length > 0 && (
-          <div className="test-cases-section">
-            <div className="test-cases-header">
-              <h5>🧪 Cas de test</h5>
-              <div className="test-cases-info">
-                <span className="test-cases-count">
-                  {testCases.length} cas de test
-                </span>
-              </div>
-            </div>
-            
-            <div className="test-cases-content">
-              <div className="test-cases-list">
-                {testCases.map((testCase, index) => (
-                  <div key={index} className="test-case-item">
-                    <div className="test-case-header">
-                      <span className="test-case-number">Test {index + 1}</span>
-                      <span className="test-case-points">
-                        {testCase.points || 0} point{(testCase.points || 0) > 1 ? 's' : ''}
-                      </span>
-                    </div>
-                    
-                    <div className="test-case-content">
-                      <div className="test-input">
-                        <span className="input-label">Entrée :</span>
-                        <span className="input-value">{JSON.stringify(testCase.input)}</span>
-                      </div>
-                      
-                      <div className="test-expected">
-                        <span className="expected-label">Sortie attendue :</span>
-                        <span className="expected-value">{JSON.stringify(testCase.expected)}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Instructions */}
-      <div className="scratch-blocks-instructions">
-        <h5>📋 Instructions</h5>
-        <div className="instructions-content">
-          <p>
-            <strong>Objectif :</strong> Assemblez les blocs Scratch pour créer un programme fonctionnel.
-          </p>
-          <p>
-            <strong>Comment procéder :</strong>
-          </p>
-          <ul>
-            <li>Cliquez sur les blocs disponibles</li>
-            <li>Organisez-les dans l'ordre logique</li>
-            <li>Vérifiez la cohérence du programme</li>
-            <li>Testez l'exécution</li>
-          </ul>
-          <p>
-            <strong>Types de blocs :</strong>
-          </p>
-          <ul>
-            <li>🎯 <strong>Mouvement :</strong> Déplacement et rotation</li>
-            <li>👁️ <strong>Apparence :</strong> Changements visuels</li>
-            <li>🔊 <strong>Son :</strong> Effets sonores</li>
-            <li>⚡ <strong>Événements :</strong> Déclencheurs</li>
-            <li>🔄 <strong>Contrôle :</strong> Boucles et conditions</li>
-          </ul>
-          <p>
-            <strong>Conseils d'assemblage :</strong>
-          </p>
-          <ul>
-            <li>Commencez par les événements</li>
-            <li>Ajoutez les actions dans l'ordre</li>
-            <li>Vérifiez la logique du programme</li>
-            <li>Testez avec différents cas</li>
-          </ul>
-        </div>
       </div>
     </div>
   );

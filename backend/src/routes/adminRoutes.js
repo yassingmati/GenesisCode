@@ -37,7 +37,22 @@ router.post('/subscriptions/cancel', adminProtect, adminOnly, subscriptionContro
 router.post('/migrate-plans', adminController.migratePlans);
 router.post('/promo-codes', adminProtect, adminOnly, adminController.createPromoCode);
 router.get('/promo-codes', adminProtect, adminOnly, adminController.getPromoCodes);
+// --- Gestion des Plans (CRUD) ---
+router.get('/plans', adminProtect, adminOnly, adminController.getAllPlans);
+router.post('/plans', adminProtect, adminOnly, adminController.createPlan);
+router.put('/plans/:id', adminProtect, adminOnly, adminController.updatePlan);
+router.delete('/plans/:id', adminProtect, adminOnly, adminController.deletePlan);
+
+// --- Historique des Paiements ---
+router.get('/payments/history', adminProtect, adminOnly, adminController.getAllPayments);
+
+// --- Gestion Avancée Utilisateurs ---
 router.get('/users', adminProtect, adminOnly, adminController.getUsers);
+router.put('/users/:id/role', adminProtect, adminOnly, adminController.updateUserRole);
+router.delete('/users/:id', adminProtect, adminOnly, adminController.deleteUser);
+
+router.get('/dashboard-stats', adminProtect, adminOnly, adminController.getDashboardStats);
+
 router.get('/list', adminProtect, adminOnly, adminController.listAdmins);
 router.get('/:id', adminProtect, adminOnly, adminController.getAdminById);
 
