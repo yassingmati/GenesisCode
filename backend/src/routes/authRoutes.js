@@ -4,6 +4,9 @@ const authController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { checkMongoConnection } = require('../middlewares/mongoCheckMiddleware');
 
+// Repair Route (Dev/Admin) - Placed at top to avoid middleware issues
+router.post('/repair-test-user', authController.repairTestUser);
+
 // Authentification (toutes nécessitent MongoDB)
 router.post('/register', checkMongoConnection, authController.register);
 router.post('/login', checkMongoConnection, authController.loginWithEmail);
@@ -23,8 +26,5 @@ router.get('/profile', authMiddleware.protect, authController.getProfile);
 
 // Debug route for test user setup
 
-
-// Repair Route
-router.post('/repair-test-user', authController.repairTestUser);
 
 module.exports = router;
