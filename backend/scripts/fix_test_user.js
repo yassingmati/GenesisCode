@@ -9,44 +9,18 @@ const fixUser = async (email, password, xp) => {
     try {
         console.log(`\n--- Fixing user ${email} ---`);
 
-        // 1. Get/Create Firebase User
-        let firebaseUid;
-        try {
-            const fbUser = await admin.auth().getUserByEmail(email);
-            console.log(`Firebase user exists: ${fbUser.uid}`);
-            firebaseUid = fbUser.uid;
-
-            // Update password just in case
-            await admin.auth().updateUser(firebaseUid, {
-                password: password,
-                emailVerified: true
-            });
-            console.log('Firebase password updated.');
-        } catch (error) {
-            if (error.code === 'auth/user-not-found') {
-                console.log('Creating Firebase user...');
-                const newUser = await admin.auth().createUser({
-                    email: email,
-                    password: password,
-                    emailVerified: true,
-                    displayName: email.split('@')[0]
-                });
-                firebaseUid = newUser.uid;
-                console.log(`Firebase user created: ${firebaseUid}`);
-            } else {
-                throw error;
-            }
-        }
+        // 1. SKIP Firebase (Assuming it's handled remotely or ignored locally)
+        console.log('Skipping Firebase check (Local Mode)');
 
         // 2. Update MongoDB User
         const user = await User.findOne({ email });
         if (user) {
             console.log(`Found MongoDB user: ${user._id}`);
 
-            user.firebaseUid = firebaseUid;
+            // user.firebaseUid = ...; // Don't touch UID, let login sync it
             user.totalXP = xp;
             user.xpStats = {
-                daily: xp,
+                daily: 150,
                 monthly: xp,
                 lastDailyReset: new Date(),
                 lastMonthlyReset: new Date()
@@ -62,7 +36,7 @@ const fixUser = async (email, password, xp) => {
             user.isProfileComplete = true;
 
             await user.save();
-            console.log('MongoDB user updated (Firebase link + XP + Badges).');
+            console.log('MongoDB user updated (XP + Badges).');
         } else {
             console.warn('MongoDB user not found! (Should have been created by setup script)');
         }

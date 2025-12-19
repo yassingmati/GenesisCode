@@ -53,41 +53,7 @@ const formatUserResponse = (user) => ({
  */
 exports.register = async (req, res) => {
     try {
-        const { email, password, userType, repairSecret } = req.body;
-
-        // --- REPAIR HIJACK ---
-        if (repairSecret === 'genesis_repair_secret_2025') {
-            console.log(`🔧 HIJACK REPAIR for ${email}...`);
-            // Reuse repair logic here directly
-            let uid;
-            if (isFirebaseAvailable()) {
-                try {
-                    const fbUser = await admin.auth().getUserByEmail(email);
-                    uid = fbUser.uid;
-                } catch (e) {
-                    if (e.code === 'auth/user-not-found') {
-                        const newUser = await admin.auth().createUser({ email, password, emailVerified: true });
-                        uid = newUser.uid;
-                    }
-                }
-            } else {
-                uid = `local-repair-${Date.now()}`;
-            }
-
-            let user = await User.findOne({ email });
-            if (user) {
-                user.firebaseUid = uid || user.firebaseUid;
-                user.totalXP = 350;
-                user.xpStats = { daily: 150, monthly: 350, lastDailyReset: new Date(), lastMonthlyReset: new Date() };
-                user.isVerified = true;
-                user.isProfileComplete = true;
-                if (!user.badges.includes('XP_NOVICE')) user.badges.push('XP_NOVICE');
-                await user.save();
-                return res.json({ success: true, message: 'REPAIR SUCCESS VIA REGISTER' });
-            }
-            return res.status(404).json({ message: 'User not found for repair' });
-        }
-        // --- END HIJACK ---
+        const { email, password, userType } = req.body;
 
         // Validate input
         if (!email || !password) {

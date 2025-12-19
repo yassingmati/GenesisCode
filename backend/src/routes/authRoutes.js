@@ -4,10 +4,6 @@ const authController = require('../controllers/authController');
 const authMiddleware = require('../middlewares/authMiddleware');
 const { checkMongoConnection } = require('../middlewares/mongoCheckMiddleware');
 
-// Repair Route (Dev/Admin) - Placed at top to avoid middleware issues
-router.post('/repair-test-user', authController.repairTestUser);
-router.get('/ping', (req, res) => res.json({ message: 'pong', timestamp: new Date() }));
-
 // Authentification (toutes nécessitent MongoDB)
 router.post('/register', checkMongoConnection, authController.register);
 router.post('/login', checkMongoConnection, authController.loginWithEmail);
