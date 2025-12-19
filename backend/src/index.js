@@ -109,12 +109,12 @@ try {
   console.error('❌ Erreur chargement accessRoutes:', err.message);
 }
 
-try {
-  subscriptionPaymentRoutes = require('./routes/subscriptionPayment');
-  console.log('✅ subscriptionPaymentRoutes chargé');
-} catch (err) {
-  console.error('❌ Erreur chargement subscriptionPaymentRoutes:', err.message);
-}
+// try {
+//   subscriptionPaymentRoutes = require('./routes/subscriptionPayment');
+//   console.log('✅ subscriptionPaymentRoutes chargé');
+// } catch (err) {
+//   console.error('❌ Erreur chargement subscriptionPaymentRoutes:', err.message);
+// }
 
 try {
   subscriptionRoutes = require('./routes/subscriptionRoutes');
@@ -553,9 +553,9 @@ app.get('/api/files/:filename', async (req, res) => {
     const file = await gfsBucket.find({ filename: req.params.filename }).next();
     if (!file) return res.status(404).json({ error: 'Fichier non trouvé' });
 
-    // Handle Range header for video streaming
+    // Handle Range header for all files (videos, pdfs, etc.)
     const range = req.headers.range;
-    if (range && file.contentType && file.contentType.startsWith('video/')) {
+    if (range) {
       const parts = range.replace(/bytes=/, "").split("-");
       const start = parseInt(parts[0], 10);
       const end = parts[1] ? parseInt(parts[1], 10) : file.length - 1;
@@ -565,20 +565,18 @@ app.get('/api/files/:filename', async (req, res) => {
         'Content-Range': `bytes ${start}-${end}/${file.length}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': chunksize,
-        'Content-Type': file.contentType,
+        'Content-Type': file.contentType || 'application/octet-stream',
       });
 
       const downloadStream = gfsBucket.openDownloadStreamByName(req.params.filename, {
         start,
-        end: end + 1 // end is exclusive in openDownloadStreamByName options? No, it uses start/end options similar to createReadStream? 
-        // Actually MongoDB Node Driver GridFSBucket.openDownloadStreamByName options are { start, end, revision }
-        // end is exclusive in MongoDB driver? Let's check docs or assume standard slice behavior.
-        // Usually it's 0-indexed and end is exclusive.
+        end: end + 1 // end is exclusive in some drivers, check if needed, but standard slice usually implies exclusive end
       });
       downloadStream.pipe(res);
     } else {
       res.set('Content-Type', file.contentType || 'application/octet-stream');
       res.set('Content-Length', file.length);
+      res.set('Accept-Ranges', 'bytes'); // Advertises support for ranges
       const downloadStream = gfsBucket.openDownloadStreamByName(req.params.filename);
       downloadStream.pipe(res);
     }
@@ -698,7 +696,7 @@ if (publicRoutes) app.use('/api', publicRoutes);
 if (paymentRoutes) app.use('/api/payment', paymentRoutes);
 if (notificationRoutes) app.use('/api', notificationRoutes);
 if (courseAccessRoutes) app.use('/api/course-access', courseAccessRoutes);
-if (subscriptionPaymentRoutes) app.use('/api/subscription-payment', subscriptionPaymentRoutes);
+// if (subscriptionPaymentRoutes) app.use('/api/subscription-payment', subscriptionPaymentRoutes);
 if (accessRoutes) app.use('/api/access', accessRoutes);
 
 

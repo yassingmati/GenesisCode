@@ -1,25 +1,21 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from '../../hooks/useTranslation';
-import ExerciseAnswerInterface from '../../components/ExerciseAnswerInterface';
-import ExerciseHeader from '../../components/ui/ExerciseHeader';
 import CourseAccessGuard from '../../components/CourseAccessGuard';
 import { getApiUrl } from '../../utils/apiConfig';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
 import {
   Button, Select, SelectItem, Card, CardBody,
-  Divider, Chip, Tooltip, Progress, ScrollShadow, Spinner,
+  Tooltip, Progress, Spinner,
   Modal, ModalContent, ModalBody, ModalHeader, useDisclosure
 } from "@nextui-org/react";
 import {
   IconArrowLeft, IconArrowRight, IconPlayerPlay, IconPlayerPause,
-  IconFileText, IconPrinter, IconLink, IconList,
-  IconCheck, IconX
+  IconFileText, IconPrinter, IconLink, IconList
 } from '@tabler/icons-react';
+import { motion } from 'framer-motion';
 
 const API_BASE = getApiUrl('/api/courses');
-const PROXY_FILE = `${API_BASE}/proxyFile`;
-const PROXY_VIDEO = `${API_BASE}/proxyVideo`;
 const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇸🇦' }];
 
 // Helper functions (kept from original)
@@ -56,27 +52,28 @@ async function findLevelInAccessiblePaths(levelId, token) {
 
 import { Document, Page, pdfjs } from 'react-pdf';
 
-// Configure PDF worker using CDN to avoid local file serving issues
-// Configure PDF worker using CDN to avoid local file serving issues
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export default function LevelPage() {
   const { levelId } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { t } = useTranslation();
+  const { t, language } = useTranslation(); // Use global language
   const { isOpen: isVideoOpen, onOpen: onVideoOpen, onOpenChange: onVideoOpenChange } = useDisclosure();
 
   const [level, setLevel] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pathInfo, setPathInfo] = useState(null);
-  const [lang, setLang] = useState('fr');
+
+  // Use global language for content
+  const lang = language;
 
   // PDF state
   const [pdfEffectiveUrl, setPdfEffectiveUrl] = useState(null);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
+  const [containerWidth, setContainerWidth] = useState(800);
+  const pdfWrapperRef = useRef(null);
 
   const onDocumentLoadSuccess = ({ numPages }) => {
     setNumPages(numPages);
@@ -85,23 +82,12 @@ export default function LevelPage() {
 
   // Video state
   const [videoEffectiveUrl, setVideoEffectiveUrl] = useState(null);
-  const [isCompactLayout, setIsCompactLayout] = useState(() => window.innerWidth <= 1024);
 
   // Video controls
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
-
-  // Exercise states
-  const [exercises, setExercises] = useState([]);
-  const [activeExercise, setActiveExercise] = useState(null);
-  const [userAnswer, setUserAnswer] = useState(null);
-  const [submissionResult, setSubmissionResult] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [exerciseError, setExerciseError] = useState(null);
-  const [showExercises, setShowExercises] = useState(false);
-  const [completedExercises, setCompletedExercises] = useState({});
 
   // Load level metadata
   useEffect(() => {
@@ -174,7 +160,6 @@ export default function LevelPage() {
     if (!level) return;
     const candidate = level.pdfs?.[lang];
     if (!candidate) return;
-
     setPdfEffectiveUrl(`${candidate}#toolbar=0&scroll=continuous&view=FitH`);
   }, [level, lang]);
 
@@ -184,7 +169,6 @@ export default function LevelPage() {
     if (!level) return;
     const candidate = level.videos?.[lang];
     if (!candidate) return;
-
     setVideoEffectiveUrl(candidate);
   }, [level, lang]);
 
@@ -210,12 +194,34 @@ export default function LevelPage() {
     };
   }, [videoEffectiveUrl]);
 
-  // Responsive
+  // Debounce helper
+  const debounce = (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  };
+
+  // Handle Resize for PDF
   useEffect(() => {
-    const onResize = () => setIsCompactLayout(window.innerWidth <= 1024);
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
+    const updateWidth = debounce((entries) => {
+      if (entries[0]) {
+        setContainerWidth(entries[0].contentRect.width);
+      }
+    }, 100);
+
+    const observer = new ResizeObserver(updateWidth);
+    if (pdfWrapperRef.current) observer.observe(pdfWrapperRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [loading]);
 
   const togglePlay = () => {
     const v = videoRef.current;
@@ -229,68 +235,25 @@ export default function LevelPage() {
     }
   };
 
-  // Exercise Logic
-  const loadExercises = useCallback(async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/levels/${levelId}`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (res.ok) {
-        const data = await res.json();
-        setExercises(data.exercises || []);
-      }
-    } catch (e) { console.error(e); }
-  }, [levelId]);
-
-  useEffect(() => { if (levelId) loadExercises(); }, [levelId, loadExercises]);
-
-  const submitExercise = async (exerciseId, answer, extraData = {}) => {
-    setIsSubmitting(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/exercises/${exerciseId}/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ answer, userId: localStorage.getItem('userId'), ...extraData })
-      });
-      const result = await res.json();
-      setSubmissionResult(result);
-      setCompletedExercises(prev => ({ ...prev, [exerciseId]: { completed: result.correct, pointsEarned: result.pointsEarned, pointsMax: result.pointsMax } }));
-    } catch (e) { setExerciseError(e.message); }
-    finally { setIsSubmitting(false); }
-  };
-
   const levelTitle = level?.translations?.[lang]?.title || level?.translations?.fr?.title || 'Niveau';
-  const pathName = pathInfo?.name || 'Parcours';
 
   return (
     <CourseAccessGuard pathId={level?.path?._id || pathInfo?._id} levelId={levelId}>
       <ClientPageLayout
         title={levelTitle}
-        subtitle={`Cours et exercices pour maîtriser ce niveau.`}
+        subtitle="Contenu du cours"
         breadcrumbs={[]}
         loading={loading}
         error={error}
         onRetry={() => window.location.reload()}
         backPath={-1}
         backLabel="Retour"
+        className="bg-gradient-to-br from-gray-50 to-indigo-50 dark:from-gray-950 dark:to-slate-900"
         heroContent={
           <div className="mt-6 flex flex-wrap gap-4 items-center">
-            <Select
-              className="w-40"
-              selectedKeys={[lang]}
-              onChange={(e) => setLang(e.target.value)}
-              size="sm"
-              classNames={{
-                trigger: "bg-white/20 backdrop-blur-md text-white",
-                value: "text-white group-data-[has-value=true]:text-white"
-              }}
-            >
-              {LANGS.map(l => <SelectItem key={l.code} value={l.code} startContent={<span>{l.flag}</span>}>{l.label}</SelectItem>)}
-            </Select>
+
             <Button
-              color="primary"
-              variant="flat"
-              className="bg-white/20 text-white backdrop-blur-md"
+              className="bg-white/20 text-white backdrop-blur-md border border-white/20"
               startContent={<IconFileText size={18} />}
               onPress={() => pdfEffectiveUrl && window.open(pdfEffectiveUrl, '_blank')}
             >
@@ -299,287 +262,203 @@ export default function LevelPage() {
           </div>
         }
       >
-        <div className={`grid ${showExercises ? 'grid-cols-1 lg:grid-cols-2' : (isCompactLayout ? 'grid-cols-1' : 'grid-cols-[1fr_400px]')} gap-8 h-[calc(100vh-300px)] min-h-[600px]`}>
+        <div className="max-w-[1600px] mx-auto relative px-4 pb-0 h-[calc(100vh-140px)] overflow-hidden">
 
-          {/* PDF Viewer Area */}
-          <Card className="h-full shadow-md border-none overflow-hidden">
-            <CardBody className="p-0 h-full bg-gray-100 flex flex-col items-center justify-center relative">
-              {pdfEffectiveUrl ? (
-                <div className="w-full h-full overflow-auto flex justify-center p-4">
-                  <Document
-                    file={pdfEffectiveUrl}
-                    onLoadSuccess={onDocumentLoadSuccess}
-                    loading={
-                      <div className="flex flex-col items-center gap-2">
-                        <Spinner size="lg" color="primary" />
-                        <p className="text-gray-500">Chargement du PDF...</p>
-                      </div>
-                    }
-                    error={
-                      <div className="flex flex-col items-center gap-2 text-danger">
-                        <IconFileText size={48} />
-                        <p>Impossible de charger le PDF.</p>
-                        <Button
-                          size="sm"
-                          color="primary"
-                          variant="flat"
-                          onPress={() => window.open(pdfEffectiveUrl, '_blank')}
-                        >
-                          Ouvrir dans un nouvel onglet
-                        </Button>
-                      </div>
-                    }
-                    className="max-w-full"
-                  >
-                    <Page
-                      pageNumber={pageNumber}
-                      width={isCompactLayout ? window.innerWidth - 40 : undefined}
-                      scale={isCompactLayout ? 1 : 1.2}
-                      renderTextLayer={false}
-                      renderAnnotationLayer={false}
-                    />
-                  </Document>
+          {/* Background Animations */}
+          <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+            <div className="absolute top-20 left-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl animate-pulse"></div>
+            <div className="absolute bottom-20 right-20 w-80 h-80 bg-secondary/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+          </div>
 
-                  {numPages && numPages > 1 && (
-                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/90 backdrop-blur shadow-lg rounded-full px-4 py-2 flex items-center gap-4 z-10">
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        isDisabled={pageNumber <= 1}
-                        onPress={() => setPageNumber(prev => prev - 1)}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative z-10 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6 xl:gap-8 h-full"
+          >
+
+            {/* Main Content Area (PDF) - Order 1 on mobile, 1 on desktop */}
+            <div className="flex flex-col gap-6 order-1 lg:order-1 h-full overflow-hidden">
+              <Card className="h-full shadow-lg border-none bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md flex flex-col">
+                <CardBody className="p-0 overflow-hidden relative flex-1 bg-gray-50/50 dark:bg-black/20" ref={pdfWrapperRef}>
+                  {pdfEffectiveUrl ? (
+                    <div className="w-full h-full overflow-y-auto overflow-x-hidden flex justify-center p-0 lg:p-6 custom-scrollbar">
+                      <Document
+                        file={pdfEffectiveUrl}
+                        onLoadSuccess={onDocumentLoadSuccess}
+                        loading={
+                          <div className="flex flex-col items-center gap-4 mt-20">
+                            <Spinner size="lg" color="primary" />
+                          </div>
+                        }
+                        error={
+                          <div className="flex flex-col items-center gap-4 mt-20 text-danger">
+                            <IconFileText size={64} className="opacity-50" />
+                            <p className="font-medium">Impossible d'afficher le PDF.</p>
+                            <Button
+                              size="sm"
+                              color="primary"
+                              variant="flat"
+                              onPress={() => window.open(pdfEffectiveUrl, '_blank')}
+                            >
+                              Ouvrir
+                            </Button>
+                          </div>
+                        }
+                        className="max-w-full shadow-xl"
                       >
-                        <IconArrowLeft size={16} />
-                      </Button>
-                      <span className="text-sm font-medium">
-                        {pageNumber} / {numPages}
-                      </span>
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        isDisabled={pageNumber >= numPages}
-                        onPress={() => setPageNumber(prev => prev + 1)}
-                      >
-                        <IconArrowRight size={16} />
-                      </Button>
+                        <Page
+                          pageNumber={pageNumber}
+                          width={Math.min(containerWidth, 1000)}
+                          renderTextLayer={false}
+                          renderAnnotationLayer={false}
+                          className="shadow-sm border border-gray-100 dark:border-gray-800"
+                        />
+                      </Document>
+
+                      {numPages && numPages > 1 && (
+                        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 bg-white/90 dark:bg-zinc-800/90 backdrop-blur-md shadow-lg rounded-full px-6 py-2 flex items-center gap-6 z-20 border border-gray-100 dark:border-gray-700">
+                          <Button isIconOnly size="sm" variant="light" isDisabled={pageNumber <= 1} onPress={() => setPageNumber(prev => prev - 1)}>
+                            <IconArrowLeft size={18} />
+                          </Button>
+                          <span className="text-sm font-semibold font-mono">
+                            {pageNumber} / {numPages}
+                          </span>
+                          <Button isIconOnly size="sm" variant="light" isDisabled={pageNumber >= numPages} onPress={() => setPageNumber(prev => prev + 1)}>
+                            <IconArrowRight size={18} />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
+                      <IconFileText size={80} className="mb-2 opacity-20" />
+                      <p className="text-lg font-medium">Aucun document</p>
                     </div>
                   )}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <IconFileText size={64} className="mb-4 opacity-50" />
-                  <p>Aucun PDF disponible pour ce niveau</p>
+                </CardBody>
+              </Card>
+            </div>
+
+            {/* Sidebar Area (Video + Actions) - Order 2 on mobile, 2 on desktop */}
+            <div className="flex flex-col gap-6 order-2 lg:order-2 h-full overflow-y-auto custom-scrollbar pb-6">
+
+              {/* Mobile FAB for Video */}
+              {videoEffectiveUrl && (
+                <div className="lg:hidden absolute top-0 right-0 z-50 m-4">
+                  <Tooltip content="Voir la vidéo">
+                    <Button
+                      isIconOnly
+                      className="bg-black/80 text-white shadow-2xl border border-white/20"
+                      radius="full"
+                      size="lg"
+                      onPress={onVideoOpen}
+                    >
+                      <IconPlayerPlay size={24} fill="currentColor" />
+                    </Button>
+                  </Tooltip>
                 </div>
               )}
 
-              {isCompactLayout && (
-                <Button
-                  isIconOnly
-                  color="secondary"
-                  className="absolute top-4 right-4 shadow-lg z-50"
-                  onPress={onVideoOpen}
-                >
-                  <IconPlayerPlay />
-                </Button>
-              )}
-            </CardBody>
-          </Card>
-
-          {/* Sidebar (Video + Controls) */}
-          {!isCompactLayout && (
-            <div className="flex flex-col gap-6 h-full overflow-y-auto pr-2">
-              {/* Video Player */}
-              <Card className="bg-black border-none shadow-lg aspect-video flex-shrink-0">
-                <CardBody className="p-0 overflow-hidden relative group h-full">
-                  {videoEffectiveUrl ? (
-                    <>
+              {/* 1. Desktop Video Player - Standard Native */}
+              <div className="hidden lg:block">
+                <Card className="bg-black border-none shadow-xl overflow-hidden rounded-xl">
+                  <CardBody className="p-0 overflow-hidden relative aspect-video">
+                    {videoEffectiveUrl ? (
                       <video
                         ref={videoRef}
                         src={videoEffectiveUrl}
                         className="w-full h-full object-contain"
-                        onClick={togglePlay}
+                        controls
+                        poster={level?.thumbnail}
                       />
-                      {!isPlaying && (
-                        <div
-                          className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer transition-opacity"
-                          onClick={togglePlay}
-                        >
-                          <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 hover:scale-110 transition-transform">
-                            <IconPlayerPlay size={32} className="text-white ml-1" />
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Controls Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Button isIconOnly size="sm" variant="light" className="text-white" onPress={togglePlay}>
-                            {isPlaying ? <IconPlayerPause size={18} /> : <IconPlayerPlay size={18} />}
-                          </Button>
-                          <Progress
-                            size="sm"
-                            value={(progress / duration) * 100 || 0}
-                            color="primary"
-                            className="cursor-pointer"
-                            onClick={(e) => {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              const percent = (e.clientX - rect.left) / rect.width;
-                              handleSeek(percent * 100);
-                            }}
-                          />
-                          <span className="text-tiny text-white font-mono">
-                            {Math.floor(progress / 60)}:{String(Math.floor(progress % 60)).padStart(2, '0')}
-                          </span>
-                        </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center h-full text-zinc-500 bg-zinc-900/50">
+                        <IconPlayerPlay size={48} className="opacity-20 mb-2" />
+                        <p className="font-medium text-sm">Vidéo non disponible</p>
                       </div>
-                    </>
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500">
-                      <p>Vidéo non disponible</p>
-                    </div>
-                  )}
-                </CardBody>
-              </Card>
+                    )}
+                  </CardBody>
+                </Card>
+              </div>
 
-              {/* Navigation & Actions */}
-              <Card className="flex-shrink-0 shadow-sm">
-                <CardBody className="gap-3 p-5">
-                  <h3 className="font-bold text-lg text-gray-800">Actions</h3>
-                  <div className="flex flex-col gap-3">
+              {/* Mobile Floating Video Button (Only visible on mobile if video exists) */}
+              {videoEffectiveUrl && (
+                <div className="lg:hidden absolute top-4 right-4 z-50">
+                  <Button
+                    isIconOnly
+                    className="bg-black/50 backdrop-blur-md text-white border border-white/20 shadow-xl"
+                    size="lg"
+                    radius="full"
+                    onPress={onVideoOpen}
+                  >
+                    <IconPlayerPlay size={24} fill="currentColor" />
+                  </Button>
+                </div>
+              )}
+
+              {/* 2. Actions & Navigation */}
+              <Card className="shadow-lg border-none bg-white/80 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl">
+                <CardBody className="gap-5 p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="h-8 w-1 bg-primary rounded-full"></div>
+                    <h3 className="font-bold text-xl text-gray-800 dark:text-gray-100">Navigation</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
                     <Button
-                      color={showExercises ? "danger" : "success"}
-                      variant="shadow"
-                      className="w-full font-semibold text-white"
-                      startContent={showExercises ? <IconX size={18} /> : <IconList size={18} />}
+                      className="w-full bg-gray-100 dark:bg-zinc-800 text-gray-700 dark:text-gray-200 font-medium shadow-sm"
+                      variant="flat"
+                      startContent={<IconArrowLeft size={18} />}
+                      onPress={() => navigate(-1)}
+                    >
+                      Précédent
+                    </Button>
+                    <Button
+                      className="w-full bg-gradient-to-r from-primary to-secondary text-white font-bold shadow-md shadow-primary/20"
+                      endContent={<IconArrowRight size={18} />}
                       onPress={() => navigate(`/courses/levels/${levelId}/exercises`)}
                     >
-                      Afficher les exercices
+                      Exercices
                     </Button>
-                    <div className="flex gap-2">
-                      <Button
-                        className="flex-1"
-                        variant="flat"
-                        startContent={<IconArrowLeft size={18} />}
-                        onPress={() => navigate(-1)}
-                      >
-                        Précédent
+                  </div>
+
+                  <div className="pt-4 mt-2 border-t border-gray-100 dark:border-gray-800 flex justify-center gap-4">
+                    <Tooltip content="Imprimer le support">
+                      <Button isIconOnly variant="light" className="text-gray-400 hover:text-primary" onPress={() => window.print()}>
+                        <IconPrinter size={22} />
                       </Button>
-                      <Button
-                        className="flex-1"
-                        color="primary"
-                        endContent={<IconArrowRight size={18} />}
-                      >
-                        Suivant
+                    </Tooltip>
+                    <Tooltip content="Copier le lien permanent">
+                      <Button isIconOnly variant="light" className="text-gray-400 hover:text-primary" onPress={() => {
+                        navigator.clipboard.writeText(window.location.href);
+                        // Could add toast here
+                      }}>
+                        <IconLink size={22} />
                       </Button>
-                    </div>
+                    </Tooltip>
                   </div>
                 </CardBody>
               </Card>
-
-              {/* Quick Actions */}
-              <div className="flex gap-2 justify-center mt-auto">
-                <Tooltip content="Imprimer">
-                  <Button isIconOnly variant="light" onPress={() => window.print()}>
-                    <IconPrinter size={20} className="text-gray-500" />
-                  </Button>
-                </Tooltip>
-                <Tooltip content="Copier le lien">
-                  <Button isIconOnly variant="light" onPress={() => navigator.clipboard.writeText(window.location.href)}>
-                    <IconLink size={20} className="text-gray-500" />
-                  </Button>
-                </Tooltip>
-              </div>
             </div>
-          )}
 
-          {/* Exercises Panel (conditionally rendered) */}
-          {showExercises && (
-            <Card className="h-full shadow-lg border-none">
-              <CardBody className="p-0 h-full">
-                <ScrollShadow className="h-full p-6">
-                  {!activeExercise ? (
-                    <div className="space-y-4">
-                      <h2 className="text-2xl font-bold mb-6 text-gray-800">Exercices</h2>
-                      <div className="grid grid-cols-1 gap-3">
-                        {exercises.map((ex, idx) => (
-                          <Card
-                            key={ex._id}
-                            isPressable
-                            onPress={() => setActiveExercise(ex)}
-                            className={`border-l-4 shadow-sm hover:shadow-md transition-shadow ${completedExercises[ex._id]?.completed ? 'border-l-success' : 'border-l-primary'}`}
-                          >
-                            <CardBody className="flex flex-row items-center justify-between p-4">
-                              <div className="flex items-center gap-3">
-                                <Chip size="sm" variant="flat" color="primary">{idx + 1}</Chip>
-                                <span className="font-semibold text-gray-700">{ex.name}</span>
-                              </div>
-                              {completedExercises[ex._id]?.completed && (
-                                <IconCheck className="text-success" size={20} />
-                              )}
-                            </CardBody>
-                          </Card>
-                        ))}
-                      </div>
-                      <Button
-                        className="w-full mt-6"
-                        color="secondary"
-                        variant="flat"
-                        onPress={() => navigate(`/courses/levels/${levelId}/exercises`)}
-                      >
-                        Mode plein écran
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col h-full">
-                      <Button
-                        variant="light"
-                        startContent={<IconArrowLeft size={18} />}
-                        className="self-start mb-4"
-                        onPress={() => setActiveExercise(null)}
-                      >
-                        Retour à la liste
-                      </Button>
+          </motion.div>
 
-                      <div className="flex-1">
-                        <ExerciseHeader
-                          title={activeExercise.name}
-                          difficulty={activeExercise.difficulty}
-                          points={activeExercise.points}
-                          type={activeExercise.type}
-                          timeLimit={activeExercise.timeLimit}
-                        />
-                        <Divider className="my-4" />
-                        <ExerciseAnswerInterface
-                          exercise={activeExercise}
-                          answer={userAnswer}
-                          onAnswer={setUserAnswer}
-                          onSubmit={() => submitExercise(activeExercise._id, userAnswer)}
-                          isSubmitting={isSubmitting}
-                          submissionResult={submissionResult}
-                          error={exerciseError}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </ScrollShadow>
-              </CardBody>
-            </Card>
-          )}
         </div>
 
-        {/* Video Modal for Compact Layout */}
-        <Modal isOpen={isVideoOpen} onOpenChange={onVideoOpenChange} size="5xl" backdrop="blur">
+        {/* Video Viewer Modal (Optional for expanding) */}
+        <Modal isOpen={isVideoOpen} onOpenChange={onVideoOpenChange} size="full" backdrop="blur" classNames={{ base: "bg-black" }}>
           <ModalContent>
             {(onClose) => (
               <>
-                <ModalHeader>Vidéo du cours</ModalHeader>
-                <ModalBody className="p-0 aspect-video bg-black">
+                <ModalHeader className="absolute top-0 left-0 z-50 text-white bg-gradient-to-b from-black/80 to-transparent w-full">Vidéo du cours</ModalHeader>
+                <ModalBody className="p-0 h-full flex items-center justify-center bg-black">
                   {videoEffectiveUrl && (
                     <video
                       src={videoEffectiveUrl}
                       controls
-                      className="w-full h-full"
+                      autoPlay
+                      className="max-h-full max-w-full"
                     />
                   )}
                 </ModalBody>
@@ -587,7 +466,7 @@ export default function LevelPage() {
             )}
           </ModalContent>
         </Modal>
-      </ClientPageLayout>
-    </CourseAccessGuard>
+      </ClientPageLayout >
+    </CourseAccessGuard >
   );
 }

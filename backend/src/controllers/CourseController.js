@@ -1809,16 +1809,47 @@ class CourseController {
 
     // Stream legacy local file
     const stat = await fsp.stat(pdfPath);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Length', stat.size);
-    res.setHeader('Content-Disposition', 'inline');
+    const fileSize = stat.size;
+    const range = req.headers.range;
 
-    const stream = fs.createReadStream(pdfPath);
-    stream.on('error', error => {
-      console.error('PDF stream error:', error);
-      if (!res.headersSent) res.status(500).end('Erreur de lecture PDF');
-    });
-    stream.pipe(res);
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      let start = parseInt(parts[0], 10);
+      let end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+
+      if (Number.isNaN(start) || start < 0) start = 0;
+      if (Number.isNaN(end) || end < start || end >= fileSize) end = fileSize - 1;
+
+      const chunkSize = (end - start) + 1;
+
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${fileSize}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": chunkSize,
+        "Content-Type": "application/pdf"
+      });
+
+      const stream = fs.createReadStream(pdfPath, { start, end });
+      stream.on('error', error => {
+        console.error('PDF stream error:', error);
+        if (!res.headersSent) res.status(500).end('Erreur de lecture PDF');
+      });
+      stream.pipe(res);
+    } else {
+      res.writeHead(200, {
+        "Content-Length": fileSize,
+        "Content-Type": "application/pdf",
+        "Content-Disposition": "inline",
+        "Accept-Ranges": "bytes"
+      });
+
+      const stream = fs.createReadStream(pdfPath);
+      stream.on('error', error => {
+        console.error('PDF stream error:', error);
+        if (!res.headersSent) res.status(500).end('Erreur de lecture PDF');
+      });
+      stream.pipe(res);
+    }
   });
 }
 

@@ -38,7 +38,8 @@ exports.register = async (req, res) => {
 exports.login = async (req, res) => {
   const { email, password } = req.body;
   try {
-    const admin = await Admin.findOne({ email });
+    // IMPORTANT: select('+password') est nécessaire car password a select:false dans le schéma
+    const admin = await Admin.findOne({ email }).select('+password');
     if (!admin) return res.status(401).json({ message: 'Email invalide' });
 
     const isMatch = await admin.comparePassword(password);

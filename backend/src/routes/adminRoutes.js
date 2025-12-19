@@ -18,6 +18,15 @@ try {
   console.error('❌ Erreur chargement categoryPlanRoutes:', err);
 }
 
+// Routes PUBLIQUES pour tester le frontend (SANS AUTH)
+try {
+  const categoryPlanRoutesPublic = require('../admin/routes/categoryPlanRoutesPublic');
+  router.use('/test-category-plans', categoryPlanRoutesPublic);
+  console.log('✅ categoryPlanRoutesPublic (sans auth) chargé dans adminRoutes');
+} catch (err) {
+  console.error('❌ Erreur chargement categoryPlanRoutesPublic:', err);
+}
+
 // Routes protégées pour la gestion des admins (doivent être APRÈS les routes spécifiques)
 // Temporairement public pour migration avec clé secrète
 // Routes pour la gestion des abonnements (Admin)

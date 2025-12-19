@@ -33,6 +33,7 @@ import ModernDashboard from './pages/dashboard/ModernDashboard';
 // Pages de cours - NOUVEAU ROUTAGE
 import DebutantMap from './pages/course/DebutantMap';
 import LevelPage from './pages/course/LevelPage';
+import LevelExercisesPage from './pages/course/LevelExercisesPage';
 
 import ExerciseWorkspace from './pages/course/ExerciseWorkspace';
 import TestExerciseInterface from './components/TestExerciseInterface';
@@ -73,6 +74,7 @@ import TaskManagement from './pages/admin/TaskManagement';
 import ChildTasks from './pages/parent/ChildTasks';
 import SubscriptionManagement from './pages/admin/SubscriptionManagementSimple';
 import CategoryPlanManagement from './pages/admin/CategoryPlanManagement';
+import CategoryPlanManagementPublic from './pages/admin/CategoryPlanManagementPublic';
 
 // Styles globaux
 const GlobalStyle = createGlobalStyle`
@@ -199,8 +201,34 @@ function PrivateRoute({ children, role }) {
     }
   }
 
-  if (role === 'admin' && !admin) {
-    return <Navigate to="/admin/login" replace />;
+  if (role === 'admin') {
+    // Vérifier à la fois le contexte et le localStorage
+    const adminToken = localStorage.getItem('adminToken');
+    const adminData = localStorage.getItem('adminData');
+
+    if (!admin && (!adminToken || !adminData)) {
+      console.log('❌ Pas d\'admin dans le contexte ni dans localStorage, redirection vers /admin/login');
+      return <Navigate to="/admin/login" replace />;
+    }
+
+    // Si on a le token dans localStorage mais pas dans le contexte, c'est OK
+    // Le useEffect de AuthContext va le charger
+    if (!admin && adminToken && adminData) {
+      console.log('⏳ Token admin trouvé dans localStorage, attente du chargement du contexte...');
+      // Petit délai pour laisser le contexte se mettre à jour
+      return (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          minHeight: '100vh',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          color: 'white'
+        }}>
+          <div>Chargement de la session admin...</div>
+        </div>
+      );
+    }
   }
 
   return children;
@@ -278,6 +306,13 @@ export default function AppRouter() {
               </AuthGuard>
             } />
 
+            {/* Niveau - Liste des exercices */}
+            <Route path="/courses/levels/:levelId/exercises" element={
+              <AuthGuard>
+                <LevelExercisesPage />
+              </AuthGuard>
+            } />
+
 
 
             {/* Exercice individuel - WORKSPACE */}
@@ -306,6 +341,7 @@ export default function AppRouter() {
 
             {/* Nouveau système de paiement par catégorie */}
             <Route path="/category-plans" element={<CategoryPlans />} />
+            <Route path="/test-category-plans" element={<CategoryPlanManagementPublic />} />
             <Route path="/payment-selection" element={<CategoryPlans />} />
 
             {/* Specific language learning flow */}

@@ -258,6 +258,54 @@ exports.getMySubscriptions = async (req, res) => {
 };
 
 /**
+ * Récupérer les abonnements d'un utilisateur spécifique (Pour Admin ou Parent)
+ */
+exports.getUserSubscriptions = async (req, res) => {
+  try {
+    const requesterId = req.user.id;
+    const { userId } = req.params;
+
+    // Vérification des droits
+    // 1. Est-ce le user lui-même ?
+    if (requesterId === userId) {
+      // ok
+    }
+    // 2. Est-ce un admin ?
+    else if (req.user.role === 'admin') {
+      // ok
+    }
+    // 3. Est-ce un parent de ce user ?
+    else {
+      // On vérifie le lien parent/enfant
+      const child = await User.findOne({ _id: userId, parentAccount: requesterId });
+      // Ou peut-être via la collection ParentChild ?
+      // Le modèle User a souvent parentAccount directement s'il a été invité.
+      // Vérifions aussi via ParentChild si nécessaire, mais commençons par User.parentAccount
+      if (!child) {
+        // Essayons la collection ParentChild si le modèle User ne suffit pas
+        // const relation = await require('../models/ParentChild').findOne({ parent: requesterId, child: userId, status: 'active' });
+        // if (!relation) return res.status(403).json({ success: false, message: 'Non autorisé' });
+        // Pour l'instant, supposons que parentAccount est peuplé ou qu'on est admin.
+        // Si le fetchUser echoue, on bloque.
+        return res.status(403).json({ success: false, message: 'Non autorisé' });
+      }
+    }
+
+    const subscriptions = await Subscription.find({ user: userId })
+      .populate('plan')
+      .sort({ createdAt: -1 });
+
+    res.json({
+      success: true,
+      subscriptions
+    });
+  } catch (err) {
+    console.error('getUserSubscriptions Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
  * Annuler un abonnement spécifique
  */
 exports.cancelSubscription = async (req, res) => {
@@ -393,7 +441,51 @@ exports.cancelSubscriptionAdmin = async (req, res) => {
     }
 
     await sub.save();
+    /**
+     * Vérifier un code promo
+     */
+    exports.verifyPromoCode = async (req, res) => {
+      try {
+        const { code, planId } = req.body;
+        if (!code) return res.status(400).json({ success: false, message: 'Code requis' });
 
+        const promo = await PromoCode.findOne({ code: code.toUpperCase(), active: true });
+
+        // Check basic validity
+        if (!promo) {
+          return res.status(400).json({ success: false, message: 'Code invalide' });
+        }
+
+        // Check expiry/limits (Assuming isValid logic matches subscribe method)
+        if (promo.validUntil && new Date() > promo.validUntil) {
+          return res.status(400).json({ success: false, message: 'Code expiré' });
+        }
+        if (promo.usageLimit > 0 && promo.usedCount >= promo.usageLimit) {
+          return res.status(400).json({ success: false, message: 'Code épuisé' });
+        }
+
+        // Check plan applicability
+        if (promo.applicablePlans && promo.applicablePlans.length > 0 && planId) {
+          if (!promo.applicablePlans.map(id => id.toString()).includes(planId)) {
+            return res.status(400).json({ success: false, message: 'Ce code ne s\'applique pas à ce plan' });
+          }
+        }
+
+        res.json({
+          success: true,
+          promo: {
+            id: promo._id,
+            code: promo.code,
+            type: promo.type,
+            value: promo.value
+          }
+        });
+
+      } catch (err) {
+        console.error('Verify Promo Error:', err);
+        res.status(500).json({ success: false, message: err.message });
+      }
+    };
     res.json({ success: true, message: 'Abonnement annulé par admin', subscription: sub });
   } catch (err) {
     console.error('cancelSubscriptionAdmin Error:', err);

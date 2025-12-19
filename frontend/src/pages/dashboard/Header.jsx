@@ -35,6 +35,7 @@ function getAuthHeader() {
 }
 
 import ThemeToggle from '../../components/ThemeToggle';
+import SubscriptionButton from '../../components/SubscriptionButton';
 
 // ... imports
 
@@ -108,6 +109,8 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
             localStorage.removeItem('token');
             localStorage.removeItem('accessToken');
             localStorage.removeItem('user');
+            localStorage.removeItem('adminToken');
+            localStorage.removeItem('adminData');
         } catch (e) {
             // ignore
         }
@@ -118,13 +121,19 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
         <Navbar
             maxWidth="full"
             position="sticky"
-            className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-gray-200/50 dark:border-slate-700/50 h-20 transition-colors duration-300"
+            className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-gray-200/60 dark:border-slate-800/60 h-20 transition-all duration-300 supports-[backdrop-filter]:bg-white/60"
         >
             {/* Mobile Menu Toggle */}
             <NavbarContent className="lg:hidden" justify="start">
                 <Button isIconOnly variant="light" onPress={toggleMobileMenu}>
                     <IconMenu2 className="text-slate-700 dark:text-slate-200" />
                 </Button>
+            </NavbarContent>
+
+            {/* Logo */}
+            <NavbarContent justify="start" className="hidden lg:flex max-w-fit cursor-pointer" onClick={() => window.location.href = '/dashboard'}>
+                <img src={require('../../assets/images/logo-removebg-preview.png')} alt="CodeGenesis" className="h-10 w-auto" />
+                <p className="font-bold text-inherit text-xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-cyan-500">CodeGenesis</p>
             </NavbarContent>
 
             {/* Search Bar Removed */}
@@ -137,6 +146,14 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                     <ThemeToggle />
                 </NavbarItem>
 
+                {/* Bouton d'abonnement */}
+                <NavbarItem className="hidden sm:flex">
+                    <SubscriptionButton
+                        variant="premium"
+                        className="h-9 px-4 text-small"
+                    />
+                </NavbarItem>
+
                 {/* Language Selector */}
                 <NavbarItem className="hidden sm:flex">
                     <LanguageSelector showLabel={false} size="small" />
@@ -146,13 +163,11 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                 <NavbarItem>
                     <Dropdown placement="bottom-end">
                         <DropdownTrigger>
-                            <div className="cursor-pointer">
-                                <Badge content={unreadCount > 0 ? unreadCount : null} color="danger" shape="circle" size="sm">
-                                    <Button isIconOnly radius="full" variant="light">
-                                        <IconBell size={24} className="text-gray-600 dark:text-slate-300" />
-                                    </Button>
+                            <Button isIconOnly radius="full" variant="light" className="relative overflow-visible">
+                                <Badge content={unreadCount > 0 ? unreadCount : null} color="danger" size="sm" shape="circle" className="border-2 border-white dark:border-slate-800">
+                                    <IconBell size={24} className="text-gray-600 dark:text-slate-300" />
                                 </Badge>
-                            </div>
+                            </Button>
                         </DropdownTrigger>
                         <DropdownMenu
                             aria-label="Notifications"

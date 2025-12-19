@@ -1,16 +1,19 @@
 // src/components/SubscriptionButton.jsx
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
+import { IconDiamond, IconRocket, IconBook } from '@tabler/icons-react';
 import SubscriptionModal from './SubscriptionModal';
 import { getApiUrl } from '../utils/apiConfig';
 import './SubscriptionButton.css';
 
-const SubscriptionButton = ({ 
-  categoryId = null, 
+const SubscriptionButton = ({
+  categoryId = null,
   categoryName = null,
   className = '',
   variant = 'default' // 'default', 'premium', 'outline'
 }) => {
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -23,7 +26,7 @@ const SubscriptionButton = ({
         // Utiliser l'endpoint /api/subscriptions/plans qui récupère les plans depuis MongoDB Atlas
         const res = await fetch(getApiUrl('/api/subscriptions/plans'));
         const data = await res.json();
-        
+
         if (data?.success && Array.isArray(data?.plans)) {
           console.log('📋 Plans récupérés depuis MongoDB Atlas:', data.plans.length);
           const adapted = data.plans
@@ -68,7 +71,11 @@ const SubscriptionButton = ({
   }, [categoryId]);
 
   const handleSubscribe = () => {
-    setShowModal(true);
+    if (categoryId) {
+      setShowModal(true);
+    } else {
+      navigate('/category-plans');
+    }
   };
 
   const getButtonText = () => {
@@ -78,9 +85,9 @@ const SubscriptionButton = ({
   };
 
   const getButtonIcon = () => {
-    if (variant === 'premium') return '💎';
-    if (variant === 'outline') return '🔓';
-    return '📚';
+    if (variant === 'premium') return <IconDiamond size={18} />;
+    if (variant === 'outline') return <IconRocket size={18} />;
+    return <IconBook size={18} />;
   };
 
   return (

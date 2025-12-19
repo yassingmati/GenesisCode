@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
       try {
         const backendToken = localStorage.getItem('token');
         const backendUser = localStorage.getItem('user');
-        
+
         if (backendToken && backendUser) {
           try {
             const userData = JSON.parse(backendUser);
@@ -50,14 +50,14 @@ export function AuthProvider({ children }) {
             const mockFirebaseUser = {
               uid: userData._id || userData.id,
               email: userData.email,
-              displayName: userData.firstName && userData.lastName 
-                ? `${userData.firstName} ${userData.lastName}` 
+              displayName: userData.firstName && userData.lastName
+                ? `${userData.firstName} ${userData.lastName}`
                 : userData.email,
               emailVerified: userData.isVerified || false,
               // Ajouter les données personnalisées
               ...userData
             };
-            
+
             console.log('✅ Utilisateur backend trouvé dans localStorage:', mockFirebaseUser.email);
             setCurrentUser(mockFirebaseUser);
           } catch (parseError) {
@@ -92,8 +92,8 @@ export function AuthProvider({ children }) {
             const mockFirebaseUser = {
               uid: userData._id || userData.id,
               email: userData.email,
-              displayName: userData.firstName && userData.lastName 
-                ? `${userData.firstName} ${userData.lastName}` 
+              displayName: userData.firstName && userData.lastName
+                ? `${userData.firstName} ${userData.lastName}`
                 : userData.email,
               emailVerified: userData.isVerified || false,
               ...userData
@@ -116,7 +116,7 @@ export function AuthProvider({ children }) {
       try {
         const backendToken = localStorage.getItem('token');
         const backendUser = localStorage.getItem('user');
-        
+
         if (backendToken && backendUser && !currentUser) {
           try {
             const userData = JSON.parse(backendUser);
@@ -124,14 +124,14 @@ export function AuthProvider({ children }) {
             const mockFirebaseUser = {
               uid: userData._id || userData.id,
               email: userData.email,
-              displayName: userData.firstName && userData.lastName 
-                ? `${userData.firstName} ${userData.lastName}` 
+              displayName: userData.firstName && userData.lastName
+                ? `${userData.firstName} ${userData.lastName}`
                 : userData.email,
               emailVerified: userData.isVerified || false,
               // Ajouter les données personnalisées
               ...userData
             };
-            
+
             setCurrentUser(mockFirebaseUser);
           } catch (parseError) {
             console.error('❌ Erreur lors du parsing des données utilisateur:', parseError);
@@ -153,27 +153,63 @@ export function AuthProvider({ children }) {
 
   // Persistance du token/admin dans le localStorage
   useEffect(() => {
-    if (token)      localStorage.setItem('adminToken', token);
-    else            localStorage.removeItem('adminToken');
+    if (token) localStorage.setItem('adminToken', token);
+    else localStorage.removeItem('adminToken');
   }, [token]);
 
   useEffect(() => {
-    if (admin)      localStorage.setItem('adminData', JSON.stringify(admin));
-    else            localStorage.removeItem('adminData');
+    if (admin) localStorage.setItem('adminData', JSON.stringify(admin));
+    else localStorage.removeItem('adminData');
+  }, [admin]);
+
+  // Vérifier périodiquement si le token admin est toujours valide
+  useEffect(() => {
+    const checkAdminToken = () => {
+      const adminToken = localStorage.getItem('adminToken');
+      const adminData = localStorage.getItem('adminData');
+
+      if (adminToken && adminData && !admin) {
+        try {
+          const parsedAdmin = JSON.parse(adminData);
+          console.log('✅ Admin trouvé dans localStorage:', parsedAdmin.email);
+          setAdmin(parsedAdmin);
+          setToken(adminToken);
+        } catch (e) {
+          console.error('❌ Erreur parsing adminData:', e);
+          localStorage.removeItem('adminToken');
+          localStorage.removeItem('adminData');
+        }
+      } else if (!adminToken && admin) {
+        // Token supprimé, nettoyer l'état
+        setAdmin(null);
+        setToken(null);
+      }
+    };
+
+    // Vérifier immédiatement
+    checkAdminToken();
+
+    // Vérifier toutes les 5 secondes
+    const interval = setInterval(checkAdminToken, 5000);
+    return () => clearInterval(interval);
   }, [admin]);
 
   // Méthodes Firebase (optionnelles)
-  const signup       = (email, pw) => createUserWithEmailAndPassword(auth, email, pw);
-  const loginClient  = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
+  const signup = (email, pw) => createUserWithEmailAndPassword(auth, email, pw);
+  const loginClient = (email, pw) => signInWithEmailAndPassword(auth, email, pw);
   const logoutClient = () => {
     // Déconnexion Firebase
     firebaseSignOut(auth);
     // Déconnexion API backend
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminData');
+    setAdmin(null);
+    setToken(null);
     setCurrentUser(null);
   };
-  const resetPassword= (email)       => sendPasswordResetEmail(auth, email);
+  const resetPassword = (email) => sendPasswordResetEmail(auth, email);
 
   // Méthodes JWT/admin seront appelées dans vos services API
   // (on ne les définit pas ici, mais on expose setAdmin/setToken)
@@ -191,11 +227,14 @@ export function AuthProvider({ children }) {
     setAdmin,
     token,
     setToken,
+
+    // Loading state
+    loading,
   };
 
   return (
     <AuthContext.Provider value={value}>
-      { !loading && children }
+      {!loading && children}
     </AuthContext.Provider>
   );
 }

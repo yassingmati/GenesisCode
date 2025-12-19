@@ -78,42 +78,9 @@ export default function DashboardPage() {
       default:
         return (
           <div className="space-y-8 animate-fadeIn">
-            <WelcomeCard onSelectOption={handleWelcomeSelect} t={t} navigate={navigate} />
+            <DashboardContent t={t} />
 
-            {/* Section d'abonnement améliorée */}
-            <Card className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-xl border-none overflow-visible">
-              <CardBody className="p-8 md:p-10 relative">
-                {/* Decorative background elements */}
-                <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
-
-                <div className="flex flex-col md:flex-row gap-8 items-center md:items-start relative z-10">
-                  <div className="flex-shrink-0 w-20 h-20 bg-white/10 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/20 shadow-lg">
-                    <IconRocket size={40} className="text-white" />
-                  </div>
-                  <div className="flex-1 text-center md:text-left">
-                    <h3 className="text-3xl font-bold mb-3">{t('dashboard.subscription.title')}</h3>
-                    <p className="text-white/90 text-lg mb-6 max-w-2xl">
-                      {t('dashboard.subscription.subtitle')}
-                    </p>
-                    <div className="flex flex-wrap justify-center md:justify-start gap-3 mb-2">
-                      <Chip variant="flat" classNames={{ base: "bg-white/20 border-white/20", content: "text-white font-medium" }} startContent={<span className="mr-1">✨</span>}>{t('dashboard.subscription.unlimited')}</Chip>
-                      <Chip variant="flat" classNames={{ base: "bg-white/20 border-white/20", content: "text-white font-medium" }} startContent={<span className="mr-1">🎯</span>}>{t('dashboard.subscription.personalized')}</Chip>
-                      <Chip variant="flat" classNames={{ base: "bg-white/20 border-white/20", content: "text-white font-medium" }} startContent={<span className="mr-1">📊</span>}>{t('dashboard.subscription.progress')}</Chip>
-                    </div>
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-                    <SubscriptionButton
-                      variant="premium"
-                      className="w-full sm:w-auto shadow-lg font-bold"
-                    />
-                    <SubscriptionButton
-                      variant="outline"
-                      className="w-full sm:w-auto bg-white/10 border-white/30 hover:bg-white/20 text-white font-medium"
-                    />
-                  </div>
-                </div>
-              </CardBody>
-            </Card>
+            {/* Banner supprimée et déplacée dans le Header */}
 
             {/* Les sections Notifications, Stats et Tâches ont été supprimées à la demande de l'utilisateur */}
 
@@ -144,11 +111,11 @@ const WelcomeCard = ({ onSelectOption, t, navigate }) => {
 
         <div className="relative z-10">
           <div className="text-center mb-10">
-            <h1 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+            <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">
               <span className="mr-3 inline-block animate-bounce-slow">👋</span>
               {t('dashboard.welcome')} sur GenesisCode !
             </h1>
-            <p className="text-xl text-blue-100 max-w-2xl mx-auto font-light">
+            <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto font-light">
               {t('dashboard.welcomeMessage')}
             </p>
           </div>
@@ -186,6 +153,66 @@ const WelcomeCard = ({ onSelectOption, t, navigate }) => {
     </Card>
   );
 };
+
+const DashboardContent = ({ t }) => {
+  // Lazy load pour éviter les problèmes d'import circulaires si présents, mais ici import direct ok
+  const LeaderboardWidget = require('../../components/gamification/LeaderboardWidget').default;
+  const Badge = require('../../components/gamification/Badge').default;
+  const { BADGES } = require('../../config/badges');
+  const [user, setUser] = React.useState(null);
+
+  React.useEffect(() => {
+    const userData = localStorage.getItem('user');
+    if (userData) {
+      setUser(JSON.parse(userData));
+    }
+  }, []);
+
+  // Simuler des badges si pas encore de backend connect
+  const userBadges = user?.badges || [];
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+      <div className="lg:col-span-2 space-y-6">
+        <WelcomeCard t={t} navigate={require('react-router-dom').useNavigate()} />
+
+        {/* Badges Section */}
+        <Card className="bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700">
+          <CardHeader className="flex gap-3">
+            <span className="text-2xl">🏆</span>
+            <div className="flex flex-col">
+              <p className="text-lg font-bold">Mes Badges</p>
+              <p className="text-small text-default-500">Vos accomplissements récents</p>
+            </div>
+          </CardHeader>
+          <CardBody>
+            {userBadges.length > 0 ? (
+              <div className="flex flex-wrap gap-4">
+                {userBadges.map(badgeId => (
+                  <Badge key={badgeId} badgeId={badgeId} size="md" showTitle={true} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <p>Continuez à apprendre pour débloquer des badges !</p>
+                <div className="flex justify-center gap-2 mt-4 opacity-50 grayscale">
+                  <Badge badgeId="XP_NOVICE" size="sm" />
+                  <Badge badgeId="FIRST_EXERCISE" size="sm" />
+                  <Badge badgeId="STREAK_3" size="sm" />
+                </div>
+              </div>
+            )}
+          </CardBody>
+        </Card>
+      </div>
+
+      <div className="lg:col-span-1">
+        <LeaderboardWidget />
+      </div>
+    </div>
+  );
+};
+
 
 const OptionCard = ({ emoji, title, description, onClick, color }) => (
   <button

@@ -22,8 +22,19 @@ const userSchema = new mongoose.Schema({
   isVerified: { type: Boolean, default: false },
   isProfileComplete: { type: Boolean, default: false },
   totalXP: { type: Number, default: 0, min: 0 },
-  badges: { type: [String], default: [] },
   rank: { type: Number, default: 0 },
+
+  // Statistiques XP pour Leaderboard
+  xpStats: {
+    daily: { type: Number, default: 0 },
+    monthly: { type: Number, default: 0 },
+    lastDailyReset: { type: Date, default: Date.now },
+    lastMonthlyReset: { type: Date, default: Date.now }
+  },
+
+  // Badges gagnés (Structure plus détaillée si nécessaire, sinon on garde String pour l'instant et on gère via un Registry)
+  // On garde badges: [String] comme définitions d'ID de badges
+  badges: { type: [String], default: [] },
   roles: { type: [String], default: [] },
 
   // Nouveaux champs pour l'espace parent

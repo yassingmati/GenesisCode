@@ -141,13 +141,38 @@ exports.getUserProgress = async (req, res) => {
 exports.getLeaderboard = async (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit || '50', 10), 200);
+    const period = req.query.period || 'alltime'; // 'daily', 'monthly', 'alltime'
+
+    let sortQuery = { totalXP: -1 };
+
+    if (period === 'daily') {
+      // Pour le daily, on veut trier par xpStats.daily, mais seulement s'ils ont été reset aujourd'hui ?
+      // Notre logique de mise à jour reset la date. Si la date est vieille, le daily devrait être considéré comme 0.
+      // C'est dur de trier purement en DB si on doit vérifier la date du champ.
+      // Sauf si on a un cron qui reset tout le monde à minuit.
+      // Sans cron, le tri DB est imparfait si des utilisateurs inactifs ont des vieilles valeurs daily non reset.
+      // Solution "Lazy": On trie par daily, mais on filtre ou note la date dans le front.
+      // Ou mieux: On assume que pour le top 50, les gens sont actifs.
+      sortQuery = { 'xpStats.daily': -1 };
+    } else if (period === 'monthly') {
+      sortQuery = { 'xpStats.monthly': -1 };
+    }
+
     const leaderboard = await User.find()
-      .sort({ totalXP: -1 })
-      .select('firstName lastName email totalXP badges rank')
+      .sort(sortQuery)
+      .select('firstName lastName email totalXP xpStats badges rank')
       .limit(limit)
       .lean();
 
-    res.json(leaderboard);
+    // Petit post-processing pour nettoyer les vielles stats si nécessaire (optionnel pour l'instant)
+    const now = new Date();
+    const cleanedLeaderboard = leaderboard.map(user => {
+      // Logique de validation de la date si nécessaire pour l'affichage
+      // Si c'est daily et que la date n'est pas aujourd'hui, on pourrait mettre 0, mais ça ne change pas le tri fait par Mongo.
+      return user;
+    });
+
+    res.json(cleanedLeaderboard);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

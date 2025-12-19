@@ -1,8 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../../utils/apiConfig';
-import './ProfilePage.css'; // Nous allons créer ce fichier CSS
 import ParentInvitationSection from '../../components/ParentInvitationSection';
+import AvatarSelector from '../../components/profile/AvatarSelector';
+import { Card, CardBody, CardHeader, Button, Input, Avatar, Tabs, Tab, Chip, Progress, Divider, Spacer, Tooltip } from "@nextui-org/react";
+import Badge from '../../components/gamification/Badge';
+import { IconUser, IconLock, IconTrophy, IconPremiumRights, IconUsers, IconEdit, IconCamera, IconDeviceFloppy, IconLogout, IconAlertTriangle } from "@tabler/icons-react";
+import { toast } from 'react-hot-toast';
 
 const API_BASE = getApiUrl('/api');
 
@@ -12,448 +16,424 @@ function getAuthHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function formatDateIso(iso) {
+const formatDate = (iso) => {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' });
-  } catch (e) {
-    return iso;
-  }
-}
-
-function daysUntil(iso) {
-  if (!iso) return null;
-  const now = new Date();
-  const end = new Date(iso);
-  const diff = end.getTime() - now.getTime();
-  return Math.ceil(diff / (1000 * 60 * 60 * 24));
-}
+  return new Date(iso).toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+};
 
 export default function ProfilePage() {
   const [user, setUser] = useState(null);
-  const [progress, setProgress] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [progressData, setProgressData] = useState([]);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('profile');
 
-  const [form, setForm] = useState({ firstName: '', lastName: '', phone: '' });
-  const [editMode, setEditMode] = useState(false);
-  const [message, setMessage] = useState(null);
+  // Form states
+  const [formData, setFormData] = useState({ firstName: '', lastName: '', phone: '' });
+  const [passwordData, setPasswordData] = useState({ current: '', new: '', confirm: '' });
 
   useEffect(() => {
-    let mounted = true;
-
-    async function loadProfile() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await axios.get(`${API_BASE}/users/profile`, { headers: getAuthHeader() });
-        const data = res.data;
-        const u = data.user || data;
-        if (!mounted) return;
-        setUser(u);
-        setForm({ firstName: u.firstName || '', lastName: u.lastName || '', phone: u.phone || '' });
-
-        if (u && (u._id || u.id)) {
-          loadProgress(u._id || u.id);
-        }
-      } catch (err) {
-        console.error('loadProfile error', err);
-        const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-        if (mounted) setError(msg || 'Erreur lors du chargement du profil');
-      } finally {
-        if (mounted) setLoading(false);
-      }
-    }
-
-    async function loadProgress(userId) {
-      try {
-        const res = await axios.get(`${API_BASE}/users/progress/${userId}`, { headers: getAuthHeader() });
-        if (res?.data) setProgress(res.data);
-      } catch (err) {
-        console.warn('Impossible de charger les progrès', err);
-      }
-    }
-
     loadProfile();
-    return () => { mounted = false; };
   }, []);
 
-  const onChange = (e) => {
-    const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-  };
-
-  const validate = () => {
-    if (!form.firstName.trim()) return 'Le prénom est requis';
-    if (!form.lastName.trim()) return 'Le nom est requis';
-    if (form.phone && !/^\+?[0-9 \-()]{6,20}$/.test(form.phone)) return 'Numéro de téléphone invalide';
-    return null;
-  };
-
-  const onSave = async (e) => {
-    e && e.preventDefault();
-    const v = validate();
-    if (v) { setError(v); return; }
-
-    setSaving(true);
-    setError(null);
+  const loadProfile = async () => {
+    setLoading(true);
     try {
-      const payload = { firstName: form.firstName.trim(), lastName: form.lastName.trim(), phone: form.phone.trim() || null };
+      const res = await axios.get(`${API_BASE}/users/profile`, { headers: getAuthHeader() });
+      const userData = res.data.user || res.data;
+      setUser(userData);
+      setFormData({
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        phone: userData.phone || ''
+      });
+      loadProgress(userData._id || userData.id);
+    } catch (err) {
+      console.error('Error loading profile:', err);
+      toast.error("Erreur lors du chargement du profil");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadProgress = async (userId) => {
+    try {
+      const res = await axios.get(`${API_BASE}/users/progress/${userId}`, { headers: getAuthHeader() });
+      if (res.data) setProgressData(res.data);
+    } catch (err) {
+      console.warn('Error loading progress:', err);
+    }
+  };
+
+  const handleUpdateProfile = async () => {
+    setSaving(true);
+    try {
+      const payload = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        phone: formData.phone.trim() || null,
+        avatar: user.avatar // Preserve avatar if not changed here
+      };
       const res = await axios.put(`${API_BASE}/users/profile`, payload, { headers: getAuthHeader() });
       const updated = res.data.user || res.data;
       setUser(updated);
-      setEditMode(false);
-      setMessage('Profil mis à jour avec succès');
-      setTimeout(() => setMessage(null), 3000);
+      toast.success("Profil mis à jour avec succès !");
     } catch (err) {
-      console.error('onSave error', err);
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      setError(msg || 'Erreur lors de la sauvegarde');
+      console.error('Update error:', err);
+      toast.error(err.response?.data?.message || "Erreur lors de la mise à jour");
     } finally {
       setSaving(false);
     }
   };
 
-  const onCancel = () => {
-    if (!user) return;
-    setForm({ firstName: user.firstName || '', lastName: user.lastName || '', phone: user.phone || '' });
-    setError(null);
-    setEditMode(false);
-  };
+  const handleAvatarChange = async (newAvatar) => {
+    // Optimistic update
+    const previousAvatar = user.avatar;
+    setUser(prev => ({ ...prev, avatar: newAvatar }));
 
-  const onDelete = async () => {
-    const ok = window.confirm('Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible.');
-    if (!ok) return;
-
-    setDeleting(true);
     try {
-      const id = user && (user._id || user.id);
-      if (!id) throw new Error('ID utilisateur introuvable');
-      await axios.delete(`${API_BASE}/users/${id}`, { headers: getAuthHeader() });
-      window.location.href = '/goodbye';
+      // Assuming the API accepts avatar in the PUT /profile endpoint
+      await axios.put(`${API_BASE}/users/profile`, { avatar: newAvatar }, { headers: getAuthHeader() });
+      toast.success("Avatar modifié !");
     } catch (err) {
-      console.error('onDelete error', err);
-      const msg = err.response?.data?.error || err.response?.data?.message || err.message;
-      setError(msg || 'Erreur lors de la suppression');
-    } finally {
-      setDeleting(false);
+      console.error('Avatar update error:', err);
+      toast.error("Erreur lors du changement d'avatar");
+      setUser(prev => ({ ...prev, avatar: previousAvatar })); // Revert
     }
   };
 
-  const getInitials = (u) => {
-    if (!u) return '';
-    const a = (u.firstName || '').trim();
-    const b = (u.lastName || '').trim();
-    if (a || b) return `${(a[0]||'').toUpperCase()}${(b[0]||'').toUpperCase()}`;
-    if (u.email) return u.email.slice(0,2).toUpperCase();
-    return 'U';
-  };
+  const handleChangePassword = async () => {
+    if (passwordData.new !== passwordData.confirm) {
+      toast.error("Les nouveaux mots de passe ne correspondent pas");
+      return;
+    }
+    if (passwordData.new.length < 6) {
+      toast.error("Le mot de passe doit faire au moins 6 caractères");
+      return;
+    }
 
-  const renderSubscription = (sub) => {
-    if (!sub) return (
-      <div className="subscription-card no-subscription">
-        <div className="subscription-icon">📊</div>
-        <h3>Aucun abonnement actif</h3>
-        <p>Abonnez-vous pour accéder à tous nos contenus premium</p>
-        <button className="subscribe-btn">Voir les offres</button>
-      </div>
-    );
-    
-    const status = sub.status || sub.konnectStatus || '—';
-    const plan = sub.planId || sub.plan || '—';
-    const endIso = sub.currentPeriodEnd || sub.current_period_end;
-    const endDate = endIso ? formatDateIso(endIso) : '—';
-    const days = endIso ? daysUntil(endIso) : null;
-    
-    let statusClass = 'status-badge';
-    if (status.toLowerCase() === 'active') statusClass += ' active';
-    else if (status.toLowerCase() === 'canceled') statusClass += ' canceled';
-    
-    return (
-      <div className="subscription-card">
-        <div className="subscription-header">
-          <h3>Votre abonnement</h3>
-          <span className={statusClass}>{status}</span>
-        </div>
-        
-        <div className="subscription-details">
-          <div className="detail-item">
-            <span className="label">Plan:</span>
-            <span className="value">{plan}</span>
-          </div>
-          
-          <div className="detail-item">
-            <span className="label">Prochain renouvellement:</span>
-            <span className="value">{endDate}</span>
-          </div>
-          
-          <div className="detail-item">
-            <span className="label">Jours restants:</span>
-            <span className="value">{days} jour(s)</span>
-          </div>
-          
-          <div className="detail-item">
-            <span className="label">Annulation programmée:</span>
-            <span className="value">{sub.cancelAtPeriodEnd ? 'Oui' : 'Non'}</span>
-          </div>
-        </div>
-        
-        <div className="subscription-actions">
-          <button className="action-btn secondary">Changer de plan</button>
-          <button className="action-btn warning">Gérer l'abonnement</button>
-        </div>
-      </div>
-    );
+    setSaving(true);
+    try {
+      // Implement password change endpoint call here
+      // const res = await axios.put(`${API_BASE}/users/change-password`, { 
+      //   currentPassword: passwordData.current, 
+      //   newPassword: passwordData.new 
+      // }, { headers: getAuthHeader() });
+
+      // MOCK for now until endpoint is confirmed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      toast.success("Mot de passe modifié avec succès (Simulation)");
+      setPasswordData({ current: '', new: '', confirm: '' });
+    } catch (err) {
+      console.error('Password error:', err);
+      toast.error(err.response?.data?.message || "Erreur lors du changement de mot de passe");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return (
-    <div className="loading-container">
-      <div className="spinner"></div>
-      <p>Chargement de votre profil...</p>
+    <div className="flex justify-center items-center h-[60vh]">
+      <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
   return (
-    <div className="profile-container">
-      
+    <div className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+      <AvatarSelector
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        onSelect={handleAvatarChange}
+        currentAvatar={user?.avatar}
+      />
 
-      <div className="profile-content">
-        <div className="sidebar">
-          <div className="user-card">
-            <div className="avatar-large">
-              {getInitials(user)}
+      {/* Header Profile Card */}
+      <Card className="w-full bg-gradient-to-r from-indigo-900 to-purple-900 text-white overflow-visible mb-8">
+        <CardBody className="p-8">
+          <div className="flex flex-col md:flex-row items-center gap-6">
+            <div className="relative group shrink-0">
+              <Avatar
+                src={user?.avatar}
+                className="w-24 h-24 md:w-32 md:h-32 text-4xl border-4 border-white/20"
+                isBordered
+                color="secondary"
+                name={user?.firstName?.charAt(0)}
+              />
+              <button
+                onClick={() => setIsAvatarModalOpen(true)}
+                className="absolute bottom-0 right-0 p-2 bg-secondary text-white rounded-full shadow-lg hover:scale-110 transition-transform z-10"
+              >
+                <IconCamera size={20} />
+              </button>
             </div>
-            <h2>{user?.firstName} {user?.lastName}</h2>
-            <p>{user?.email}</p>
-            
-            <div className="stats">
-              <div className="stat">
-                <span className="stat-value">{progress.length}</span>
-                <span className="stat-label">Exercices</span>
+
+            <div className="flex-1 text-center md:text-left min-w-0">
+              <h1 className="text-2xl md:text-3xl font-bold mb-2 truncate">{user?.firstName} {user?.lastName}</h1>
+              <p className="text-white/70 mb-4 truncate">{user?.email}</p>
+
+              <div className="flex flex-wrap justify-center md:justify-start gap-4">
+                <Chip startContent={<IconTrophy size={16} />} color="warning" variant="solid" className="bg-yellow-500/90 text-black font-bold">
+                  Niveau {Math.floor((progressData.reduce((acc, p) => acc + (p.xp || 0), 0) / 1000) + 1)}
+                </Chip>
+                <Chip startContent={<IconPremiumRights size={16} />} color={user?.subscription?.status === 'active' ? "success" : "default"} variant="flat" className="backdrop-blur-md bg-white/20 text-white">
+                  {user?.subscription?.status === 'active' ? 'Premium' : 'Gratuit'}
+                </Chip>
               </div>
-              <div className="stat">
-                <span className="stat-value">{user?.badges?.length || 0}</span>
-                <span className="stat-label">Badges</span>
+            </div>
+
+            <div className="w-full md:w-64 bg-white/10 rounded-xl p-4 backdrop-blur-sm">
+              <div className="flex justify-between text-sm mb-2">
+                <span>XP Total</span>
+                <span className="font-bold text-yellow-300">{progressData.reduce((acc, p) => acc + (p.xp || 0), 0)} XP</span>
               </div>
+              <Progress
+                value={(progressData.reduce((acc, p) => acc + (p.xp || 0), 0) % 1000) / 10}
+                classNames={{ indicator: "bg-yellow-400" }}
+                size="sm"
+              />
+              <p className="text-xs text-white/50 mt-2 text-right">Prochain niveau à 1000 XP</p>
             </div>
           </div>
-          
-          <nav className="sidebar-nav">
-            <button 
-              className={activeTab === 'profile' ? 'nav-item active' : 'nav-item'} 
-              onClick={() => setActiveTab('profile')}
-            >
-              <span>👤</span> Informations personnelles
-            </button>
-            <button 
-              className={activeTab === 'progress' ? 'nav-item active' : 'nav-item'} 
-              onClick={() => setActiveTab('progress')}
-            >
-              <span>📊</span> Mes progrès
-            </button>
-            <button 
-              className={activeTab === 'subscription' ? 'nav-item active' : 'nav-item'} 
-              onClick={() => setActiveTab('subscription')}
-            >
-              <span>💎</span> Abonnement
-            </button>
-            <button 
-              className={activeTab === 'parent' ? 'nav-item active' : 'nav-item'} 
-              onClick={() => setActiveTab('parent')}
-            >
-              <span>👨‍👩‍👧‍👦</span> Invitations parent
-            </button>
-            <button 
-              className={activeTab === 'settings' ? 'nav-item active' : 'nav-item'} 
-              onClick={() => setActiveTab('settings')}
-            >
-              <span>⚙️</span> Paramètres
-            </button>
-          </nav>
-        </div>
+        </CardBody>
+      </Card>
 
-        <div className="main-content">
-          {error && <div className="alert error">{error}</div>}
-          {message && <div className="alert success">{message}</div>}
-
-          {activeTab === 'profile' && (
-            <div className="tab-content">
-              <div className="section-header">
-                <h2>Informations personnelles</h2>
-                {!editMode ? (
-                  <button className="edit-btn" onClick={() => setEditMode(true)}>
-                    <span>✏️</span> Modifier
-                  </button>
-                ) : (
-                  <div className="edit-actions">
-                    <button className="save-btn" onClick={onSave} disabled={saving}>
-                      {saving ? 'Enregistrement...' : 'Enregistrer'}
-                    </button>
-                    <button className="cancel-btn" onClick={onCancel}>Annuler</button>
-                  </div>
-                )}
+      {/* Main Content Tabs */}
+      <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
+        <Tabs
+          aria-label="Options"
+          color="primary"
+          variant="underlined"
+          classNames={{
+            tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider min-w-[600px] md:min-w-0",
+            cursor: "w-full bg-primary",
+            tab: "max-w-fit px-0 h-12",
+            tabContent: "group-data-[selected=true]:text-primary"
+          }}
+        >
+          <Tab
+            key="general"
+            title={
+              <div className="flex items-center space-x-2">
+                <IconUser size={18} />
+                <span>Informations</span>
               </div>
+            }
+          >
+            <Card className="mt-4">
+              <CardHeader className="px-6 py-4 border-b border-divider">
+                <h3 className="text-lg font-semibold">Informations personnelles</h3>
+              </CardHeader>
+              <CardBody className="p-6 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Input
+                    label="Prénom"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    variant="bordered"
+                  />
+                  <Input
+                    label="Nom"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    variant="bordered"
+                  />
+                  <Input
+                    label="Email"
+                    value={user?.email}
+                    isReadOnly
+                    color="default"
+                    variant="flat"
+                    description="Contactez le support pour changer d'email"
+                  />
+                  <Input
+                    label="Téléphone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    variant="bordered"
+                    placeholder="+216 ..."
+                  />
+                </div>
+                <div className="flex justify-end mt-4">
+                  <Button color="primary" isLoading={saving} startContent={<IconDeviceFloppy />} onPress={handleUpdateProfile}>
+                    Enregistrer les modifications
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          </Tab>
 
-              <div className="form-section">
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Prénom</label>
-                    {!editMode ? (
-                      <div className="read-only-field">{user?.firstName || '—'}</div>
-                    ) : (
-                      <input 
-                        type="text" 
-                        name="firstName" 
-                        value={form.firstName} 
-                        onChange={onChange} 
-                        placeholder="Votre prénom" 
-                      />
-                    )}
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Nom</label>
-                    {!editMode ? (
-                      <div className="read-only-field">{user?.lastName || '—'}</div>
-                    ) : (
-                      <input 
-                        type="text" 
-                        name="lastName" 
-                        value={form.lastName} 
-                        onChange={onChange} 
-                        placeholder="Votre nom" 
-                      />
-                    )}
-                  </div>
-                </div>
-                
-                <div className="form-group">
-                  <label>Email</label>
-                  <div className="read-only-field">{user?.email || '—'}</div>
-                  <small>L'adresse email ne peut pas être modifiée</small>
-                </div>
-                
-                <div className="form-group">
-                  <label>Téléphone</label>
-                  {!editMode ? (
-                    <div className="read-only-field">{user?.phone || '—'}</div>
-                  ) : (
-                    <input 
-                      type="tel" 
-                      name="phone" 
-                      value={form.phone} 
-                      onChange={onChange} 
-                      placeholder="+216 12 345 678" 
-                    />
-                  )}
-                </div>
+          <Tab
+            key="security"
+            title={
+              <div className="flex items-center space-x-2">
+                <IconLock size={18} />
+                <span>Sécurité</span>
               </div>
-            </div>
-          )}
+            }
+          >
+            <Card className="mt-4">
+              <CardHeader className="px-6 py-4 border-b border-divider">
+                <h3 className="text-lg font-semibold">Mot de passe</h3>
+              </CardHeader>
+              <CardBody className="p-6">
+                <div className="max-w-md space-y-4">
+                  <Input
+                    label="Mot de passe actuel"
+                    type="password"
+                    value={passwordData.current}
+                    onChange={(e) => setPasswordData({ ...passwordData, current: e.target.value })}
+                    variant="bordered"
+                  />
+                  <Divider className="my-2" />
+                  <Input
+                    label="Nouveau mot de passe"
+                    type="password"
+                    value={passwordData.new}
+                    onChange={(e) => setPasswordData({ ...passwordData, new: e.target.value })}
+                    variant="bordered"
+                  />
+                  <Input
+                    label="Confirmer le nouveau mot de passe"
+                    type="password"
+                    value={passwordData.confirm}
+                    onChange={(e) => setPasswordData({ ...passwordData, confirm: e.target.value })}
+                    variant="bordered"
+                    errorMessage={passwordData.confirm && passwordData.new !== passwordData.confirm ? "Les mots de passe ne correspondent pas" : ""}
+                  />
+                  <Button color="secondary" className="mt-2" onPress={handleChangePassword} isLoading={saving}>
+                    Mettre à jour le mot de passe
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
 
-          {activeTab === 'progress' && (
-            <div className="tab-content">
-              <div className="section-header">
-                <h2>Mes progrès</h2>
-                <button className="export-btn">Exporter les données</button>
+            <Card className="mt-6 border-red-200 bg-red-50 dark:bg-red-900/10">
+              <CardHeader className="text-danger font-bold">Zone Dangereuse</CardHeader>
+              <CardBody className="flex flex-row justify-between items-center p-6">
+                <div>
+                  <h4 className="font-semibold text-danger-600">Supprimer le compte</h4>
+                  <p className="text-sm text-gray-500">Une fois supprimé, votre compte ne peut plus être récupéré.</p>
+                </div>
+                <Button color="danger" variant="flat" startContent={<IconAlertTriangle />}>
+                  Supprimer
+                </Button>
+              </CardBody>
+            </Card>
+          </Tab>
+
+          <Tab
+            key="progress"
+            title={
+              <div className="flex items-center space-x-2">
+                <IconTrophy size={18} />
+                <span>Mes Progrès</span>
               </div>
-              
-              <div className="progress-grid">
-                {progress.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-icon">📊</div>
-                    <h3>Aucun progrès enregistré</h3>
-                    <p>Commencez à utiliser notre plateforme pour voir vos progrès ici</p>
-                  </div>
-                ) : (
-                  progress.map((p, i) => (
-                    <div key={p._id || i} className="progress-card">
-                      <div className="progress-header">
-                        <h4>{p.exercise?.title || p.exercise?.name || 'Exercice sans nom'}</h4>
-                        <span className={`status ${p.completed ? 'completed' : 'in-progress'}`}>
-                          {p.completed ? 'Complété' : 'En cours'}
-                        </span>
-                      </div>
-                      <div className="progress-details">
-                        <div className="xp-badge">{p.xp ?? 0} XP</div>
-                        <div className="progress-date">
-                          {p.updatedAt ? new Date(p.updatedAt).toLocaleDateString('fr-FR') : '—'}
+            }
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
+              <Card className="md:col-span-2">
+                <CardHeader className="px-6 py-4 border-b border-divider">
+                  <h3 className="text-lg font-semibold">Exercices Récents</h3>
+                </CardHeader>
+                <CardBody className="p-0">
+                  {progressData.length > 0 ? (
+                    <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                      {progressData.slice(0, 5).map((p, i) => (
+                        <div key={i} className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${p.completed ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
+                              {p.completed ? '✓' : '⚡'}
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-800 dark:text-gray-200">{p.exercise?.title || "Exercice"}</p>
+                              <p className="text-xs text-gray-500">{formatDate(p.updatedAt)}</p>
+                            </div>
+                          </div>
+                          <Chip size="sm" color={p.completed ? "success" : "primary"} variant="flat">{p.xp || 0} XP</Chip>
                         </div>
-                      </div>
+                      ))}
                     </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'subscription' && (
-            <div className="tab-content">
-              <div className="section-header">
-                <h2>Gestion de l'abonnement</h2>
-              </div>
-              
-              {renderSubscription(user?.subscription)}
-              
-              <div className="badges-section">
-                <h3>Mes badges</h3>
-                <div className="badges-container">
-                  {user?.badges && user.badges.length > 0 ? (
-                    user.badges.map((badge, index) => (
-                      <div key={index} className="badge">
-                        <span className="badge-icon">🏆</span>
-                        <span className="badge-name">{badge}</span>
-                      </div>
-                    ))
                   ) : (
-                    <div className="empty-badges">
-                      <p>Vous n'avez pas encore de badges</p>
-                      <small>Completez des exercices pour débloquer des badges</small>
+                    <div className="p-8 text-center text-gray-500">
+                      <p>Aucun progrès enregistré pour le moment.</p>
                     </div>
                   )}
-                </div>
-              </div>
-            </div>
-          )}
+                </CardBody>
+              </Card>
 
-          {activeTab === 'parent' && (
-            <div className="tab-content">
-              <div className="section-header">
-                <h2>Invitations parent</h2>
-                <p>Gérez les invitations de vos parents pour suivre votre progression</p>
-              </div>
-              
-              <ParentInvitationSection user={user} />
+              <Card>
+                <CardHeader className="px-6 py-4 border-b border-divider">
+                  <h3 className="text-lg font-semibold">Badges</h3>
+                </CardHeader>
+                <CardBody className="p-4 grid grid-cols-3 gap-2">
+                  {user?.badges?.length > 0 ? user.badges.map((b, i) => (
+                    <div key={i} className="flex justify-center">
+                      <Badge badgeId={b} size="md" showTitle={true} />
+                    </div>
+                  )) : (
+                    <div className="col-span-3 text-center py-8 text-gray-400">
+                      <IconTrophy size={48} className="mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Complétez des exercices pour gagner des badges !</p>
+                    </div>
+                  )}
+                </CardBody>
+              </Card>
             </div>
-          )}
+          </Tab>
 
-          {activeTab === 'settings' && (
-            <div className="tab-content">
-              <div className="section-header">
-                <h2>Paramètres du compte</h2>
+          <Tab
+            key="subscription"
+            title={
+              <div className="flex items-center space-x-2">
+                <IconPremiumRights size={18} />
+                <span>Abonnement</span>
               </div>
-              
-              <div className="danger-zone">
-                <h3>Zone dangereuse</h3>
-                <p>Ces actions sont irréversibles. Veuillez procéder avec prudence.</p>
-                
-                <div className="danger-actions">
-                  <button 
-                    className="delete-account-btn" 
-                    onClick={onDelete} 
-                    disabled={deleting}
-                  >
-                    {deleting ? 'Suppression en cours...' : 'Supprimer mon compte'}
-                  </button>
-                </div>
-              </div>
+            }
+          >
+            <div className="mt-4">
+              {/* We simply reuse the improved subscription logic but styled with NextUI */}
+              <Card className={`border-2 ${user?.subscription?.status === 'active' ? 'border-primary' : 'border-gray-200'}`}>
+                <CardBody className="p-8 flex flex-col items-center text-center">
+                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
+                    {user?.subscription?.status === 'active' ? <IconPremiumRights size={40} /> : <IconLock size={40} />}
+                  </div>
+                  <h2 className="text-2xl font-bold mb-2">
+                    {user?.subscription?.status === 'active' ? 'Abonnement Premium Actif' : 'Abonnement Gratuit'}
+                  </h2>
+                  <p className="text-gray-500 max-w-lg mb-8">
+                    {user?.subscription?.status === 'active'
+                      ? `Votre abonnement est actif jusqu'au ${formatDate(user?.subscription?.currentPeriodEnd)}. Profitez de l'accès illimité !`
+                      : "Débloquez tout le potentiel de la plateforme avec notre abonnement Premium. Accès illimité à tous les cours et exercices."}
+                  </p>
+
+                  {user?.subscription?.status !== 'active' && (
+                    <Button color="primary" size="lg" className="font-bold shadow-lg shadow-primary/40">
+                      Voir les offres Premium
+                    </Button>
+                  )}
+                </CardBody>
+              </Card>
             </div>
-          )}
-        </div>
+          </Tab>
+
+          <Tab
+            key="family"
+            title={
+              <div className="flex items-center space-x-2">
+                <IconUsers size={18} />
+                <span>Famille</span>
+              </div>
+            }
+          >
+            <Card className="mt-4">
+              <CardBody>
+                <ParentInvitationSection user={user} />
+              </CardBody>
+            </Card>
+          </Tab>
+        </Tabs>
       </div>
-    </div>
+    </div >
   );
 }

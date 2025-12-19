@@ -2,11 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const CategoryPlanController = require('../controllers/categoryPlanController');
-const { protectUserOrAdmin } = require('../../middlewares/flexibleAuthMiddleware');
+const { adminProtect, adminOnly } = require('../../middlewares/adminAuthMiddleware');
 
-// Middleware d'authentification pour toutes les routes admin
-// Utilise protectUserOrAdmin pour accepter les tokens admin et user
-router.use(protectUserOrAdmin);
+// Middleware d'authentification admin pour toutes les routes
+router.use(adminProtect);
+router.use(adminOnly);
 
 // Routes pour la gestion des plans de catégories
 router.get('/', CategoryPlanController.getAllCategoryPlans);

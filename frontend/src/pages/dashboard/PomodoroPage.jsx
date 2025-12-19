@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Card, CardBody, Button, CircularProgress, Chip } from "@nextui-org/react";
+import { IconPlayerPlay, IconPlayerPause, IconRefresh, IconCoffee, IconBrain } from '@tabler/icons-react';
 
 export default function PomodoroPage() {
   const [minutes, setMinutes] = useState(25);
@@ -49,39 +51,77 @@ export default function PomodoroPage() {
     setSeconds(0);
   };
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Pomodoro Timer</h1>
-      
-      <div className="bg-white rounded-2xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <div className={`text-6xl font-mono mb-4 ${mode === 'work' ? 'text-red-500' : 'text-green-500'}`}>
-            {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
-          </div>
-          <p className="text-xl font-semibold">
-            {mode === 'work' ? 'Temps de travail ⚒️' : 'Pause ☕'}
-          </p>
-        </div>
+  const totalSeconds = mode === 'work' ? 25 * 60 : 5 * 60;
+  const currentSeconds = minutes * 60 + seconds;
+  const progress = ((totalSeconds - currentSeconds) / totalSeconds) * 100;
 
-        <div className="flex justify-center space-x-4">
-          <button
-            onClick={toggleTimer}
-            className={`${
-              isActive 
-                ? 'bg-red-500 hover:bg-red-600' 
-                : 'bg-green-500 hover:bg-green-600'
-            } text-white px-6 py-3 rounded-lg text-lg transition`}
+  return (
+    <div className="max-w-2xl mx-auto p-4 animate-fadeIn">
+      <Card className="bg-gradient-to-br from-gray-900 to-black text-white shadow-2xl border-none overflow-visible">
+        <CardBody className="p-8 md:p-12 flex flex-col items-center justify-center min-h-[500px] relative">
+          {/* Background Glow */}
+          <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 rounded-full blur-3xl opacity-20 transition-colors duration-1000 ${mode === 'work' ? 'bg-red-500' : 'bg-green-500'}`} />
+
+          <Chip
+            variant="shadow"
+            color={mode === 'work' ? "danger" : "success"}
+            className="mb-8 px-4 py-2 capitalize text-lg"
+            startContent={mode === 'work' ? <IconBrain size={20} /> : <IconCoffee size={20} />}
           >
-            {isActive ? 'Pause' : 'Démarrer'}
-          </button>
-          
-          <button
-            onClick={resetTimer}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg text-lg transition"
-          >
-            Réinitialiser
-          </button>
-        </div>
+            {mode === 'work' ? 'Temps de Concentration' : 'Pause Café'}
+          </Chip>
+
+          <div className="relative mb-8">
+            <CircularProgress
+              aria-label="Timer Progress"
+              size="lg"
+              value={progress}
+              color={mode === 'work' ? "danger" : "success"}
+              showValueLabel={false}
+              classNames={{
+                svg: "w-64 h-64 md:w-80 md:h-80 drop-shadow-md",
+                indicator: "stroke-[8px]",
+                track: "stroke-[8px] stroke-white/10",
+              }}
+            />
+            <div className="absolute inset-0 flex items-center justify-center flex-col">
+              <span className="text-6xl md:text-8xl font-mono font-bold tracking-tighter">
+                {minutes.toString().padStart(2, '0')}:{seconds.toString().padStart(2, '0')}
+              </span>
+              <span className="text-white/50 mt-2 text-sm uppercase tracking-widest">
+                {isActive ? 'En cours' : 'En pause'}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex gap-6 z-10">
+            <Button
+              size="lg"
+              color={isActive ? "warning" : (mode === 'work' ? "danger" : "success")}
+              variant="shadow"
+              onPress={toggleTimer}
+              startContent={isActive ? <IconPlayerPause /> : <IconPlayerPlay />}
+              className="font-bold min-w-[140px]"
+            >
+              {isActive ? 'Pause' : 'Démarrer'}
+            </Button>
+
+            <Button
+              size="lg"
+              color="default"
+              variant="flat"
+              onPress={resetTimer}
+              isIconOnly
+              aria-label="Reset"
+            >
+              <IconRefresh />
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
+
+      <div className="text-center mt-6 text-gray-500 text-sm">
+        <p>💡 Astuce : Travaillez 25 minutes, puis faites une pause de 5 minutes.</p>
       </div>
 
       <audio ref={audioRef} src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" />

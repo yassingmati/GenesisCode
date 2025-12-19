@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     getTaskTemplates,
     createTaskTemplate,
@@ -9,6 +9,26 @@ import {
     deleteAssignedTask
 } from '../../services/taskService';
 import { getAllUsers } from '../../services/userService';
+import {
+    Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
+    Card, CardBody, CardHeader,
+    Button,
+    Input,
+    Textarea,
+    Modal, ModalContent, ModalHeader, ModalBody, ModalFooter,
+    Select, SelectItem,
+    Chip,
+    Tooltip,
+    User,
+    Switch,
+    Pagination,
+    Divider,
+    Tabs, Tab
+} from "@nextui-org/react";
+import {
+    IconPlus, IconTrash, IconEdit, IconCheck, IconX, IconSearch,
+    IconCalendar, IconRefresh, IconUsers, IconListCheck, IconClipboardList
+} from '@tabler/icons-react';
 
 const TaskManagement = () => {
     // States
@@ -20,13 +40,16 @@ const TaskManagement = () => {
     // Modal states
     const [showModal, setShowModal] = useState(false);
     const [showAssignModal, setShowAssignModal] = useState(false);
-    // const [showAssignedTasks, setShowAssignedTasks] = useState(false); // Removed in favor of tabs
-    const [activeTab, setActiveTab] = useState('templates'); // 'templates' or 'assigned'
+    const [activeTab, setActiveTab] = useState('templates');
     const [currentTemplate, setCurrentTemplate] = useState(null);
 
     // Search & Filter states
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const rowsPerPage = 10;
 
     // Form data
     const [formData, setFormData] = useState({
@@ -53,6 +76,7 @@ const TaskManagement = () => {
     // Fetch initial data
     useEffect(() => {
         fetchData();
+        fetchAssignedTasks();
     }, []);
 
     const fetchData = async () => {
@@ -63,7 +87,7 @@ const TaskManagement = () => {
                 getAllUsers()
             ]);
             setTemplates(tpls);
-            const studentList = usrs.filter(u => u.userType === 'student');
+            const studentList = usrs.filter(u => u.userType === 'student' || u.role === 'student' || u.role === 'child');
             setStudents(studentList);
         } catch (error) {
             console.error("Error fetching data:", error);
@@ -136,10 +160,16 @@ const TaskManagement = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
+            // Default frequency to daily if missing
+            const finalData = { ...formData };
+            if (!finalData.recurrence.frequency) {
+                finalData.recurrence.frequency = 'daily';
+            }
+
             if (currentTemplate) {
-                await updateTaskTemplate(currentTemplate._id, formData);
+                await updateTaskTemplate(currentTemplate._id, finalData);
             } else {
-                await createTaskTemplate(formData);
+                await createTaskTemplate(finalData);
             }
             setShowModal(false);
             fetchData();
@@ -153,6 +183,7 @@ const TaskManagement = () => {
         try {
             await assignTasks(assignData);
             setShowAssignModal(false);
+            fetchAssignedTasks(); // Refresh assigned tasks list
             alert('Tâches assignées avec succès!');
         } catch (error) {
             console.error("Error assigning tasks:", error);
@@ -166,9 +197,9 @@ const TaskManagement = () => {
             setFormData({
                 title: template.title,
                 description: template.description,
-                recurrence: template.recurrence,
-                metrics: template.metrics,
-                target: template.target,
+                recurrence: template.recurrence || { frequency: 'daily' },
+                metrics: template.metrics || [],
+                target: template.target || { exercises_submitted: 0, levels_completed: 0, hours_spent: 0 },
                 active: template.active
             });
         } else {
@@ -176,7 +207,7 @@ const TaskManagement = () => {
             setFormData({
                 title: '',
                 description: '',
-                recurrence: { type: 'daily' },
+                recurrence: { frequency: 'daily' }, // Correct structure
                 metrics: [],
                 target: { exercises_submitted: 0, levels_completed: 0, hours_spent: 0 },
                 active: true
@@ -190,14 +221,9 @@ const TaskManagement = () => {
             ...prev,
             templateId: template._id,
             childIds: [],
-            autoRenew: false
+            autoRenew: true // Default to auto-renew for daily tasks
         }));
         setShowAssignModal(true);
-    };
-
-    const handleViewAssignedTasks = () => {
-        fetchAssignedTasks();
-        // setShowAssignedTasks(true); // Removed
     };
 
     const handleSelectAllStudents = () => {
@@ -209,494 +235,596 @@ const TaskManagement = () => {
     };
 
     // Filter assigned tasks
-    const filteredAssignedTasks = assignedTasks.filter(task => {
-        const matchesSearch = (
-            (task.templateId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (task.childId?.firstName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (task.childId?.lastName || '').toLowerCase().includes(searchQuery.toLowerCase())
-        );
+    const filteredAssignedTasks = useMemo(() => {
+        return assignedTasks.filter(task => {
+            const matchesSearch = (
+                (task.templateId?.title || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (task.childId?.firstName || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (task.childId?.lastName || '').toLowerCase().includes(searchQuery.toLowerCase())
+            );
 
-        const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+            const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
 
-        return matchesSearch && matchesStatus;
-    });
+            return matchesSearch && matchesStatus;
+        });
+    }, [assignedTasks, searchQuery, statusFilter]);
 
-    if (loading) return <div className="p-8 text-center">Chargement...</div>;
+    // Pagination Logic for Assigned Tasks
+    const items = useMemo(() => {
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+
+        return filteredAssignedTasks.slice(start, end);
+    }, [page, filteredAssignedTasks]);
+
+
+    // NextUI Columns
+    const templateColumns = [
+        { name: "TITRE", uid: "title" },
+        { name: "RÉCURRENCE", uid: "recurrence" },
+        { name: "OBJECTIFS", uid: "targets" },
+        { name: "STATUT", uid: "status" },
+        { name: "ACTIONS", uid: "actions" },
+    ];
+
+    const assignedColumns = [
+        { name: "TÂCHE", uid: "task" },
+        { name: "ÉTUDIANT", uid: "student" },
+        { name: "PÉRIODE", uid: "period" },
+        { name: "STATUT", uid: "status" },
+        { name: "ACTIONS", uid: "actions" },
+    ];
+
+    const renderTemplateCell = (tpl, columnKey) => {
+        switch (columnKey) {
+            case "title":
+                return (
+                    <div>
+                        <p className="font-bold text-gray-800">{tpl.title}</p>
+                        <p className="text-gray-500 text-xs mt-0.5 line-clamp-1">{tpl.description}</p>
+                    </div>
+                );
+            case "recurrence":
+                const freq = tpl.recurrence?.frequency || tpl.recurrence?.type || 'daily';
+                return (
+                    <Chip size="sm" color={freq === 'daily' ? "primary" : "secondary"} variant="flat">
+                        {freq === 'daily' ? 'Quotidien' : 'Mensuel'}
+                    </Chip>
+                );
+            case "targets":
+                return (
+                    <div className="flex flex-wrap gap-1">
+                        {tpl.metrics && tpl.metrics.length > 0 ? (
+                            tpl.metrics.map(m => (
+                                <Chip key={m} size="sm" variant="bordered" className="text-xs">
+                                    {m.replace(/_/g, ' ')}: <b>{tpl.target[m]}</b>
+                                </Chip>
+                            ))
+                        ) : (
+                            <span className="text-gray-400 text-xs italic">Aucun</span>
+                        )}
+                    </div>
+                );
+            case "status":
+                return tpl.active ? (
+                    <Chip size="sm" color="success" variant="dot">Actif</Chip>
+                ) : (
+                    <Chip size="sm" color="danger" variant="dot">Inactif</Chip>
+                );
+            case "actions":
+                return (
+                    <div className="flex justify-end gap-2">
+                        <Tooltip content="Assigner cette tâche">
+                            <span
+                                className="text-lg text-success cursor-pointer active:opacity-50"
+                                onClick={() => openAssignModal(tpl)}
+                            >
+                                <IconPlus size={20} />
+                            </span>
+                        </Tooltip>
+                        <Tooltip content="Modifier">
+                            <span
+                                className="text-lg text-primary cursor-pointer active:opacity-50"
+                                onClick={() => openModal(tpl)}
+                            >
+                                <IconEdit size={20} />
+                            </span>
+                        </Tooltip>
+                        <Tooltip content="Supprimer">
+                            <span
+                                className="text-lg text-danger cursor-pointer active:opacity-50"
+                                onClick={() => handleDeleteTemplate(tpl._id)}
+                            >
+                                <IconTrash size={20} />
+                            </span>
+                        </Tooltip>
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const renderAssignedCell = (task, columnKey) => {
+        switch (columnKey) {
+            case "task":
+                return (
+                    <div>
+                        <p className="font-medium text-gray-900">{task.templateId?.title || 'Tâche supprimée'}</p>
+                        {task.autoRenew && (
+                            <Chip size="sm" variant="flat" color="secondary" className="mt-1 h-5 text-[10px]" startContent={<IconRefresh size={10} />}>
+                                Auto-renew
+                            </Chip>
+                        )}
+                    </div>
+                );
+            case "student":
+                return task.childId ? (
+                    <User
+                        name={`${task.childId.firstName} ${task.childId.lastName}`}
+                        description={task.childId.email}
+                        avatarProps={{
+                            src: task.childId.photo || `https://i.pravatar.cc/150?u=${task.childId._id}`,
+                            size: "sm"
+                        }}
+                    />
+                ) : (
+                    <span className="text-gray-400 italic">Inconnu</span>
+                );
+            case "period":
+                return (
+                    <div className="text-xs text-gray-600">
+                        <div className='flex items-center gap-1'><IconCalendar size={12} /> Du: {new Date(task.periodStart).toLocaleDateString('fr-FR')}</div>
+                        <div className='flex items-center gap-1 pl-4'>Au: {new Date(task.periodEnd).toLocaleDateString('fr-FR')}</div>
+                    </div>
+                );
+            case "status":
+                return (
+                    <Chip
+                        size="sm"
+                        color={task.status === 'completed' ? "success" : task.status === 'active' ? "primary" : "default"}
+                        variant="flat"
+                    >
+                        {task.status === 'completed' ? 'Terminé' :
+                            task.status === 'active' ? 'En cours' :
+                                'En attente'}
+                    </Chip>
+                );
+            case "actions":
+                return (
+                    <Tooltip content="Supprimer l'assignation">
+                        <span
+                            className="text-lg text-danger cursor-pointer active:opacity-50"
+                            onClick={() => handleDeleteTask(task._id)}
+                        >
+                            <IconTrash size={18} />
+                        </span>
+                    </Tooltip>
+                );
+            default:
+                return null;
+        }
+    };
+
+
+    if (loading && templates.length === 0) return (
+        <div className="flex justify-center items-center h-screen bg-gray-50">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+    );
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
-            {/* Header & Tabs */}
-            <div className="mb-8">
-                <div className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-bold text-gray-800">Gestion des Tâches</h1>
-                    {activeTab === 'templates' && (
-                        <button
-                            onClick={() => openModal()}
-                            className="bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition shadow-sm flex items-center gap-2 font-medium"
-                        >
-                            <span className="text-xl">+</span> Créer un Modèle
-                        </button>
-                    )}
+        <div className="light text-foreground bg-background min-h-screen p-6">
+            {/* Header */}
+            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
+                        <IconClipboardList size={32} className="text-primary" />
+                        Gestion des Tâches
+                    </h1>
+                    <p className="text-gray-500 mt-1">Gérez les modèles de tâches et assignez-les aux étudiants.</p>
                 </div>
-
-                <div className="flex space-x-1 bg-white p-1 rounded-xl shadow-sm border border-gray-100 w-fit">
-                    <button
-                        onClick={() => setActiveTab('templates')}
-                        className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === 'templates'
-                            ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                            }`}
-                    >
-                        📑 Modèles de Tâches
-                    </button>
-                    <button
-                        onClick={() => {
-                            setActiveTab('assigned');
-                            fetchAssignedTasks();
-                        }}
-                        className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${activeTab === 'assigned'
-                            ? 'bg-indigo-50 text-indigo-700 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                            }`}
-                    >
-                        📋 Tâches Assignées
-                    </button>
+                <div className="flex gap-2">
+                    {/* Actions go here if any global actions needed */}
                 </div>
             </div>
 
-            {/* Content */}
-            {activeTab === 'templates' ? (
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-gray-50 border-b border-gray-100">
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Titre</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Récurrence</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Objectifs</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Statut</th>
-                                    <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {templates.map(tpl => (
-                                    <tr key={tpl._id} className="hover:bg-gray-50 transition-colors group">
-                                        <td className="p-4">
-                                            <div className="font-bold text-gray-800">{tpl.title}</div>
-                                            <div className="text-gray-500 text-xs mt-1 line-clamp-1">{tpl.description}</div>
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${tpl.recurrence.type === 'daily'
-                                                ? 'bg-blue-50 text-blue-700 border border-blue-100'
-                                                : 'bg-purple-50 text-purple-700 border border-purple-100'
-                                                }`}>
-                                                {tpl.recurrence.type === 'daily' ? 'Quotidien' : 'Mensuel'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4">
-                                            {tpl.metrics && tpl.metrics.length > 0 ? (
-                                                <div className="flex flex-wrap gap-1">
-                                                    {tpl.metrics.map(m => (
-                                                        <span key={m} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded border border-gray-200" title={`${m.replace(/_/g, ' ')}: ${tpl.target[m]}`}>
-                                                            {m.replace(/_/g, ' ')}: <b>{tpl.target[m]}</b>
-                                                        </span>
-                                                    ))}
-                                                </div>
-                                            ) : (
-                                                <span className="text-gray-400 text-xs italic">Aucun</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4">
-                                            {tpl.active ? (
-                                                <span className="text-xs px-2 py-1 rounded-full bg-green-50 text-green-700 border border-green-100 font-medium">Actif</span>
-                                            ) : (
-                                                <span className="text-xs px-2 py-1 rounded-full bg-red-50 text-red-700 border border-red-100 font-medium">Inactif</span>
-                                            )}
-                                        </td>
-                                        <td className="p-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => openAssignModal(tpl)}
-                                                    className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                                    title="Assigner"
-                                                >
-                                                    ➕
-                                                </button>
-                                                <button
-                                                    onClick={() => openModal(tpl)}
-                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                                    title="Modifier"
-                                                >
-                                                    ✏️
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDeleteTemplate(tpl._id)}
-                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                                    title="Supprimer"
-                                                >
-                                                    🗑️
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            ) : (
-                <div className="space-y-4">
-                    {/* Search & Filter Bar */}
-                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-wrap gap-4 items-center justify-between">
-                        <div className="relative flex-1 min-w-[200px]">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-                            <input
-                                type="text"
-                                placeholder="Rechercher une tâche ou un étudiant..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                            />
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <Card className="shadow-sm border border-gray-200 bg-white">
+                    <CardBody className="flex flex-row items-center gap-4 p-6">
+                        <div className="p-3 rounded-full bg-primary/10 text-primary">
+                            <IconClipboardList size={32} />
                         </div>
-                        <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-600">Statut:</span>
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="border border-gray-200 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Modèles Actifs</p>
+                            <h3 className="text-2xl font-bold text-gray-900">{templates.filter(t => t.active).length}</h3>
+                        </div>
+                    </CardBody>
+                </Card>
+                <Card className="shadow-sm border border-gray-200 bg-white">
+                    <CardBody className="flex flex-row items-center gap-4 p-6">
+                        <div className="p-3 rounded-full bg-success/10 text-success">
+                            <IconListCheck size={32} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Tâches Assignées</p>
+                            <h3 className="text-2xl font-bold text-gray-900">{assignedTasks.length}</h3>
+                        </div>
+                    </CardBody>
+                </Card>
+                <Card className="shadow-sm border border-gray-200 bg-white">
+                    <CardBody className="flex flex-row items-center gap-4 p-6">
+                        <div className="p-3 rounded-full bg-warning/10 text-warning">
+                            <IconUsers size={32} />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-gray-500">Étudiants</p>
+                            <h3 className="text-2xl font-bold text-gray-900">{students.length}</h3>
+                        </div>
+                    </CardBody>
+                </Card>
+            </div>
+
+            <div className="flex flex-col gap-4">
+                <Tabs
+                    aria-label="Options"
+                    selectedKey={activeTab}
+                    onSelectionChange={setActiveTab}
+                    color="primary"
+                    variant="underlined"
+                    classNames={{
+                        tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
+                        cursor: "w-full bg-primary",
+                        tab: "max-w-fit px-0 h-12",
+                        tabContent: "group-data-[selected=true]:text-primary font-medium text-base"
+                    }}
+                >
+                    <Tab key="templates" title={
+                        <div className="flex items-center space-x-2">
+                            <IconClipboardList />
+                            <span>Modèles de Tâches</span>
+                        </div>
+                    }>
+                        <Card className="shadow-sm border border-gray-100 mt-4">
+                            <CardHeader className="flex justify-between items-center px-6 py-4">
+                                <h3 className="text-lg font-semibold text-gray-800">Liste des Modèles</h3>
+                                <Button
+                                    color="primary"
+                                    endContent={<IconPlus size={18} />}
+                                    onPress={() => openModal()}
+                                >
+                                    Créer un Modèle
+                                </Button>
+                            </CardHeader>
+                            <Divider />
+                            <Table
+                                aria-label="Table des modèles"
+                                shadow="none"
+                                removeWrapper
                             >
-                                <option value="all">Tous</option>
-                                <option value="active">En cours</option>
-                                <option value="completed">Terminé</option>
-                                <option value="pending">En attente</option>
-                            </select>
+                                <TableHeader columns={templateColumns}>
+                                    {(column) => (
+                                        <TableColumn key={column.uid} align={column.uid === "actions" ? "end" : "start"}>
+                                            {column.name}
+                                        </TableColumn>
+                                    )}
+                                </TableHeader>
+                                <TableBody items={templates}>
+                                    {(item) => (
+                                        <TableRow key={item._id}>
+                                            {(columnKey) => <TableCell>{renderTemplateCell(item, columnKey)}</TableCell>}
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </Card>
+                    </Tab>
+
+                    <Tab key="assigned" title={
+                        <div className="flex items-center space-x-2">
+                            <IconListCheck />
+                            <span>Tâches Assignées</span>
                         </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        {filteredAssignedTasks.length === 0 ? (
-                            <div className="p-12 text-center">
-                                <div className="text-6xl mb-4">
-                                    {assignedTasks.length === 0 ? '📋' : '🔍'}
-                                </div>
-                                <h3 className="text-xl font-medium text-gray-900 mb-2">
-                                    {assignedTasks.length === 0 ? 'Aucune tâche assignée' : 'Aucun résultat'}
-                                </h3>
-                                <p className="text-gray-500">
-                                    {assignedTasks.length === 0
-                                        ? 'Assignez des modèles aux étudiants pour les voir apparaître ici.'
-                                        : 'Aucune tâche ne correspond à vos critères de recherche.'}
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-gray-50 border-b border-gray-100">
-                                            <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Tâche</th>
-                                            <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Étudiant</th>
-                                            <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Période</th>
-                                            <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Statut</th>
-                                            <th className="p-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {filteredAssignedTasks.map(task => (
-                                            <tr key={task._id} className="hover:bg-gray-50 transition-colors">
-                                                <td className="p-4">
-                                                    <div className="font-medium text-gray-900">{task.templateId?.title || 'Tâche supprimée'}</div>
-                                                    {task.autoRenew && (
-                                                        <span className="inline-flex items-center gap-1 text-xs text-purple-600 mt-1 bg-purple-50 px-2 py-0.5 rounded-full w-fit">
-                                                            🔄 Auto-renew
-                                                        </span>
-                                                    )}
-                                                </td>
-                                                <td className="p-4 text-gray-600">
-                                                    {task.childId ? (
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs font-bold">
-                                                                {task.childId.firstName[0]}
-                                                            </div>
-                                                            {task.childId.firstName} {task.childId.lastName}
-                                                        </div>
-                                                    ) : 'Étudiant inconnu'}
-                                                </td>
-                                                <td className="p-4 text-gray-600 text-sm">
-                                                    {new Date(task.periodStart).toLocaleDateString('fr-FR')} - {new Date(task.periodEnd).toLocaleDateString('fr-FR')}
-                                                </td>
-                                                <td className="p-4">
-                                                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${task.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                                        task.status === 'active' ? 'bg-blue-100 text-blue-700' :
-                                                            'bg-gray-100 text-gray-700'
-                                                        }`}>
-                                                        {task.status === 'completed' ? 'Terminé' :
-                                                            task.status === 'active' ? 'En cours' :
-                                                                'En attente'}
-                                                    </span>
-                                                </td>
-                                                <td className="p-4 text-right">
-                                                    <button
-                                                        onClick={() => handleDeleteTask(task._id)}
-                                                        className="text-gray-400 hover:text-red-600 p-2 rounded-lg hover:bg-red-50 transition-colors"
-                                                        title="Supprimer l'assignation"
-                                                    >
-                                                        🗑️
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Create/Edit Modal */}
-            {showModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl p-8 max-w-lg w-full max-h-[90vh] overflow-y-auto shadow-xl animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-2xl font-bold mb-6 text-gray-800">
-                            {currentTemplate ? 'Modifier le Modèle' : 'Nouveau Modèle'}
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Titre</label>
-                                <input
-                                    type="text"
-                                    name="title"
-                                    value={formData.title}
-                                    onChange={handleInputChange}
-                                    className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                                    placeholder="Ex: Exercices de Mathématiques"
-                                    required
+                    }>
+                        <Card className="shadow-sm border border-gray-100 mt-4">
+                            <div className="p-4 flex flex-col md:flex-row gap-4 justify-between items-center border-b border-gray-100">
+                                <Input
+                                    placeholder="Rechercher une tâche ou un étudiant..."
+                                    value={searchQuery}
+                                    onValueChange={setSearchQuery}
+                                    startContent={<IconSearch size={18} className="text-default-400" />}
+                                    className="max-w-md"
+                                    size="sm"
+                                    isClearable
                                 />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Description</label>
-                                <textarea
-                                    name="description"
-                                    value={formData.description}
-                                    onChange={handleInputChange}
-                                    className="w-full border border-gray-300 rounded-xl p-3 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                                    rows="3"
-                                    placeholder="Description de la tâche..."
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Type de récurrence</label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData(prev => ({ ...prev, recurrence: { type: 'daily' } }))}
-                                        className={`p-3 rounded-xl border text-sm font-medium transition-all ${formData.recurrence.type === 'daily'
-                                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                                            : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        Quotidien
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setFormData(prev => ({ ...prev, recurrence: { type: 'monthly' } }))}
-                                        className={`p-3 rounded-xl border text-sm font-medium transition-all ${formData.recurrence.type === 'monthly'
-                                            ? 'bg-indigo-50 border-indigo-500 text-indigo-700'
-                                            : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                            }`}
-                                    >
-                                        Mensuel
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">Métriques à suivre</label>
-                                <div className="space-y-2 bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                    {['exercises_submitted', 'levels_completed', 'hours_spent'].map(metric => (
-                                        <label key={metric} className="flex items-center p-2 hover:bg-white rounded-lg transition-colors cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={formData.metrics.includes(metric)}
-                                                onChange={() => handleMetricToggle(metric)}
-                                                className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
-                                            />
-                                            <span className="ml-3 text-sm text-gray-700 capitalize">{metric.replace(/_/g, ' ')}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-4">
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Exercices</label>
-                                    <input
-                                        type="number"
-                                        name="target.exercises_submitted"
-                                        value={formData.target.exercises_submitted}
-                                        onChange={handleInputChange}
-                                        className="w-full border border-gray-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        min="0"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Niveaux</label>
-                                    <input
-                                        type="number"
-                                        name="target.levels_completed"
-                                        value={formData.target.levels_completed}
-                                        onChange={handleInputChange}
-                                        className="w-full border border-gray-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        min="0"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Heures</label>
-                                    <input
-                                        type="number"
-                                        name="target.hours_spent"
-                                        value={formData.target.hours_spent}
-                                        onChange={handleInputChange}
-                                        className="w-full border border-gray-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        min="0"
-                                        step="0.5"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex items-center pt-2">
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input
-                                        type="checkbox"
-                                        name="active"
-                                        checked={formData.active}
-                                        onChange={(e) => setFormData(prev => ({ ...prev, active: e.target.checked }))}
-                                        className="sr-only peer"
-                                    />
-                                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                                    <span className="ml-3 text-sm font-medium text-gray-700">Modèle Actif</span>
-                                </label>
-                            </div>
-
-                            <div className="flex justify-end space-x-3 mt-8 pt-4 border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowModal(false)}
-                                    className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium transition-colors"
+                                <Select
+                                    placeholder="Filter par statut"
+                                    className="max-w-xs"
+                                    size="sm"
+                                    selectedKeys={[statusFilter]}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
                                 >
-                                    Annuler
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 font-medium shadow-sm transition-all hover:shadow"
-                                >
-                                    Enregistrer
-                                </button>
+                                    <SelectItem key="all" value="all">Tous</SelectItem>
+                                    <SelectItem key="completed" value="completed" startContent={<IconCheck size={16} className="text-success" />}>Terminé</SelectItem>
+                                    <SelectItem key="active" value="active" startContent={<IconRefresh size={16} className="text-primary" />}>En cours</SelectItem>
+                                    <SelectItem key="pending" value="pending" startContent={<IconCalendar size={16} className="text-default-400" />}>En attente</SelectItem>
+                                </Select>
                             </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Assign Modal */}
-            {showAssignModal && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl p-8 max-w-lg w-full shadow-xl animate-in fade-in zoom-in duration-200">
-                        <h2 className="text-2xl font-bold mb-6 text-gray-800">Assigner une Tâche</h2>
-                        <form onSubmit={handleAssignSubmit} className="space-y-5">
-                            <div>
-                                <div className="flex justify-between items-center mb-1.5">
-                                    <label className="block text-sm font-semibold text-gray-700">
-                                        Sélectionner les Étudiants
-                                    </label>
-                                    <button
-                                        type="button"
-                                        onClick={handleSelectAllStudents}
-                                        className="text-xs text-indigo-600 hover:text-indigo-800 font-medium"
-                                    >
-                                        {assignData.childIds.length === students.length ? 'Tout désélectionner' : 'Tout sélectionner'}
-                                    </button>
-                                </div>
-                                <select
-                                    multiple
-                                    className="w-full border border-gray-300 rounded-xl p-3 h-32 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    value={assignData.childIds}
-                                    onChange={(e) => {
-                                        const selected = Array.from(e.target.selectedOptions, option => option.value);
-                                        setAssignData(prev => ({ ...prev, childIds: selected }));
-                                    }}
-                                >
-                                    {students.map(s => (
-                                        <option key={s._id} value={s._id}>
-                                            {s.firstName} {s.lastName} ({s.email})
-                                        </option>
-                                    ))}
-                                </select>
-                                <p className="text-xs text-gray-500 mt-1.5">Maintenez Ctrl/Cmd pour sélectionner plusieurs étudiants</p>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Date de début</label>
-                                    <input
-                                        type="date"
-                                        value={assignData.startDate}
-                                        onChange={(e) => setAssignData(prev => ({ ...prev, startDate: e.target.value }))}
-                                        className="w-full border border-gray-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Date de fin</label>
-                                    <input
-                                        type="date"
-                                        value={assignData.endDate}
-                                        onChange={(e) => setAssignData(prev => ({ ...prev, endDate: e.target.value }))}
-                                        className="w-full border border-gray-300 rounded-xl p-2.5 focus:ring-2 focus:ring-indigo-500 outline-none"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                                <label className="flex items-start cursor-pointer">
-                                    <div className="flex items-center h-5">
-                                        <input
-                                            type="checkbox"
-                                            id="autoRenew"
-                                            checked={assignData.autoRenew}
-                                            onChange={(e) => setAssignData(prev => ({ ...prev, autoRenew: e.target.checked }))}
-                                            className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500 mt-0.5"
+                            <Table
+                                aria-label="Table des tâches assignées"
+                                shadow="none"
+                                removeWrapper
+                                bottomContent={
+                                    <div className="flex w-full justify-center px-4 py-2">
+                                        <Pagination
+                                            isCompact
+                                            showControls
+                                            showShadow
+                                            color="primary"
+                                            page={page}
+                                            total={Math.ceil(filteredAssignedTasks.length / rowsPerPage) || 1}
+                                            onChange={(page) => setPage(page)}
                                         />
                                     </div>
-                                    <div className="ml-3 text-sm">
-                                        <label htmlFor="autoRenew" className="font-medium text-gray-700">Renouvellement automatique</label>
-                                        <p className="text-gray-500 mt-0.5 text-xs">
-                                            La tâche se renouvellera chaque jour jusqu'à suppression manuelle.
-                                        </p>
-                                    </div>
-                                </label>
-                            </div>
+                                }
+                            >
+                                <TableHeader columns={assignedColumns}>
+                                    {(column) => (
+                                        <TableColumn key={column.uid} align={column.uid === "actions" ? "end" : "start"}>
+                                            {column.name}
+                                        </TableColumn>
+                                    )}
+                                </TableHeader>
+                                <TableBody items={items} emptyContent="Aucune tâche assignée trouvée.">
+                                    {(item) => (
+                                        <TableRow key={item._id}>
+                                            {(columnKey) => <TableCell>{renderAssignedCell(item, columnKey)}</TableCell>}
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </Card>
+                    </Tab>
+                </Tabs>
+            </div>
 
-                            <div className="flex justify-end space-x-3 mt-8 pt-4 border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowAssignModal(false)}
-                                    className="px-5 py-2.5 text-gray-600 hover:bg-gray-100 rounded-xl font-medium transition-colors"
-                                >
+
+            {/* Create/Edit Template Modal */}
+            <Modal
+                isOpen={showModal}
+                onClose={() => setShowModal(false)}
+                size="2xl"
+                scrollBehavior="inside"
+                backdrop="blur"
+                className="light text-foreground"
+            >
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader className="flex flex-col gap-1">
+                                {currentTemplate ? 'Modifier le Modèle' : 'Nouveau Modèle de Tâche'}
+                            </ModalHeader>
+                            <ModalBody>
+                                <form id="templateForm" onSubmit={handleSubmit} className="space-y-6">
+                                    <Input
+                                        autoFocus
+                                        label="Titre du modèle"
+                                        placeholder="Ex: Exercices de Mathématiques"
+                                        name="title"
+                                        value={formData.title}
+                                        onChange={handleInputChange}
+                                        variant="bordered"
+                                        isRequired
+                                    />
+                                    <Textarea
+                                        label="Description"
+                                        placeholder="Description détaillée de la tâche..."
+                                        name="description"
+                                        value={formData.description}
+                                        onChange={handleInputChange}
+                                        variant="bordered"
+                                    />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <Select
+                                            label="Type de récurrence"
+                                            variant="bordered"
+                                            selectedKeys={[formData.recurrence?.frequency || 'daily']}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, recurrence: { ...prev.recurrence, frequency: e.target.value } }))}
+                                        >
+                                            <SelectItem key="daily" value="daily" startContent={<IconRefresh size={18} />}>Quotidien</SelectItem>
+                                            <SelectItem key="monthly" value="monthly" startContent={<IconCalendar size={18} />}>Mensuel</SelectItem>
+                                        </Select>
+
+                                        <div className="flex items-center px-2">
+                                            <Switch
+                                                isSelected={formData.active}
+                                                onValueChange={(checked) => setFormData(prev => ({ ...prev, active: checked }))}
+                                            >
+                                                Modèle Actif
+                                            </Switch>
+                                        </div>
+                                    </div>
+
+                                    <Divider />
+
+                                    <div>
+                                        <p className="text-sm font-semibold mb-3">Métriques à suivre</p>
+                                        <div className="flex flex-wrap gap-4 mb-4">
+                                            {['exercises_submitted', 'levels_completed', 'hours_spent'].map(metric => (
+                                                <Chip
+                                                    key={metric}
+                                                    variant={formData.metrics.includes(metric) ? "solid" : "bordered"}
+                                                    color={formData.metrics.includes(metric) ? "primary" : "default"}
+                                                    onClick={() => handleMetricToggle(metric)}
+                                                    className="cursor-pointer select-none"
+                                                    startContent={formData.metrics.includes(metric) ? <IconCheck size={14} /> : <IconPlus size={14} />}
+                                                >
+                                                    {metric.replace(/_/g, ' ')}
+                                                </Chip>
+                                            ))}
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-xl">
+                                            <Input
+                                                type="number"
+                                                label="Exercices à soumettre"
+                                                name="target.exercises_submitted"
+                                                value={formData.target.exercises_submitted}
+                                                onChange={handleInputChange}
+                                                variant="bordered"
+                                                min="0"
+                                                isDisabled={!formData.metrics.includes('exercises_submitted')}
+                                            />
+                                            <Input
+                                                type="number"
+                                                label="Niveaux à compléter"
+                                                name="target.levels_completed"
+                                                value={formData.target.levels_completed}
+                                                onChange={handleInputChange}
+                                                variant="bordered"
+                                                min="0"
+                                                isDisabled={!formData.metrics.includes('levels_completed')}
+                                            />
+                                            <Input
+                                                type="number"
+                                                label="Heures à passer"
+                                                name="target.hours_spent"
+                                                value={formData.target.hours_spent}
+                                                onChange={handleInputChange}
+                                                variant="bordered"
+                                                min="0"
+                                                step="0.5"
+                                                isDisabled={!formData.metrics.includes('hours_spent')}
+                                            />
+                                        </div>
+                                    </div>
+                                </form>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button color="danger" variant="light" onPress={onClose}>
                                     Annuler
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-5 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 font-medium shadow-sm transition-all hover:shadow"
-                                >
-                                    Assigner les Tâches
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+                                </Button>
+                                <Button color="primary" type="submit" form="templateForm">
+                                    Enregistrer
+                                </Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
+
+
+            {/* Assign Modal */}
+            <Modal
+                isOpen={showAssignModal}
+                onClose={() => setShowAssignModal(false)}
+                size="lg"
+                backdrop="blur"
+                className="light text-foreground"
+            >
+                <ModalContent>
+                    {(onClose) => (
+                        <>
+                            <ModalHeader>Assigner une Tâche</ModalHeader>
+                            <ModalBody>
+                                <form id="assignForm" onSubmit={handleAssignSubmit} className="space-y-6">
+                                    <div className="flex justify-between items-center">
+                                        <p className="text-sm font-medium">Sélectionner les Étudiants</p>
+                                        <Button
+                                            size="sm"
+                                            variant="light"
+                                            color="primary"
+                                            onPress={handleSelectAllStudents}
+                                        >
+                                            {assignData.childIds.length === students.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                                        </Button>
+                                    </div>
+
+                                    <Select
+                                        label="Étudiants"
+                                        selectionMode="multiple"
+                                        placeholder="Choisir des étudiants"
+                                        selectedKeys={new Set(assignData.childIds)}
+                                        onSelectionChange={(keys) => {
+                                            setAssignData(prev => ({ ...prev, childIds: Array.from(keys) }));
+                                        }}
+                                        variant="bordered"
+                                        classNames={{
+                                            trigger: "min-h-unit-12 py-2"
+                                        }}
+                                        renderValue={(items) => {
+                                            return (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {items.map((item) => (
+                                                        <Chip key={item.key} size="sm">{item.textValue}</Chip>
+                                                    ))}
+                                                </div>
+                                            );
+                                        }}
+                                    >
+                                        {students.map((student) => (
+                                            <SelectItem key={student._id} textValue={`${student.firstName} ${student.lastName}`}>
+                                                <div className="flex gap-2 items-center">
+                                                    <User
+                                                        name={`${student.firstName} ${student.lastName}`}
+                                                        description={student.email}
+                                                        avatarProps={{
+                                                            size: "sm",
+                                                            src: `https://i.pravatar.cc/150?u=${student._id}`
+                                                        }}
+                                                    />
+                                                </div>
+                                            </SelectItem>
+                                        ))}
+                                    </Select>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Input
+                                            type="date"
+                                            label="Date de début"
+                                            value={assignData.startDate}
+                                            onChange={(e) => setAssignData(prev => ({ ...prev, startDate: e.target.value }))}
+                                            variant="bordered"
+                                        />
+                                        <Input
+                                            type="date"
+                                            label="Date de fin"
+                                            value={assignData.endDate}
+                                            onChange={(e) => setAssignData(prev => ({ ...prev, endDate: e.target.value }))}
+                                            variant="bordered"
+                                        />
+                                    </div>
+
+                                    <Card className="bg-primary-50 border-primary-100 shadow-none">
+                                        <CardBody>
+                                            <Switch
+                                                isSelected={assignData.autoRenew}
+                                                onValueChange={(checked) => setAssignData(prev => ({ ...prev, autoRenew: checked }))}
+                                                color="primary"
+                                            >
+                                                <div className="flex flex-col gap-1 ml-2">
+                                                    <span className="text-sm font-medium">Renouvellement Automatique</span>
+                                                    <span className="text-xs text-gray-500">La tâche se renouvellera chaque jour.</span>
+                                                </div>
+                                            </Switch>
+                                        </CardBody>
+                                    </Card>
+                                </form>
+                            </ModalBody>
+                            <ModalFooter>
+                                <Button color="danger" variant="light" onPress={onClose}>
+                                    Annuler
+                                </Button>
+                                <Button color="success" className="text-white" type="submit" form="assignForm">
+                                    Assigner ({assignData.childIds.length})
+                                </Button>
+                            </ModalFooter>
+                        </>
+                    )}
+                </ModalContent>
+            </Modal>
         </div>
     );
 };

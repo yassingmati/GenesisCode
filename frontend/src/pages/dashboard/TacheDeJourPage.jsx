@@ -199,7 +199,7 @@ export default function TacheDeJourPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6 animate-fadeIn">
+    <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-6 animate-fadeIn">
       {/* Reward Overlay */}
       {showReward && (
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-bounce-in">
@@ -220,21 +220,21 @@ export default function TacheDeJourPage() {
       {/* Header Card */}
       <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg border-none">
         <CardBody className="p-8">
-          <div className="flex justify-between items-start mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
             <div>
-              <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-                <IconCalendar size={32} />
-                Mes Missions du Jour
+              <h1 className="text-2xl md:text-3xl font-bold mb-2 flex flex-wrap items-center gap-2 md:gap-3">
+                <IconCalendar size={32} className="shrink-0" />
+                <span>Mes Missions du Jour</span>
               </h1>
-              <p className="text-blue-100 text-lg">
+              <p className="text-blue-100 text-base md:text-lg">
                 Voici tes objectifs pour aujourd'hui. Continue comme ça ! 🚀
               </p>
             </div>
-            <div className="flex flex-col gap-2 items-end">
+            <div className="flex flex-row md:flex-col gap-2 items-center md:items-end w-full md:w-auto justify-between md:justify-end">
               <Chip
                 variant="flat"
                 classNames={{ base: "bg-white/20", content: "text-white font-bold" }}
-                size="lg"
+                size="md"
               >
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
               </Chip>
@@ -246,7 +246,7 @@ export default function TacheDeJourPage() {
                 onClick={() => loadTasks(false)}
                 isDisabled={refreshing}
               >
-                {refreshing ? 'Actualisation...' : 'Actualiser'}
+                {refreshing ? '...' : 'Actualiser'}
               </Button>
             </div>
           </div>
@@ -314,14 +314,14 @@ export default function TacheDeJourPage() {
                   {/* Task Content */}
                   <div className="flex-1 min-w-0">
                     {/* Title and Status */}
-                    <div className="flex items-start justify-between gap-4 mb-2">
+                    <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2 md:gap-4 mb-2">
                       <h3 className={`
-                        text-lg font-semibold transition-colors
+                        text-base md:text-lg font-semibold transition-colors break-words
                         ${isCompleted ? 'text-gray-500 line-through' : 'text-gray-800 dark:text-gray-100'}
                       `}>
                         {task.templateId?.title || 'Tâche assignée'}
                       </h3>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
                         <Chip
                           size="sm"
                           color={getStatusColor(task.status)}

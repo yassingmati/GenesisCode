@@ -10,8 +10,26 @@ const planSchema = new mongoose.Schema({
   interval: { type: String, enum: ['month', 'year', null], default: 'month' },
   features: { type: [String], default: [] },
   active: { type: Boolean, default: true },
+
+  // New fields for Category plan parity
+  accessDuration: { type: Number, default: 365 }, // Days for one-time purchase
+  translations: {
+    fr: {
+      name: { type: String },
+      description: { type: String, default: '' }
+    },
+    en: {
+      name: { type: String },
+      description: { type: String, default: '' }
+    },
+    ar: {
+      name: { type: String },
+      description: { type: String, default: '' }
+    }
+  },
+
   // Access Control Fields
-  type: { type: String, enum: ['global', 'path', 'category'], default: 'global' },
+  type: { type: String, enum: ['global', 'Path', 'Category'], default: 'global' },
   targetId: { type: mongoose.Schema.Types.ObjectId, refPath: 'type' }, // ID of Category or Path
   allowedPaths: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Path' }] // Explicit list of allowed paths
 }, {

@@ -1,9 +1,16 @@
 import React from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { motion } from 'framer-motion';
+import {
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Button
+} from "@nextui-org/react";
+import { IconWorld } from '@tabler/icons-react';
 
-const LanguageSelector = ({ className = '', showLabel = true, size = 'medium' }) => {
-  const { language, setLanguage, currentLanguage, isLoading } = useLanguage();
+const LanguageSelector = ({ className = '', showLabel = true, size = 'md' }) => {
+  const { language, setLanguage, isLoading } = useLanguage();
 
   const languages = [
     { code: 'fr', label: 'Français', flag: '🇫🇷' },
@@ -11,46 +18,42 @@ const LanguageSelector = ({ className = '', showLabel = true, size = 'medium' })
     { code: 'ar', label: 'العربية', flag: '🇸🇦' }
   ];
 
-  const sizeClasses = {
-    small: 'text-sm px-2 py-1',
-    medium: 'text-base px-3 py-2',
-    large: 'text-lg px-4 py-3'
-  };
+  const currentLang = languages.find(l => l.code === language) || languages[0];
 
   return (
-    <div className={`language-selector ${className}`}>
+    <div className={`flex items-center gap-2 ${className}`}>
       {showLabel && (
-        <label className="language-label">
-          <span className="label-text">Langue:</span>
-        </label>
+        <span className="text-sm font-medium text-gray-500 dark:text-gray-400 hidden md:block">
+          Langue:
+        </span>
       )}
-      
-      <motion.select
-        className={`language-select ${sizeClasses[size]}`}
-        value={language}
-        onChange={(e) => setLanguage(e.target.value)}
-        disabled={isLoading}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        transition={{ duration: 0.2 }}
-      >
-        {languages.map((lang) => (
-          <option key={lang.code} value={lang.code}>
-            {lang.flag} {lang.label}
-          </option>
-        ))}
-      </motion.select>
-      
-      {isLoading && (
-        <motion.div
-          className="language-loading"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+
+      <Dropdown placement="bottom-end">
+        <DropdownTrigger>
+          <Button
+            variant="light"
+            className="min-w-fit px-3 font-medium text-gray-700 dark:text-gray-200"
+            size={size}
+            startContent={<span className="text-lg">{currentLang.flag}</span>}
+            isLoading={isLoading}
+          >
+            <span className={`${!showLabel ? 'hidden sm:inline' : ''}`}>{currentLang.label}</span>
+          </Button>
+        </DropdownTrigger>
+        <DropdownMenu
+          aria-label="Language selection"
+          variant="flat"
+          selectionMode="single"
+          selectedKeys={new Set([language])}
+          onSelectionChange={(keys) => setLanguage(Array.from(keys)[0])}
         >
-          <div className="loading-spinner"></div>
-        </motion.div>
-      )}
+          {languages.map((lang) => (
+            <DropdownItem key={lang.code} startContent={<span className="text-xl">{lang.flag}</span>}>
+              {lang.label}
+            </DropdownItem>
+          ))}
+        </DropdownMenu>
+      </Dropdown>
     </div>
   );
 };

@@ -10,11 +10,15 @@ const requireAdmin = (req, res, next) => {
   if (req.admin || (req.user && req.user.roles && req.user.roles.includes('admin'))) {
     return next();
   }
-  return res.status(403).json({ 
-    success: false, 
-    message: 'Permissions administrateur requises' 
+  return res.status(403).json({
+    success: false,
+    message: 'Permissions administrateur requises'
   });
 };
+
+// Progress & leaderboard
+router.get('/leaderboard', userController.getLeaderboard);
+router.get('/progress/:userId', protect, userController.getUserProgress);
 
 // Profile CRUD (utilisateur connecté)
 router.get('/profile', protectUserOrAdmin, userController.getProfile);            // GET /api/users/profile
@@ -35,9 +39,5 @@ router.get('/', (req, res, next) => {
   next();
 }, requireAdmin, userController.getAllUsers);       // GET /api/users (Admin only)
 router.get('/:id', protectUserOrAdmin, userController.getProfileById);           // GET /api/users/:id
-
-// Progress & leaderboard
-router.get('/progress/:userId', protect, userController.getUserProgress);
-router.get('/leaderboard', userController.getLeaderboard);
 
 module.exports = router;

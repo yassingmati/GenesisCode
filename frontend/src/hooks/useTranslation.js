@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useCallback } from 'react';
 import { LanguageContext } from '../contexts/LanguageContext';
 
 // Traductions pour toutes les langues supportées
@@ -19,7 +19,11 @@ const translations = {
     incorrect: 'Incorrect',
 
     // Cours et exercices
-    courses: 'Cours',
+    courses: {
+      label: 'Cours',
+      title: 'Parcours d\'apprentissage',
+      subtitle: 'Explorez nos parcours classiques et progressez étape par étape.'
+    },
     levels: 'Niveaux',
     exercises: 'Exercices',
     categories: 'Catégories',
@@ -302,6 +306,47 @@ const translations = {
       contact: 'Contact',
       profile: 'Profil',
       logout: 'Déconnexion'
+    },
+
+    categoryPlans: {
+      unlockPotential: 'Débloquez votre',
+      potential: 'Potentiel',
+      choosePlan: 'Choisissez le plan parfait pour accéder à des parcours de formation complets et transformez vos compétences.',
+      immediateUnlock: 'Déblocage Immédiat',
+      completePaths: 'Parcours Complets',
+      securePayment: 'Paiement Sécurisé',
+      loading: 'Chargement des meilleures offres...',
+      error: 'Oups, une erreur est survenue',
+      retry: 'Réessayer',
+      noPlans: 'Aucun plan disponible pour cette catégorie.',
+      exploreOthers: 'Explorer d\'autres cours',
+      backToDashboard: 'Retour au tableau de bord',
+      popular: 'POPULAIRE',
+      free: 'Gratuit',
+      buyNow: 'Acheter maintenant',
+      processing: 'Traitement...',
+      noFeatures: 'Aucune fonctionnalité listée',
+      alreadyHasAccess: 'Vous avez déjà accès à ce plan !',
+      freeAccessGranted: 'Accès gratuit accordé !',
+      redirecting: 'Redirection vers le paiement...'
+    },
+
+    specificPaths: {
+      roadmap: 'Feuille de Route',
+      followPath: 'Suivez le chemin recommandé pour maîtriser {{category}}, du débutant à l\'expert.',
+      unlockedAccess: 'Accès Débloqué',
+      construction: 'Construction en cours',
+      constructionDesc: 'Les ingénieurs tracent encore les routes pour {{category}}. Revenez bientôt !',
+      chooseOther: 'Choisir une autre destination',
+      unlockTrack: 'Débloquer ce parcours',
+      step: 'Étape',
+      start: 'Commencer',
+      locked: 'Verrouillé',
+      backToLanguages: 'Retour aux langages',
+      lockedContent: 'Contenu Verrouillé',
+      lockedDesc: 'Débloque ce parcours pour accéder à tous les niveaux',
+      viewLevels: 'Voir les niveaux',
+      unlockViaSub: 'Débloquer via l\'abonnement'
     }
   },
 
@@ -321,7 +366,11 @@ const translations = {
     incorrect: 'Incorrect',
 
     // Cours et exercices
-    courses: 'Courses',
+    courses: {
+      label: 'Courses',
+      title: 'Learning Paths',
+      subtitle: 'Explore our classic paths and progress step by step.'
+    },
     levels: 'Levels',
     exercises: 'Exercises',
     categories: 'Categories',
@@ -604,6 +653,47 @@ const translations = {
       contact: 'Contact',
       profile: 'Profile',
       logout: 'Logout'
+    },
+
+    categoryPlans: {
+      unlockPotential: 'Unlock your',
+      potential: 'Potential',
+      choosePlan: 'Choose the perfect plan to access complete training paths and transform your skills.',
+      immediateUnlock: 'Immediate Unlock',
+      completePaths: 'Complete Paths',
+      securePayment: 'Secure Payment',
+      loading: 'Loading best offers...',
+      error: 'Oops, something went wrong',
+      retry: 'Retry',
+      noPlans: 'No plans available for this category.',
+      exploreOthers: 'Explore other courses',
+      backToDashboard: 'Back to dashboard',
+      popular: 'POPULAR',
+      free: 'Free',
+      buyNow: 'Buy Now',
+      processing: 'Processing...',
+      noFeatures: 'No features listed',
+      alreadyHasAccess: 'You already have access to this plan!',
+      freeAccessGranted: 'Free access granted!',
+      redirecting: 'Redirecting to payment...'
+    },
+
+    specificPaths: {
+      roadmap: 'Roadmap',
+      followPath: 'Follow the recommended path to master {{category}}, from beginner to expert.',
+      unlockedAccess: 'Access Unlocked',
+      construction: 'Under Construction',
+      constructionDesc: 'Engineers are still plotting the routes for {{category}}. Come back soon!',
+      chooseOther: 'Choose another destination',
+      unlockTrack: 'Unlock this path',
+      step: 'Step',
+      start: 'Start',
+      locked: 'Locked',
+      backToLanguages: 'Back to languages',
+      lockedContent: 'Locked Content',
+      lockedDesc: 'Unlock this path to access all levels',
+      viewLevels: 'View levels',
+      unlockViaSub: 'Unlock via subscription'
     }
   },
 
@@ -623,7 +713,11 @@ const translations = {
     incorrect: 'خطأ',
 
     // Cours et exercices
-    courses: 'الدورات',
+    courses: {
+      label: 'الدورات',
+      title: 'مسارات التعلم',
+      subtitle: 'استكشف مساراتنا الكلاسيكية وتقدم خطوة بخطوة.'
+    },
     levels: 'المستويات',
     exercises: 'التمارين',
     categories: 'الفئات',
@@ -906,6 +1000,47 @@ const translations = {
       contact: 'اتصل بنا',
       profile: 'الملف الشخصي',
       logout: 'تسجيل الخروج'
+    },
+
+    categoryPlans: {
+      unlockPotential: 'أطلق العنان',
+      potential: 'لإمكاناتك',
+      choosePlan: 'اختر الخطة المثالية للوصول إلى مسارات تدريب كاملة وتحويل مهاراتك.',
+      immediateUnlock: 'فتح فوري',
+      completePaths: 'مسارات كاملة',
+      securePayment: 'دفع آمن',
+      loading: 'تحميل أفضل العروض...',
+      error: 'عفوا، حدث خطأ ما',
+      retry: 'إعادة المحاولة',
+      noPlans: 'لا توجد خطط متاحة لهذا الفئة.',
+      exploreOthers: 'استكشاف دورات أخرى',
+      backToDashboard: 'العودة إلى لوحة التحكم',
+      popular: 'شائع',
+      free: 'مجاني',
+      buyNow: 'شراء الآن',
+      processing: 'معالجة...',
+      noFeatures: 'لا توجد ميزات مدرجة',
+      alreadyHasAccess: 'لديك بالفعل حق الوصول إلى هذه الخطة!',
+      freeAccessGranted: 'تم منح حق الوصول المجاني!',
+      redirecting: 'إعادة التوجيه للدفع...'
+    },
+
+    specificPaths: {
+      roadmap: 'خارطة الطريق',
+      followPath: 'اتبع المسار الموصى به لإتقان {{category}}، من المبتدئ إلى الخبير.',
+      unlockedAccess: 'تم فتح الوصول',
+      construction: 'تحت الإنشاء',
+      constructionDesc: 'لا يزال المهندسون يرسمون الطرق لـ {{category}}. عد قريبا!',
+      chooseOther: 'اختر وجهة أخرى',
+      unlockTrack: 'فتح هذا المسار',
+      step: 'خطوة',
+      start: 'بدء',
+      locked: 'مغلق',
+      backToLanguages: 'العودة إلى اللغات',
+      lockedContent: 'محتوى مغلق',
+      lockedDesc: 'افتح هذا المسار للوصول إلى جميع المستويات',
+      viewLevels: 'عرض المستويات',
+      unlockViaSub: 'فتح عبر الاشتراك'
     }
   }
 };
@@ -913,7 +1048,7 @@ const translations = {
 const useTranslation = () => {
   const { language } = useContext(LanguageContext);
 
-  const t = (key) => {
+  const t = useCallback((key) => {
     const currentTranslations = translations[language] || translations.fr;
 
     // Support nested keys (e.g., 'home.hero.title')
@@ -929,7 +1064,7 @@ const useTranslation = () => {
     }
 
     return value;
-  };
+  }, [language]);
 
   return { t, language };
 };

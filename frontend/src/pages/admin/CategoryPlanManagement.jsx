@@ -1,7 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
 import { toast } from 'react-toastify';
-import { FiEdit, FiTrash2, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw } from 'react-icons/fi';
+import {
+  FiEdit,
+  FiTrash2,
+  FiPlus,
+  FiRefreshCw,
+  FiSearch,
+  FiChevronLeft,
+  FiChevronRight,
+  FiDollarSign,
+  FiClock,
+  FiUsers,
+  FiCheckCircle,
+  FiXCircle,
+  FiX
+} from 'react-icons/fi';
 import axios from 'axios';
 import { getApiUrl } from '../../utils/apiConfig';
 
@@ -28,366 +41,64 @@ api.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
-      console.log('Token admin expiré, redirection vers login...');
+      const errorCode = error.response?.data?.code;
+      const errorMessage = error.response?.data?.message || 'Token invalide';
+
+      console.log('❌ Erreur d\'authentification admin:', errorMessage);
+      console.log('🔑 Code d\'erreur:', errorCode);
+
+      // Messages spécifiques selon le code d'erreur
+      let userMessage = 'Session expirée. Redirection vers la page de connexion...';
+
+      switch (errorCode) {
+        case 'NO_TOKEN':
+          userMessage = 'Aucun token d\'authentification. Veuillez vous connecter.';
+          break;
+        case 'TOKEN_EXPIRED':
+          userMessage = 'Votre session a expiré. Veuillez vous reconnecter.';
+          break;
+        case 'INVALID_TOKEN':
+          userMessage = 'Token invalide. Veuillez vous reconnecter.';
+          break;
+        case 'ADMIN_NOT_FOUND':
+          userMessage = 'Compte admin introuvable. Veuillez vous reconnecter.';
+          break;
+        default:
+          userMessage = errorMessage;
+      }
+
+      console.log('💬 Message utilisateur:', userMessage);
+
+      // Nettoyer les tokens invalides
       localStorage.removeItem('adminToken');
       localStorage.removeItem('adminData');
+
+      // Rediriger vers la page de login après un court délai
       setTimeout(() => {
         window.location.href = '/admin/login';
-      }, 100);
+      }, 1500);
     }
     return Promise.reject(error);
   }
 );
-
-// Styles
-const Container = styled.div`
-  padding: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
-  background: #f8fafc;
-  min-height: 100vh;
-`;
-
-const Header = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  padding: 1.5rem;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-`;
-
-const Title = styled.h1`
-  margin: 0;
-  color: #1f2937;
-  font-size: 1.875rem;
-  font-weight: 700;
-`;
-
-const Button = styled.button`
-  background: ${props => props.primary ? '#3b82f6' : props.danger ? '#dc2626' : '#6b7280'};
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 500;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: all 0.2s;
-  font-size: 0.875rem;
-
-  &:hover {
-    background: ${props => props.primary ? '#2563eb' : props.danger ? '#b91c1c' : '#4b5563'};
-    transform: translateY(-1px);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none;
-  }
-`;
-
-const StatsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 2rem;
-`;
-
-const StatCard = styled.div`
-  background: white;
-  padding: 1.5rem;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  text-align: center;
-`;
-
-const StatValue = styled.div`
-  font-size: 2rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-`;
-
-const StatLabel = styled.div`
-  color: #6b7280;
-  font-size: 0.875rem;
-`;
-
-const Grid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-`;
-
-const Card = styled.div`
-  background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s;
-
-  &:hover {
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transform: translateY(-2px);
-  }
-`;
-
-const CardHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1rem;
-`;
-
-const CardTitle = styled.h3`
-  margin: 0;
-  color: #1f2937;
-  font-size: 1.125rem;
-  font-weight: 600;
-`;
-
-const StatusBadge = styled.span`
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 500;
-  background: ${props => props.active ? '#dcfce7' : '#fee2e2'};
-  color: ${props => props.active ? '#166534' : '#dc2626'};
-`;
-
-const CardContent = styled.div`
-  margin-bottom: 1rem;
-`;
-
-const Price = styled.div`
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 0.5rem;
-`;
-
-const Type = styled.div`
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-`;
-
-const Description = styled.p`
-  color: #4b5563;
-  font-size: 0.875rem;
-  margin: 0.5rem 0;
-  line-height: 1.5;
-`;
-
-const Stats = styled.div`
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-  color: #6b7280;
-`;
-
-const CardActions = styled.div`
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-`;
-
-const IconButton = styled.button`
-  background: none;
-  border: 1px solid #d1d5db;
-  color: #6b7280;
-  padding: 0.5rem;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-
-  &:hover {
-    background: #f3f4f6;
-    color: #374151;
-  }
-
-  &.danger:hover {
-    background: #fee2e2;
-    color: #dc2626;
-    border-color: #fca5a5;
-  }
-`;
-
-const Modal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-`;
-
-const ModalContent = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  max-width: 700px;
-  width: 90%;
-  max-height: 90vh;
-  overflow-y: auto;
-`;
-
-const ModalHeader = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-`;
-
-const ModalTitle = styled.h2`
-  margin: 0;
-  color: #1f2937;
-  font-size: 1.25rem;
-  font-weight: 600;
-`;
-
-const CloseButton = styled.button`
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #6b7280;
-  padding: 0.25rem;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-`;
-
-const Label = styled.label`
-  font-weight: 500;
-  color: #374151;
-  font-size: 0.875rem;
-`;
-
-const Input = styled.input`
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.875rem;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const Select = styled.select`
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  background: white;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const TextArea = styled.textarea`
-  padding: 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  min-height: 80px;
-  resize: vertical;
-
-  &:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-`;
-
-const Checkbox = styled.input`
-  width: 1rem;
-  height: 1rem;
-`;
-
-const CheckboxLabel = styled.label`
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.875rem;
-  color: #374151;
-`;
-
-const LoadingContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-  font-size: 1.1rem;
-  color: #6b7280;
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 3rem;
-  color: #6b7280;
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-`;
-
-const ErrorMessage = styled.div`
-  background: #fee2e2;
-  color: #dc2626;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #fca5a5;
-`;
-
-const SuccessMessage = styled.div`
-  background: #dcfce7;
-  color: #166534;
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  border: 1px solid #bbf7d0;
-`;
 
 const CategoryPlanManagement = () => {
   const [plans, setPlans] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
+
+  // États pour pagination et recherche
+  const [page, setPage] = useState(1);
+  const [limit] = useState(9);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const [activeLang, setActiveLang] = useState('fr');
+
   const [formData, setFormData] = useState({
     categoryId: '',
     price: '',
@@ -403,46 +114,47 @@ const CategoryPlanManagement = () => {
     features: [],
     order: 0
   });
-  const [newFeature, setNewFeature] = useState('');
+
   const [stats, setStats] = useState({
     totalPlans: 0,
     activePlans: 0,
     totalUsers: 0
   });
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setPage(1);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [page, debouncedSearch]);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      console.log('🔄 Chargement des données...');
-      
       const [plansRes, categoriesRes, statsRes] = await Promise.all([
-        api.get('/api/admin/category-plans'),
+        api.get('/api/admin/category-plans', {
+          params: { page, limit, search: debouncedSearch }
+        }),
         api.get('/api/categories'),
         api.get('/api/admin/category-plans/stats')
       ]);
-      
-      console.log('✅ Données chargées:', { 
-        plans: plansRes.data?.plans?.length || 0,
-        categories: categoriesRes.data?.length || 0,
-        stats: statsRes.data?.stats?.length || 0
-      });
-      
+
       setPlans(plansRes.data?.plans || []);
+      setTotalPages(plansRes.data?.pagination?.pages || 1);
       setCategories(categoriesRes.data || []);
       setStats({
-        totalPlans: plansRes.data?.plans?.length || 0,
-        activePlans: (plansRes.data?.plans || []).filter(p => p.active).length,
-        totalUsers: (plansRes.data?.plans || []).reduce((sum, p) => sum + (p.activeUsersCount || 0), 0)
+        totalPlans: statsRes.data?.stats?.totalPlans || 0,
+        activePlans: statsRes.data?.stats?.activePlans || 0,
+        totalUsers: statsRes.data?.stats?.totalUsers || 0
       });
-      
-      setSuccess('Données chargées avec succès');
-      setTimeout(() => setSuccess(null), 3000);
-      
+
     } catch (error) {
       console.error('❌ Erreur lors du chargement:', error);
       setError(error.response?.data?.message || 'Erreur lors du chargement des données');
@@ -473,14 +185,13 @@ const CategoryPlanManagement = () => {
   };
 
   const handleEdit = (plan) => {
-    console.log('✏️ Édition du plan:', plan);
     setEditingPlan(plan);
     setFormData({
-      categoryId: plan.category._id || plan.category,
-      price: plan.price,
+      categoryId: plan.category?._id || plan.targetId?._id || plan.targetId,
+      price: plan.priceMonthly || plan.price,
       currency: plan.currency,
-      paymentType: plan.paymentType,
-      accessDuration: plan.accessDuration,
+      paymentType: plan.interval === 'month' ? 'monthly' : (plan.interval === 'year' ? 'yearly' : 'one_time'),
+      accessDuration: plan.accessDuration || 365,
       active: plan.active,
       translations: plan.translations || {
         fr: { name: '', description: '' },
@@ -488,7 +199,7 @@ const CategoryPlanManagement = () => {
         ar: { name: '', description: '' }
       },
       features: plan.features || [],
-      order: plan.order
+      order: plan.order || 0
     });
     setModalOpen(true);
   };
@@ -496,10 +207,8 @@ const CategoryPlanManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    
+
     try {
-      console.log('💾 Sauvegarde du plan:', formData);
-      
       if (editingPlan) {
         await api.put(`/api/admin/category-plans/${editingPlan._id}`, formData);
         toast.success('Plan mis à jour avec succès');
@@ -507,10 +216,10 @@ const CategoryPlanManagement = () => {
         await api.post('/api/admin/category-plans', formData);
         toast.success('Plan créé avec succès');
       }
-      
+
       setModalOpen(false);
       fetchData();
-      
+
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde:', error);
       setError(error.response?.data?.message || 'Erreur lors de la sauvegarde');
@@ -519,12 +228,11 @@ const CategoryPlanManagement = () => {
   };
 
   const handleDelete = async (plan) => {
-    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le plan "${plan.translations?.fr?.name || 'Sans nom'}" ?`)) {
+    if (!window.confirm(`Êtes-vous sûr de vouloir supprimer le plan "${plan.translations?.fr?.name || plan.name || 'Sans nom'}" ?`)) {
       return;
     }
 
     try {
-      console.log('🗑️ Suppression du plan:', plan._id);
       await api.delete(`/api/admin/category-plans/${plan._id}`);
       toast.success('Plan supprimé avec succès');
       fetchData();
@@ -536,7 +244,6 @@ const CategoryPlanManagement = () => {
 
   const handleToggleStatus = async (plan) => {
     try {
-      console.log('🔄 Changement de statut:', plan._id, !plan.active);
       await api.patch(`/api/admin/category-plans/${plan._id}/toggle`, {
         active: !plan.active
       });
@@ -548,160 +255,279 @@ const CategoryPlanManagement = () => {
     }
   };
 
-  const addFeature = () => {
-    if (newFeature.trim()) {
-      setFormData(prev => ({
-        ...prev,
-        features: [...prev.features, newFeature.trim()]
-      }));
-      setNewFeature('');
-    }
-  };
-
-  const removeFeature = (index) => {
+  const updateTranslation = (lang, field, value) => {
     setFormData(prev => ({
       ...prev,
-      features: prev.features.filter((_, i) => i !== index)
+      translations: {
+        ...prev.translations,
+        [lang]: {
+          ...prev.translations[lang],
+          [field]: value
+        }
+      }
     }));
   };
 
-  const getCategoryName = (categoryId) => {
-    const category = categories.find(cat => cat._id === categoryId);
-    return category?.translations?.fr?.name || category?.name || 'Catégorie inconnue';
+  const getCategoryName = (plan) => {
+    const cat = plan.category || plan.targetId;
+    if (!cat) return 'Catégorie inconnue';
+    return cat.translations?.fr?.name || cat.name || 'Catégorie sans nom';
   };
 
-  const getPaymentTypeLabel = (type) => {
-    switch (type) {
-      case 'one_time': return 'Achat unique';
-      case 'monthly': return 'Mensuel';
-      case 'yearly': return 'Annuel';
-      default: return type;
-    }
+  const getPaymentTypeLabel = (plan) => {
+    if (plan.interval === 'month' || plan.paymentType === 'monthly') return 'Mensuel';
+    if (plan.interval === 'year' || plan.paymentType === 'yearly') return 'Annuel';
+    return 'Achat unique';
   };
-
-  if (loading) {
-    return (
-      <Container>
-        <LoadingContainer>
-          <FiRefreshCw className="animate-spin" />
-          Chargement des plans de catégories...
-        </LoadingContainer>
-      </Container>
-    );
-  }
 
   return (
-    <Container>
-      <Header>
-        <Title>Gestion des Plans de Catégories</Title>
-        <div style={{ display: 'flex', gap: '1rem' }}>
-          <Button onClick={fetchData}>
-            <FiRefreshCw />
-            Actualiser
-          </Button>
-          <Button primary onClick={handleCreate}>
-            <FiPlus />
-            Nouveau Plan
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                Plans de Catégories
+              </h1>
+              <p className="text-slate-600 mt-2">Gérez les plans d'abonnement pour vos catégories</p>
+            </div>
+            <button
+              onClick={handleCreate}
+              className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium"
+            >
+              <FiPlus className="text-xl" />
+              Nouveau Plan
+            </button>
+          </div>
+
+          {/* Search & Controls */}
+          <div className="flex items-center gap-4 bg-white rounded-2xl p-4 shadow-sm border border-slate-200">
+            <div className="flex-1 relative">
+              <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-xl" />
+              <input
+                type="text"
+                placeholder="Rechercher un plan..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+              />
+            </div>
+            <button
+              onClick={fetchData}
+              className="flex items-center gap-2 px-5 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all duration-200 font-medium"
+            >
+              <FiRefreshCw className="text-lg" />
+              Actualiser
+            </button>
+          </div>
         </div>
-      </Header>
 
-      {error && <ErrorMessage>{error}</ErrorMessage>}
-      {success && <SuccessMessage>{success}</SuccessMessage>}
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                <FiDollarSign className="text-2xl" />
+              </div>
+              <span className="text-4xl font-bold">{stats.totalPlans}</span>
+            </div>
+            <p className="text-blue-100 font-medium">Plans Total</p>
+          </div>
 
-      <StatsGrid>
-        <StatCard>
-          <StatValue>{stats.totalPlans}</StatValue>
-          <StatLabel>Plans Total</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats.activePlans}</StatValue>
-          <StatLabel>Plans Actifs</StatLabel>
-        </StatCard>
-        <StatCard>
-          <StatValue>{stats.totalUsers}</StatValue>
-          <StatLabel>Utilisateurs avec Accès</StatLabel>
-        </StatCard>
-      </StatsGrid>
+          <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                <FiCheckCircle className="text-2xl" />
+              </div>
+              <span className="text-4xl font-bold">{stats.activePlans}</span>
+            </div>
+            <p className="text-green-100 font-medium">Plans Actifs</p>
+          </div>
 
-      {plans.length === 0 ? (
-        <EmptyState>
-          <h3>Aucun plan de catégorie</h3>
-          <p>Créez votre premier plan pour commencer à monétiser vos catégories.</p>
-          <Button primary onClick={handleCreate} style={{ marginTop: '1rem' }}>
-            <FiPlus />
-            Créer le premier plan
-          </Button>
-        </EmptyState>
-      ) : (
-        <Grid>
-          {plans.map((plan) => (
-            <Card key={plan._id}>
-              <CardHeader>
-                <CardTitle>{getCategoryName(plan.category._id || plan.category)}</CardTitle>
-                <StatusBadge active={plan.active}>
-                  {plan.active ? 'Actif' : 'Inactif'}
-                </StatusBadge>
-              </CardHeader>
-              
-              <CardContent>
-                <Price>{plan.price} {plan.currency}</Price>
-                <Type>
-                  {getPaymentTypeLabel(plan.paymentType)}
-                  {plan.paymentType === 'one_time' && ` (${plan.accessDuration} jours)`}
-                </Type>
-                
-                <Description>
-                  {plan.translations?.fr?.description || 'Aucune description'}
-                </Description>
-                
-                <Stats>
-                  <span>👥 {plan.activeUsersCount || 0} utilisateurs</span>
-                  <span>📊 Ordre: {plan.order}</span>
-                </Stats>
-              </CardContent>
-              
-              <CardActions>
-                <IconButton onClick={() => handleEdit(plan)} title="Modifier">
-                  <FiEdit />
-                </IconButton>
-                <IconButton 
-                  onClick={() => handleToggleStatus(plan)} 
-                  title={plan.active ? 'Désactiver' : 'Activer'}
+          <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-6 text-white shadow-lg">
+            <div className="flex items-center justify-between mb-4">
+              <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
+                <FiUsers className="text-2xl" />
+              </div>
+              <span className="text-4xl font-bold">{stats.totalUsers}</span>
+            </div>
+            <p className="text-purple-100 font-medium">Utilisateurs</p>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3 text-red-800">
+            <FiXCircle className="text-xl flex-shrink-0" />
+            <p>{error}</p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
+            <p className="text-slate-600 font-medium">Chargement des plans...</p>
+          </div>
+        ) : plans.length === 0 ? (
+          /* Empty State */
+          <div className="bg-white rounded-2xl p-12 text-center shadow-sm border border-slate-200">
+            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiDollarSign className="text-4xl text-slate-400" />
+            </div>
+            <h3 className="text-2xl font-bold text-slate-800 mb-2">Aucun plan trouvé</h3>
+            <p className="text-slate-600 mb-6">Créez votre premier plan ou modifiez vos critères de recherche.</p>
+            <button
+              onClick={handleCreate}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
+            >
+              <FiPlus />
+              Créer un plan
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Plans Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {plans.map((plan) => (
+                <div
+                  key={plan._id}
+                  className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
                 >
-                  {plan.active ? <FiToggleRight /> : <FiToggleLeft />}
-                </IconButton>
-                <IconButton 
-                  onClick={() => handleDelete(plan)} 
-                  className="danger"
-                  title="Supprimer"
-                >
-                  <FiTrash2 />
-                </IconButton>
-              </CardActions>
-            </Card>
-          ))}
-        </Grid>
-      )}
+                  {/* Card Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-xl font-bold text-slate-800 mb-1">
+                        {getCategoryName(plan)}
+                      </h3>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${plan.active
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                        }`}>
+                        {plan.active ? <FiCheckCircle /> : <FiXCircle />}
+                        {plan.active ? 'Actif' : 'Inactif'}
+                      </span>
+                    </div>
+                  </div>
 
+                  {/* Price */}
+                  <div className="mb-4">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-3xl font-bold text-slate-900">
+                        {plan.priceMonthly || plan.price}
+                      </span>
+                      <span className="text-lg text-slate-600">{plan.currency}</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 mt-2 px-3 py-1 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">
+                      <FiClock />
+                      {getPaymentTypeLabel(plan)}
+                      {!plan.interval && plan.accessDuration && ` (${plan.accessDuration}j)`}
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <p className="text-slate-600 text-sm mb-4 line-clamp-2">
+                    {plan.translations?.fr?.description || plan.description || 'Aucune description'}
+                  </p>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 py-3 border-t border-slate-100 mb-4">
+                    <div className="flex items-center gap-2 text-slate-600 text-sm">
+                      <FiUsers className="text-blue-500" />
+                      <span>{plan.activeUsersCount || 0} utilisateurs</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleEdit(plan)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl transition-all duration-200 font-medium"
+                    >
+                      <FiEdit />
+                      Modifier
+                    </button>
+                    <button
+                      onClick={() => handleToggleStatus(plan)}
+                      className={`px-4 py-2.5 rounded-xl transition-all duration-200 font-medium ${plan.active
+                        ? 'bg-orange-50 hover:bg-orange-100 text-orange-600'
+                        : 'bg-green-50 hover:bg-green-100 text-green-600'
+                        }`}
+                      title={plan.active ? 'Désactiver' : 'Activer'}
+                    >
+                      {plan.active ? <FiXCircle /> : <FiCheckCircle />}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(plan)}
+                      className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all duration-200"
+                      title="Supprimer"
+                    >
+                      <FiTrash2 />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
+                >
+                  <FiChevronLeft />
+                  Précédent
+                </button>
+                <span className="px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold shadow-sm">
+                  Page {page} sur {totalPages}
+                </span>
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-slate-200 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm"
+                >
+                  Suivant
+                  <FiChevronRight />
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Modal */}
       {modalOpen && (
-        <Modal onClick={(e) => e.target === e.currentTarget && setModalOpen(false)}>
-          <ModalContent>
-            <ModalHeader>
-              <ModalTitle>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between rounded-t-2xl">
+              <h2 className="text-2xl font-bold text-slate-800">
                 {editingPlan ? 'Modifier le Plan' : 'Nouveau Plan'}
-              </ModalTitle>
-              <CloseButton onClick={() => setModalOpen(false)}>×</CloseButton>
-            </ModalHeader>
-            
-            <Form onSubmit={handleSubmit}>
-              <FormGroup>
-                <Label>Catégorie *</Label>
-                <Select
+              </h2>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="p-2 hover:bg-slate-100 rounded-xl transition-all duration-200"
+              >
+                <FiX className="text-2xl text-slate-600" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <form onSubmit={handleSubmit} className="p-8 space-y-6">
+              {/* Category Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
+                  Catégorie *
+                </label>
+                <select
                   value={formData.categoryId}
                   onChange={(e) => setFormData(prev => ({ ...prev, categoryId: e.target.value }))}
                   required
                   disabled={!!editingPlan}
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all disabled:opacity-50"
                 >
                   <option value="">Sélectionner une catégorie</option>
                   {categories.map(category => (
@@ -709,153 +535,158 @@ const CategoryPlanManagement = () => {
                       {category.translations?.fr?.name || category.name}
                     </option>
                   ))}
-                </Select>
-              </FormGroup>
+                </select>
+              </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <FormGroup>
-                  <Label>Prix *</Label>
-                  <Input
+              {/* Price & Currency */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Prix *
+                  </label>
+                  <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={formData.price}
                     onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
                     required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
-                </FormGroup>
-                
-                <FormGroup>
-                  <Label>Devise</Label>
-                  <Select
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Devise
+                  </label>
+                  <select
                     value={formData.currency}
                     onChange={(e) => setFormData(prev => ({ ...prev, currency: e.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   >
                     <option value="TND">TND</option>
                     <option value="EUR">EUR</option>
                     <option value="USD">USD</option>
-                  </Select>
-                </FormGroup>
+                  </select>
+                </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <FormGroup>
-                  <Label>Type de Paiement *</Label>
-                  <Select
+              {/* Payment Type & Duration */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">
+                    Type de Paiement *
+                  </label>
+                  <select
                     value={formData.paymentType}
                     onChange={(e) => setFormData(prev => ({ ...prev, paymentType: e.target.value }))}
                     required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   >
                     <option value="one_time">Achat unique</option>
                     <option value="monthly">Mensuel</option>
                     <option value="yearly">Annuel</option>
-                  </Select>
-                </FormGroup>
-                
+                  </select>
+                </div>
                 {formData.paymentType === 'one_time' && (
-                  <FormGroup>
-                    <Label>Durée d'accès (jours)</Label>
-                    <Input
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Durée d'accès (jours)
+                    </label>
+                    <input
                       type="number"
                       min="1"
                       value={formData.accessDuration}
                       onChange={(e) => setFormData(prev => ({ ...prev, accessDuration: parseInt(e.target.value) }))}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
-                  </FormGroup>
+                  </div>
                 )}
               </div>
 
-              <FormGroup>
-                <Label>Ordre d'affichage</Label>
-                <Input
-                  type="number"
-                  value={formData.order}
-                  onChange={(e) => setFormData(prev => ({ ...prev, order: parseInt(e.target.value) }))}
+              {/* Active Status */}
+              <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="active"
+                  checked={formData.active}
+                  onChange={(e) => setFormData(prev => ({ ...prev, active: e.target.checked }))}
+                  className="w-5 h-5 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                 />
-              </FormGroup>
-
-              <FormGroup>
-                <CheckboxLabel>
-                  <Checkbox
-                    type="checkbox"
-                    checked={formData.active}
-                    onChange={(e) => setFormData(prev => ({ ...prev, active: e.target.checked }))}
-                  />
+                <label htmlFor="active" className="text-sm font-semibold text-slate-700 cursor-pointer">
                   Plan actif
-                </CheckboxLabel>
-              </FormGroup>
-
-              <div>
-                <h4>Traductions</h4>
-                {['fr', 'en', 'ar'].map(lang => (
-                  <div key={lang} style={{ marginBottom: '1rem', padding: '1rem', border: '1px solid #e5e7eb', borderRadius: '0.5rem' }}>
-                    <h5 style={{ margin: '0 0 0.5rem 0', textTransform: 'uppercase' }}>{lang}</h5>
-                    <FormGroup>
-                      <Label>Nom</Label>
-                      <Input
-                        value={formData.translations[lang]?.name || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          translations: {
-                            ...prev.translations,
-                            [lang]: { ...prev.translations[lang], name: e.target.value }
-                          }
-                        }))}
-                      />
-                    </FormGroup>
-                    <FormGroup>
-                      <Label>Description</Label>
-                      <TextArea
-                        value={formData.translations[lang]?.description || ''}
-                        onChange={(e) => setFormData(prev => ({
-                          ...prev,
-                          translations: {
-                            ...prev.translations,
-                            [lang]: { ...prev.translations[lang], description: e.target.value }
-                          }
-                        }))}
-                      />
-                    </FormGroup>
-                  </div>
-                ))}
+                </label>
               </div>
 
+              {/* Language Tabs */}
               <div>
-                <h4>Fonctionnalités</h4>
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-                  <Input
-                    value={newFeature}
-                    onChange={(e) => setNewFeature(e.target.value)}
-                    placeholder="Ajouter une fonctionnalité"
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addFeature())}
-                  />
-                  <Button type="button" onClick={addFeature}>
-                    Ajouter
-                  </Button>
+                <label className="block text-sm font-semibold text-slate-700 mb-3">
+                  Traductions
+                </label>
+                <div className="flex gap-2 mb-4">
+                  {['fr', 'en', 'ar'].map(lang => (
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setActiveLang(lang)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${activeLang === lang
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        }`}
+                    >
+                      {lang.toUpperCase()}
+                    </button>
+                  ))}
                 </div>
-                {formData.features.map((feature, index) => (
-                  <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                    <span style={{ flex: 1 }}>{feature}</span>
-                    <IconButton type="button" onClick={() => removeFeature(index)}>
-                      <FiTrash2 />
-                    </IconButton>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">
+                      Nom ({activeLang.toUpperCase()})
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.translations[activeLang]?.name || ''}
+                      onChange={(e) => updateTranslation(activeLang, 'name', e.target.value)}
+                      placeholder="Nom du plan"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
                   </div>
-                ))}
+                  <div>
+                    <label className="block text-sm font-medium text-slate-600 mb-2">
+                      Description ({activeLang.toUpperCase()})
+                    </label>
+                    <textarea
+                      rows="3"
+                      value={formData.translations[activeLang]?.description || ''}
+                      onChange={(e) => updateTranslation(activeLang, 'description', e.target.value)}
+                      placeholder="Description du plan"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all resize-none"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', justifyContent: 'flex-end', marginTop: '2rem' }}>
-                <Button type="button" onClick={() => setModalOpen(false)}>
+              {/* Modal Actions */}
+              <div className="flex items-center gap-4 pt-6 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="flex-1 px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-all duration-200 font-medium"
+                >
                   Annuler
-                </Button>
-                <Button type="submit" primary>
-                  {editingPlan ? 'Mettre à jour' : 'Créer'}
-                </Button>
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl hover:shadow-lg transition-all duration-200 font-medium"
+                >
+                  Enregistrer
+                </button>
               </div>
-            </Form>
-          </ModalContent>
-        </Modal>
+            </form>
+          </div>
+        </div>
       )}
-    </Container>
+    </div>
   );
 };
 

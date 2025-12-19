@@ -1,145 +1,13 @@
-// src/pages/parent/InviteChild.jsx
 import React, { useState } from 'react';
-import styled from 'styled-components';
 import { useTranslation } from '../../hooks/useTranslation';
 import { getApiUrl } from '../../utils/apiConfig';
-
-const Container = styled.div`
-  padding: 2rem;
-  max-width: 600px;
-  margin: 0 auto;
-  background: #f8f9fa;
-  min-height: 100vh;
-`;
-
-const Card = styled.div`
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-`;
-
-const Title = styled.h1`
-  color: #2c3e50;
-  margin-bottom: 1rem;
-  text-align: center;
-`;
-
-const Subtitle = styled.p`
-  color: #6c757d;
-  text-align: center;
-  margin-bottom: 2rem;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-`;
-
-const Label = styled.label`
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-  color: #495057;
-`;
-
-const Input = styled.input`
-  padding: 0.75rem;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  font-size: 1rem;
-  transition: border-color 0.3s ease;
-
-  &:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-  }
-
-  &.error {
-    border-color: #dc3545;
-  }
-`;
-
-const ErrorMessage = styled.div`
-  color: #dc3545;
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
-`;
-
-const SuccessMessage = styled.div`
-  color: #28a745;
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
-`;
-
-const ButtonGroup = styled.div`
-  display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-`;
-
-const Button = styled.button`
-  flex: 1;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &.primary {
-    background: #007bff;
-    color: white;
-
-    &:hover:not(:disabled) {
-      background: #0056b3;
-    }
-
-    &:disabled {
-      background: #6c757d;
-      cursor: not-allowed;
-    }
-  }
-
-  &.secondary {
-    background: #6c757d;
-    color: white;
-
-    &:hover {
-      background: #545b62;
-    }
-  }
-`;
-
-const InfoBox = styled.div`
-  background: #e7f3ff;
-  border: 1px solid #b3d9ff;
-  border-radius: 6px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-`;
-
-const InfoTitle = styled.h4`
-  color: #0066cc;
-  margin: 0 0 0.5rem 0;
-  font-size: 1rem;
-`;
-
-const InfoText = styled.p`
-  color: #004499;
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.4;
-`;
+import { Card, CardBody, CardHeader, Input, Button, Divider } from "@nextui-org/react";
+import { IconMail, IconSend, IconArrowLeft } from '@tabler/icons-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function InviteChild() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     childEmail: ''
   });
@@ -153,13 +21,12 @@ export default function InviteChild() {
       ...prev,
       [name]: value
     }));
-    // Clear errors when user starts typing
     if (error) setError('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.childEmail.trim()) {
       setError('L\'email de l\'enfant est requis');
       return;
@@ -194,10 +61,9 @@ export default function InviteChild() {
 
       setSuccess(`Invitation envoyée avec succès à ${formData.childEmail}`);
       setFormData({ childEmail: '' });
-      
-      // Rediriger vers le dashboard après 2 secondes
+
       setTimeout(() => {
-        window.location.href = '/parent/dashboard';
+        navigate('/parent/dashboard');
       }, 2000);
 
     } catch (error) {
@@ -208,63 +74,89 @@ export default function InviteChild() {
     }
   };
 
-  const handleCancel = () => {
-    window.location.href = '/parent/dashboard';
-  };
-
   return (
-    <Container>
-      <Card>
-        <Title>Inviter un enfant</Title>
-        <Subtitle>
-          Ajoutez votre enfant à votre compte parent pour suivre ses progrès et gérer ses paramètres.
-        </Subtitle>
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 p-4 md:p-8">
+      <div className="max-w-2xl mx-auto">
+        <Button
+          variant="light"
+          startContent={<IconArrowLeft size={18} />}
+          onClick={() => navigate('/parent/dashboard')}
+          className="mb-6 text-gray-600 dark:text-gray-300"
+        >
+          Retour au dashboard
+        </Button>
 
-        <InfoBox>
-          <InfoTitle>💡 Comment ça marche ?</InfoTitle>
-          <InfoText>
-            Entrez l'email de votre enfant. Il recevra une invitation par email et pourra accepter 
-            de partager ses données avec vous. Une fois acceptée, vous pourrez suivre ses progrès 
-            et configurer les contrôles parentaux.
-          </InfoText>
-        </InfoBox>
+        <Card className="bg-white dark:bg-slate-800 shadow-md">
+          <CardHeader className="flex flex-col gap-2 p-6 pb-0">
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Inviter un enfant</h1>
+            <p className="text-gray-500 dark:text-gray-400">
+              Ajoutez votre enfant à votre compte parent pour suivre ses progrès et gérer ses paramètres.
+            </p>
+          </CardHeader>
 
-        <Form onSubmit={handleSubmit}>
-          <FormGroup>
-            <Label htmlFor="childEmail">Email de l'enfant *</Label>
-            <Input
-              type="email"
-              id="childEmail"
-              name="childEmail"
-              value={formData.childEmail}
-              onChange={handleChange}
-              placeholder="enfant@exemple.com"
-              className={error ? 'error' : ''}
-              disabled={loading}
-            />
-            {error && <ErrorMessage>{error}</ErrorMessage>}
-            {success && <SuccessMessage>{success}</SuccessMessage>}
-          </FormGroup>
+          <Divider className="my-4" />
 
-          <ButtonGroup>
-            <Button 
-              type="button" 
-              className="secondary" 
-              onClick={handleCancel}
-              disabled={loading}
-            >
-              Annuler
-            </Button>
-            <Button 
-              type="submit" 
-              className="primary" 
-              disabled={loading}
-            >
-              {loading ? 'Envoi en cours...' : 'Envoyer l\'invitation'}
-            </Button>
-          </ButtonGroup>
-        </Form>
-      </Card>
-    </Container>
+          <CardBody className="p-6 pt-0">
+            <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg p-4 mb-6">
+              <h4 className="flex items-center gap-2 font-semibold text-blue-700 dark:text-blue-300 mb-2">
+                <IconMail size={20} />
+                Comment ça marche ?
+              </h4>
+              <p className="text-sm text-blue-600 dark:text-blue-400">
+                Entrez l'email de votre enfant. Il recevra une invitation par email et pourra accepter
+                de partager ses données avec vous. Une fois acceptée, vous pourrez suivre ses progrès
+                et configurer les contrôles parentaux.
+              </p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <div>
+                <Input
+                  type="email"
+                  name="childEmail"
+                  label="Email de l'enfant"
+                  placeholder="enfant@exemple.com"
+                  value={formData.childEmail}
+                  onChange={handleChange}
+                  variant="bordered"
+                  labelPlacement="outside"
+                  startContent={<IconMail className="text-gray-400" size={18} />}
+                  errorMessage={error}
+                  isInvalid={!!error}
+                  isDisabled={loading}
+                  classNames={{
+                    inputWrapper: "bg-white dark:bg-slate-900",
+                  }}
+                />
+                {success && (
+                  <p className="text-green-600 dark:text-green-400 text-sm mt-2 font-medium">
+                    {success}
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-4 justify-end mt-2">
+                <Button
+                  variant="flat"
+                  color="default"
+                  onPress={() => navigate('/parent/dashboard')}
+                  isDisabled={loading}
+                >
+                  Annuler
+                </Button>
+                <Button
+                  color="primary"
+                  type="submit"
+                  isLoading={loading}
+                  startContent={!loading && <IconSend size={18} />}
+                >
+                  Envoyer l'invitation
+                </Button>
+              </div>
+            </form>
+          </CardBody>
+        </Card>
+      </div>
+    </div>
   );
 }

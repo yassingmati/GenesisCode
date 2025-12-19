@@ -27,6 +27,7 @@ router.use(authMiddleware.protect);
 
 // Paiement
 router.post('/init-payment', CategoryPaymentController.initCategoryPayment);
+router.post('/validate-promo', CategoryPaymentController.validatePromoCode);
 
 // Vérification d'accès
 router.get('/access/:categoryId', CategoryPaymentController.checkCategoryAccess);

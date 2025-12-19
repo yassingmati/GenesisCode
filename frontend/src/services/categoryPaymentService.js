@@ -34,14 +34,32 @@ async function getCategoryPlan(categoryId) {
 }
 
 // Initialise un paiement pour une catégorie
-async function initCategoryPayment(categoryId, returnUrl, cancelUrl) {
+async function initCategoryPayment(categoryId, returnUrl, cancelUrl, promoCode) {
   const url = `${BASE}/init-payment`;
   return httpJson(url, {
     method: 'POST',
     headers: authHeaders(),
     credentials: 'include',
-    body: JSON.stringify({ categoryId, returnUrl, cancelUrl })
+    body: JSON.stringify({ categoryId, returnUrl, cancelUrl, promoCode })
   });
+}
+
+async function validatePromoCode(code, categoryPlanId) {
+  const url = `${BASE}/validate-promo`;
+  console.log(`Checking promo code: ${code} for plan ${categoryPlanId}`);
+  try {
+    const res = await httpJson(url, {
+      method: 'POST',
+      headers: authHeaders(),
+      credentials: 'include',
+      body: JSON.stringify({ code, categoryPlanId })
+    });
+    console.log('Promo validation result:', res);
+    return res;
+  } catch (e) {
+    console.error('Promo validation failed request:', e);
+    throw e;
+  }
 }
 
 // Vérifie si l'utilisateur a accès à une catégorie
@@ -79,7 +97,8 @@ const CategoryPaymentService = {
   getUserAccessHistory,
   checkLevelAccess,
   checkCategoryAccess,
-  unlockLevel
+  unlockLevel,
+  validatePromoCode
 };
 
 export default CategoryPaymentService;

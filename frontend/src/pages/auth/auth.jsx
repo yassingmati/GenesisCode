@@ -87,6 +87,13 @@ const Auth = ({ type }) => {
         userType: formData.userType // Inclure le type d'utilisateur
       });
 
+      // Nettoyage de toute session précédente
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');
+      localStorage.removeItem('accessToken');
+
       // Stockage du token et des données utilisateur
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));
@@ -198,6 +205,13 @@ const Auth = ({ type }) => {
         hasUser: !!response.data.user,
         userEmail: response.data.user?.email
       });
+
+      // Nettoyage de toute session précédente
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('adminData');
+      localStorage.removeItem('accessToken');
 
       // Stocker le token et les données utilisateur
       localStorage.setItem('token', response.data.token);

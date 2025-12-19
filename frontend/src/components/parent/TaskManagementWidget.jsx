@@ -1,23 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Card, CardBody, CardHeader,
-    Button, Input, Textarea,
-    Table, TableHeader, TableColumn, TableBody, TableRow, TableCell,
-    Chip, Tooltip, useDisclosure, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter
+    Card, CardBody, CardHeader, CardFooter,
+    Chip, Button, Progress, Divider
 } from "@nextui-org/react";
 import {
-    IconPlus, IconTrash, IconEdit, IconCheck, IconX, IconCalendar
+    IconCalendar, IconCheck, IconClock, IconRepeat, IconTarget, IconTrophy, IconHourglass
 } from '@tabler/icons-react';
 import { taskService } from '../../services/taskService';
 
 export default function TaskManagementWidget({ childId }) {
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
     const [tasks, setTasks] = useState([]);
-    const [newTaskTitle, setNewTaskTitle] = useState('');
-    const [newTaskDescription, setNewTaskDescription] = useState('');
-    const [newTaskXp, setNewTaskXp] = useState(10);
     const [taskFrequency, setTaskFrequency] = useState('daily'); // 'daily' or 'monthly'
-    const { isOpen, onOpen, onClose } = useDisclosure();
+    const [loading, setLoading] = useState(false);
 
     useEffect(() => {
         if (childId) {
@@ -26,220 +21,216 @@ export default function TaskManagementWidget({ childId }) {
     }, [childId, selectedDate, taskFrequency]);
 
     const loadTasks = async () => {
+        setLoading(true);
         try {
-            // Fetch assigned tasks (new system)
-            const assignedTasks = await taskService.getChildTasks(childId, selectedDate, selectedDate);
+            // Fetch assigned tasks (from Admin)
+            const assignedTasks = await taskService.getChildTasks(childId, selectedDate, selectedDate) || [];
 
-            // Normalize for display
-            const normalizedTasks = Array.isArray(assignedTasks) ? assignedTasks.map(t => ({
+            // Normalize Assigned Tasks
+            const normalizedAssigned = Array.isArray(assignedTasks) ? assignedTasks.map(t => ({
                 id: t._id,
                 title: t.templateId?.title || 'Tâche assignée',
                 description: t.templateId?.description,
                 status: t.status || 'pending',
                 recurrence: t.templateId?.recurrence?.type || 'daily',
                 metricsTarget: t.metricsTarget || t.templateId?.target,
-                metricsCurrent: t.metricsCurrent || {}
+                metricsCurrent: t.metricsCurrent || {},
+                isAssigned: true,
+                xpReward: t.templateId?.xpReward || 10
             })) : [];
 
-            setTasks(normalizedTasks);
+            // Skip legacy tasks ideally, but keeping them for now if needed (read-only)
+            const legacyTasks = await taskService.getTasks(childId, selectedDate, taskFrequency);
+            const normalizedLegacy = Array.isArray(legacyTasks) ? legacyTasks.map(t => ({
+                id: t._id,
+                title: t.title,
+                description: t.description,
+                status: t.status || 'pending',
+                recurrence: t.type || 'daily',
+                metricsTarget: null,
+                metricsCurrent: {},
+                isAssigned: false,
+                xpReward: t.xpReward || 10
+            })) : [];
+
+            setTasks([...normalizedAssigned, ...normalizedLegacy]);
         } catch (error) {
             console.error("Error loading tasks:", error);
             setTasks([]);
+        } finally {
+            setLoading(false);
         }
     };
 
-    const handleAddTask = async () => {
-        // ... (Keep existing logic for manual tasks if needed, or disable it)
-        // For now, let's keep it but warn that it might not be fully supported in new view
-        if (!newTaskTitle.trim()) return;
-
-        try {
-            await taskService.addTask({
-                userId: childId,
-                date: selectedDate,
-                title: newTaskTitle,
-                description: newTaskDescription,
-                type: taskFrequency,
-                xpReward: parseInt(newTaskXp) || 10
-            });
-
-            setNewTaskTitle('');
-            setNewTaskDescription('');
-            setNewTaskXp(10);
-            onOpen(false);
-            loadTasks(); // This might need to fetch legacy tasks too if we want to support both
-        } catch (error) {
-            console.error("Error adding task:", error);
-            alert("Erreur lors de l'ajout de la tâche");
+    const getStatusColor = (status) => {
+        switch (status) {
+            case 'completed': return 'success';
+            case 'active': return 'primary';
+            case 'pending': return 'warning';
+            default: return 'default';
         }
     };
 
-    const handleDeleteTask = async (taskId) => {
-        if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-            try {
-                // Check if it's an assigned task (cannot delete assigned tasks here easily, usually done via unassign)
-                // But let's assume we can delete for now
-                await taskService.deleteTask(taskId);
-                loadTasks();
-            } catch (error) {
-                console.error("Error deleting task:", error);
-            }
+    const getStatusIcon = (status) => {
+        switch (status) {
+            case 'completed': return <IconCheck size={14} />;
+            case 'active': return <IconClock size={14} />;
+            case 'pending': return <IconHourglass size={14} />;
+            default: return null;
         }
     };
 
-    const renderProgress = (task) => {
-        if (!task.metricsTarget) return '-';
-
-        const parts = [];
-        if (task.metricsTarget.exercises_submitted) {
-            parts.push(
-                <div key="ex" className="text-xs">
-                    Exos: <b>{task.metricsCurrent?.exercises_submitted || 0}</b>/{task.metricsTarget.exercises_submitted}
-                </div>
-            );
-        }
-        if (task.metricsTarget.levels_completed) {
-            parts.push(
-                <div key="lvl" className="text-xs">
-                    Lvls: <b>{task.metricsCurrent?.levels_completed || 0}</b>/{task.metricsTarget.levels_completed}
-                </div>
-            );
-        }
-        if (task.metricsTarget.hours_spent) {
-            parts.push(
-                <div key="hrs" className="text-xs">
-                    Temps: <b>{Math.round((task.metricsCurrent?.hours_spent || 0) * 60)}</b>/{Math.round(task.metricsTarget.hours_spent * 60)}m
-                </div>
-            );
-        }
-
-        return parts.length > 0 ? <div className="flex flex-col gap-1">{parts}</div> : '-';
+    // Calculate percentage for a given metric
+    const getProgressValue = (current, target) => {
+        if (!target || target === 0) return 0;
+        return Math.min((current / target) * 100, 100);
     };
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm">
-                <div className="flex gap-2">
-                    <Chip
-                        className="cursor-pointer"
-                        color={taskFrequency === 'daily' ? "primary" : "default"}
-                        variant={taskFrequency === 'daily' ? "solid" : "flat"}
-                        onClick={() => setTaskFrequency('daily')}
-                    >
-                        Tâches du Jour
-                    </Chip>
-                    {/* Monthly view might need adjustment for date range */}
+        <div className="space-y-6 animate-fade-in">
+            {/* Header Controls */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white dark:bg-slate-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-700 gap-4">
+                <div className="flex items-center gap-2">
+                    <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-600 dark:text-blue-400">
+                        <IconTarget size={24} />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-gray-800 dark:text-gray-100">Suivi des Tâches</h3>
+                        <p className="text-xs text-gray-500">Gérez et suivez la progression</p>
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <IconCalendar size={20} className="text-gray-500" />
-                    <input
-                        type="date"
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="border rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                <div className="flex flex-wrap gap-3 items-center w-full sm:w-auto">
+                    <div className="flex p-1 bg-gray-100 dark:bg-slate-900 rounded-lg">
+                        <button
+                            onClick={() => setTaskFrequency('daily')}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${taskFrequency === 'daily'
+                                    ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            Quotidien
+                        </button>
+                        <button
+                            onClick={() => setTaskFrequency('monthly')}
+                            className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all ${taskFrequency === 'monthly'
+                                    ? 'bg-white dark:bg-slate-800 text-blue-600 shadow-sm'
+                                    : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            Mensuel
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-slate-900 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-slate-700">
+                        <IconCalendar size={16} className="text-gray-400" />
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="bg-transparent border-none text-xs focus:outline-none text-gray-700 dark:text-gray-300 font-medium"
+                        />
+                    </div>
                 </div>
             </div>
 
-            <Card className="shadow-md">
-                <CardHeader className="flex justify-between items-center px-6 py-4">
-                    <h3 className="text-xl font-bold text-gray-800">
-                        Suivi des Tâches - {new Date(selectedDate).toLocaleDateString()}
-                    </h3>
-                    {/* Disable manual add for now to focus on assigned tasks */}
-                    {/* <Button ... >Ajouter</Button> */}
-                </CardHeader>
-                <CardBody>
-                    {tasks.length > 0 ? (
-                        <Table aria-label="Table des tâches">
-                            <TableHeader>
-                                <TableColumn>TITRE</TableColumn>
-                                <TableColumn>TYPE</TableColumn>
-                                <TableColumn>PROGRESSION</TableColumn>
-                                <TableColumn>STATUT</TableColumn>
-                            </TableHeader>
-                            <TableBody>
-                                {tasks.map((task) => (
-                                    <TableRow key={task.id}>
-                                        <TableCell className="font-medium">
-                                            <div>
-                                                {task.title}
-                                                {task.description && <div className="text-xs text-gray-500">{task.description}</div>}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip size="sm" variant="flat" color={task.recurrence === 'daily' ? "primary" : "secondary"}>
-                                                {task.recurrence === 'daily' ? 'Quotidien' : 'Mensuel'}
-                                            </Chip>
-                                        </TableCell>
-                                        <TableCell>
-                                            {renderProgress(task)}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Chip
-                                                size="sm"
-                                                color={
-                                                    task.status === 'completed' ? "success" :
-                                                        task.status === 'active' ? "primary" : "warning"
-                                                }
-                                                variant="dot"
-                                            >
-                                                {task.status === 'completed' ? 'Terminé' :
-                                                    task.status === 'active' ? 'En cours' : 'En attente'}
-                                            </Chip>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500">
-                            Aucune tâche assignée pour cette date.
-                        </div>
-                    )}
-                </CardBody>
-            </Card>
+            {/* Task Grid */}
+            {tasks.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {tasks.map((task) => (
+                        <Card
+                            key={task.id}
+                            className={`border transition-all hover:shadow-md ${task.status === 'completed'
+                                    ? 'border-green-200 dark:border-green-900 bg-green-50/10'
+                                    : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800'
+                                }`}
+                        >
+                            <CardHeader className="flex justify-between items-start pb-0">
+                                <div className="flex gap-2">
+                                    <Chip
+                                        size="sm"
+                                        variant="flat"
+                                        color={getStatusColor(task.status)}
+                                        startContent={getStatusIcon(task.status)}
+                                        className="capitalize border-none pl-1"
+                                    >
+                                        {task.status === 'active' ? 'En cours' : task.status}
+                                    </Chip>
+                                    {task.recurrence === 'daily' && (
+                                        <Chip size="sm" variant="light" color="secondary" startContent={<IconRepeat size={12} />} className="text-tiny px-0">
+                                            Quotidien
+                                        </Chip>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-1 text-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 px-2 py-1 rounded-full">
+                                    <IconTrophy size={12} />
+                                    <span className="text-xs font-bold">{task.xpReward} XP</span>
+                                </div>
+                            </CardHeader>
 
-            {/* Add Task Modal */}
-            <Modal isOpen={isOpen} onClose={onClose}>
-                <ModalContent>
-                    <ModalHeader>Ajouter {taskFrequency === 'daily' ? 'une tâche manuelle' : 'un objectif mensuel'}</ModalHeader>
-                    <ModalBody>
-                        <Input
-                            autoFocus
-                            label="Titre"
-                            placeholder={taskFrequency === 'daily' ? "Ex: Faire les devoirs de maths" : "Ex: Finir le module Python"}
-                            variant="bordered"
-                            value={newTaskTitle}
-                            onValueChange={setNewTaskTitle}
-                        />
-                        <Textarea
-                            label="Description"
-                            placeholder="Détails supplémentaires..."
-                            variant="bordered"
-                            value={newTaskDescription}
-                            onValueChange={setNewTaskDescription}
-                        />
-                        <Input
-                            type="number"
-                            label="Récompense XP"
-                            placeholder="10"
-                            variant="bordered"
-                            value={newTaskXp.toString()}
-                            onValueChange={(v) => setNewTaskXp(parseInt(v) || 0)}
-                        />
-                    </ModalBody>
-                    <ModalFooter>
-                        <Button color="danger" variant="flat" onPress={onClose}>
-                            Annuler
-                        </Button>
-                        <Button color="primary" onPress={handleAddTask}>
-                            Ajouter
-                        </Button>
-                    </ModalFooter>
-                </ModalContent>
-            </Modal>
+                            <CardBody className="py-4">
+                                <h4 className={`font-bold text-lg mb-1 line-clamp-1 ${task.status === 'completed' ? 'text-gray-500 line-through' : 'text-gray-800 dark:text-white'}`}>
+                                    {task.title}
+                                </h4>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 line-clamp-2 h-10">
+                                    {task.description || "Aucune description fournie."}
+                                </p>
+
+                                <div className="space-y-4">
+                                    {/* Metrics (Exercises) */}
+                                    {task.metricsTarget?.exercises_submitted > 0 && (
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                                <span>Exercices</span>
+                                                <span className="font-semibold">{task.metricsCurrent?.exercises_submitted || 0} / {task.metricsTarget.exercises_submitted}</span>
+                                            </div>
+                                            <Progress
+                                                size="sm"
+                                                value={getProgressValue(task.metricsCurrent?.exercises_submitted || 0, task.metricsTarget.exercises_submitted)}
+                                                color={task.status === 'completed' ? "success" : "primary"}
+                                                classNames={{
+                                                    track: "bg-gray-100 dark:bg-slate-700",
+                                                    indicator: task.status === 'completed' ? "bg-green-500" : "bg-blue-500"
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Metrics (Levels) */}
+                                    {task.metricsTarget?.levels_completed > 0 && (
+                                        <div className="space-y-1">
+                                            <div className="flex justify-between text-xs text-gray-600 dark:text-gray-400">
+                                                <span>Niveaux</span>
+                                                <span className="font-semibold">{task.metricsCurrent?.levels_completed || 0} / {task.metricsTarget.levels_completed}</span>
+                                            </div>
+                                            <Progress
+                                                size="sm"
+                                                value={getProgressValue(task.metricsCurrent?.levels_completed || 0, task.metricsTarget.levels_completed)}
+                                                color="secondary"
+                                            />
+                                        </div>
+                                    )}
+
+                                    {/* Fallback if no target (e.g. manual/legacy task) */}
+                                    {!task.metricsTarget && (
+                                        <div className="p-2 bg-gray-50 dark:bg-slate-900 rounded text-center text-xs text-gray-400 italic">
+                                            Tâche manuelle sans suivi automatique
+                                        </div>
+                                    )}
+                                </div>
+                            </CardBody>
+                        </Card>
+                    ))}
+                </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-12 bg-white dark:bg-slate-800 rounded-xl border border-dashed border-gray-300 dark:border-slate-700">
+                    <div className="p-4 bg-gray-50 dark:bg-slate-900 rounded-full mb-3">
+                        <IconTarget size={32} className="text-gray-400" />
+                    </div>
+                    <p className="text-gray-500 font-medium">Aucune tâche trouvée pour cette date.</p>
+                </div>
+            )}
         </div>
     );
 }
+

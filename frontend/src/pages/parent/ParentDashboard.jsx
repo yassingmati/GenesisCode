@@ -4,8 +4,8 @@ import TaskManagementWidget from '../../components/parent/TaskManagementWidget';
 import PaymentControlWidget from '../../components/parent/PaymentControlWidget';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { getApiUrl } from '../../utils/apiConfig';
-import { Card, CardBody, User, Tabs, Tab, Button, Chip } from "@nextui-org/react";
-import { IconLogout, IconSettings, IconPlus } from '@tabler/icons-react';
+import { Card, CardBody, User, Tabs, Tab, Button, Chip, Avatar, Tooltip } from "@nextui-org/react";
+import { IconLogout, IconSettings, IconPlus, IconUser, IconChartBar, IconCreditCard } from '@tabler/icons-react';
 import ThemeToggle from '../../components/ThemeToggle';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -57,143 +57,205 @@ export default function ParentDashboard() {
   if (loading) return <LoadingSpinner />;
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-900 transition-colors duration-300">
-      {/* Navbar */}
-      <nav className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 transition-colors duration-300 font-sans">
+      {/* Navbar Premium */}
+      <nav className="sticky top-0 z-50 backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-gray-200/50 dark:border-slate-800/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex items-center gap-4">
-              <Link to="/" className="flex items-center gap-2">
-                <img src={require('../../assets/icons/logo.png')} alt="CodeGenesis Logo" className="h-8 w-auto" />
-                <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
+          <div className="flex justify-between h-20 items-center">
+            <div className="flex items-center gap-6">
+              <Link to="/" className="flex items-center gap-3 group">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-blue-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity"></div>
+                  <img src={require('../../assets/icons/logo.png')} alt="CodeGenesis Logo" className="h-10 w-auto relative z-10" />
+                </div>
+                <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
                   CodeGenesis
                 </span>
               </Link>
-              <div className="h-6 w-px bg-gray-200 dark:bg-slate-600 mx-2"></div>
-              <span className="text-gray-500 dark:text-gray-400 font-medium">{t('parent.dashboard')}</span>
+              <div className="h-8 w-px bg-gray-200 dark:bg-slate-700 mx-2 hidden md:block"></div>
+              <span className="text-gray-500 dark:text-slate-400 font-medium hidden md:block tracking-wide text-sm uppercase">
+                Espace Parent
+              </span>
             </div>
             <div className="flex items-center gap-4">
               <ThemeToggle />
               <Button
                 color="primary"
-                variant="solid"
-                size="sm"
-                startContent={<IconPlus size={16} />}
+                variant="shadow"
+                radius="full"
+                className="font-medium bg-gradient-to-r from-blue-600 to-indigo-600"
+                startContent={<IconPlus size={18} />}
                 onClick={() => window.location.href = '/parent/invite-child'}
-                className="hidden sm:flex"
               >
                 {t('parent.inviteChild')}
               </Button>
               <Button
+                isIconOnly
                 color="danger"
-                variant="flat"
-                size="sm"
-                startContent={<IconLogout size={16} />}
+                variant="light"
+                radius="full"
                 onPress={handleLogout}
               >
-                {t('parent.logout')}
+                <IconLogout size={20} />
               </Button>
             </div>
           </div>
         </div>
       </nav>
 
-      <div className="max-w-7xl mx-auto p-4 md:p-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('parent.dashboard')}</h1>
-          <p className="text-gray-500 dark:text-gray-400">{t('parent.subtitle')}</p>
+      <div className="max-w-7xl mx-auto p-4 md:p-8 space-y-6">
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+              Tableau de bord
+            </h1>
+            <p className="text-base md:text-lg text-gray-500 dark:text-slate-400">
+              Suivez la progression et gérez les accès de vos enfants.
+            </p>
+          </div>
         </div>
 
         {children.length === 0 ? (
-          <Card className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700">
-            <CardBody className="text-center py-12">
-              <p className="text-gray-500 dark:text-gray-400 mb-4">{t('parent.noChildren')}</p>
+          <Card className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-md border border-gray-200 dark:border-slate-800 shadow-xl min-h-[400px] flex items-center justify-center">
+            <CardBody className="text-center max-w-md mx-auto">
+              <div className="w-24 h-24 bg-blue-50 dark:bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6">
+                <IconUser size={48} className="text-blue-500 opacity-80" />
+              </div>
+              <h3 className="text-xl font-bold mb-2">Bienvenue sur CodeGenesis</h3>
+              <p className="text-gray-500 dark:text-slate-400 mb-8 leading-relaxed">
+                Connectez le compte de votre enfant pour commencer à suivre ses progrès et gérer son apprentissage.
+              </p>
               <Button
+                size="lg"
                 color="primary"
-                variant="solid"
-                startContent={<IconPlus size={18} />}
+                variant="shadow"
+                radius="full"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 font-semibold text-lg"
+                startContent={<IconPlus size={20} />}
                 onClick={() => window.location.href = '/parent/invite-child'}
               >
-                {t('parent.inviteChild')}
+                Inviter un enfant
               </Button>
             </CardBody>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
             {/* Sidebar / Child Selector */}
-            <div className="md:col-span-1 space-y-4">
-              <Card className="bg-white dark:bg-slate-800 shadow-sm border border-gray-200 dark:border-slate-700">
-                <CardBody className="p-4">
-                  <h3 className="font-bold text-gray-700 dark:text-gray-200 mb-4">{t('parent.myChildren')}</h3>
-                  <div className="space-y-2">
-                    {children.map((childData) => (
-                      <div
-                        key={childData.child._id}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors flex items-center gap-3
+            <div className="lg:col-span-3 space-y-6 lg:sticky lg:top-28 z-10">
+              <div className="bg-white dark:bg-slate-900 rounded-3xl p-4 md:p-6 shadow-xl border border-gray-100 dark:border-slate-800">
+                <div className="flex justify-between items-center mb-4 lg:mb-6">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Mes Enfants</h3>
+                  <span className="lg:hidden text-xs text-primary font-medium">Défiler →</span>
+                </div>
+
+                <div className="flex lg:flex-col overflow-x-auto pb-2 lg:pb-0 gap-4 lg:space-y-3 scrollbar-hide snap-x">
+                  {children.map((childData) => (
+                    <div
+                      key={childData.child._id}
+                      onClick={() => setSelectedChild(childData.child._id)}
+                      className={`
+                          group relative p-4 rounded-2xl cursor-pointer transition-all duration-300 border-2 min-w-[260px] lg:w-full shrink-0 snap-center
                           ${selectedChild === childData.child._id
-                            ? 'bg-blue-50 dark:bg-blue-900/30 border-l-4 border-blue-500'
-                            : 'hover:bg-gray-50 dark:hover:bg-slate-700/50'}
+                          ? 'bg-blue-50/50 dark:bg-blue-900/20 border-blue-500 shadow-md'
+                          : 'bg-transparent border-transparent hover:bg-gray-50 dark:hover:bg-slate-800/50 hover:border-gray-200 dark:hover:border-slate-700'}
                         `}
-                        onClick={() => setSelectedChild(childData.child._id)}
-                      >
-                        <User
-                          name={
-                            <span className="text-gray-900 dark:text-white font-medium">
-                              {`${childData.child.firstName} ${childData.child.lastName}`}
-                            </span>
-                          }
-                          description={
-                            <div className="flex flex-col gap-1">
-                              <span className="text-gray-500 dark:text-gray-400 text-xs">{childData.child.email}</span>
-                              {childData.status === 'pending' && (
-                                <Chip size="sm" color="warning" variant="flat" className="text-[10px] h-5">{t('parent.pending')}</Chip>
-                              )}
-                            </div>
-                          }
-                          avatarProps={{
-                            src: `https://i.pravatar.cc/150?u=${childData.child._id}`,
-                            isBordered: selectedChild === childData.child._id,
-                            color: "primary",
-                            size: "sm"
-                          }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <Avatar
+                          src={`https://i.pravatar.cc/150?u=${childData.child._id}`}
+                          size="md"
+                          isBordered
+                          color={selectedChild === childData.child._id ? "primary" : "default"}
                         />
+                        <div className="flex-1 min-w-0">
+                          <h4 className={`font-bold truncate transition-colors ${selectedChild === childData.child._id ? 'text-blue-700 dark:text-blue-400' : 'text-gray-700 dark:text-gray-200'}`}>
+                            {childData.child.firstName}
+                          </h4>
+                          <p className="text-xs text-gray-500 truncate">{childData.child.email}</p>
+                        </div>
+                        {childData.status === 'pending' && (
+                          <Tooltip content="Invitation en attente">
+                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                          </Tooltip>
+                        )}
                       </div>
-                    ))}
+                    </div>
+                  ))}
+
+                  {/* Add Button in horizontal list for easy access */}
+                  <div
+                    onClick={() => window.location.href = '/parent/invite-child'}
+                    className="lg:hidden flex items-center justify-center p-4 rounded-2xl cursor-pointer border-2 border-dashed border-gray-300 dark:border-slate-700 hover:border-indigo-500 min-w-[260px] shrink-0 text-gray-400 hover:text-indigo-500 transition-colors"
+                  >
+                    <div className="flex items-center gap-2 font-medium">
+                      <IconPlus size={20} />
+                      <span>Ajouter un enfant</span>
+                    </div>
                   </div>
-                </CardBody>
-              </Card>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-gray-100 dark:border-slate-800 hidden lg:block">
+                  <Button
+                    variant="light"
+                    color="primary"
+                    startContent={<IconPlus size={16} />}
+                    className="w-full justify-start font-medium"
+                    onClick={() => window.location.href = '/parent/invite-child'}
+                  >
+                    Ajouter un enfant
+                  </Button>
+                </div>
+              </div>
             </div>
 
             {/* Main Content Area */}
-            <div className="md:col-span-3">
+            <div className="lg:col-span-9">
               {selectedChild && (
-                <Card className="bg-white dark:bg-slate-800 shadow-sm min-h-[500px] border border-gray-200 dark:border-slate-700">
-                  <CardBody className="p-6">
-                    <Tabs
-                      aria-label="Options"
-                      color="primary"
-                      variant="underlined"
-                      size="lg"
-                      classNames={{
-                        tabList: "gap-6 w-full relative rounded-none p-0 border-b border-divider",
-                        cursor: "w-full bg-blue-500",
-                        tab: "max-w-fit px-0 h-12",
-                        tabContent: "group-data-[selected=true]:text-blue-500 text-gray-500 dark:text-gray-400"
-                      }}
+                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] md:rounded-[2.5rem] p-1 shadow-2xl border border-white/20 dark:border-slate-800">
+                  <Tabs
+                    aria-label="Options"
+                    color="primary"
+                    variant="bordered"
+                    radius="full"
+                    size="lg"
+                    classNames={{
+                      base: "w-full p-2 h-auto",
+                      tabList: "w-full bg-gray-100/50 dark:bg-slate-950/50 p-1 border border-white/10 dark:border-slate-800 flex-col md:flex-row h-auto",
+                      cursor: "bg-white dark:bg-slate-800 shadow-sm",
+                      tab: "h-12 font-medium text-gray-600 dark:text-gray-400 data-[selected=true]:text-gray-900 dark:data-[selected=true]:text-white transition-colors",
+                      tabContent: "group-data-[selected=true]:font-bold"
+                    }}
+                  >
+                    <Tab
+                      key="tasks"
+                      title={
+                        <div className="flex items-center gap-2">
+                          <IconChartBar size={18} />
+                          <span>Progression & Suivi</span>
+                        </div>
+                      }
                     >
-                      <Tab key="tasks" title={t('parent.tabs.tasks')}>
-                        <div className="mt-4">
-                          <TaskManagementWidget childId={selectedChild} />
+                      <div className="p-3 md:p-8">
+                        <TaskManagementWidget childId={selectedChild} />
+                      </div>
+                    </Tab>
+                    <Tab
+                      key="payments"
+                      title={
+                        <div className="flex items-center gap-2">
+                          <IconCreditCard size={18} />
+                          <span>Abonnements & Contrôles</span>
                         </div>
-                      </Tab>
-                      <Tab key="payments" title={t('parent.tabs.payments')}>
-                        <div className="mt-4">
-                          <PaymentControlWidget childId={selectedChild} />
-                        </div>
-                      </Tab>
-                    </Tabs>
-                  </CardBody>
-                </Card>
+                      }
+                    >
+                      <div className="p-3 md:p-8">
+                        <PaymentControlWidget childId={selectedChild} />
+                      </div>
+                    </Tab>
+                  </Tabs>
+                </div>
               )}
             </div>
           </div>

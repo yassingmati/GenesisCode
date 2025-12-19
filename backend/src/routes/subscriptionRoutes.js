@@ -37,9 +37,19 @@ router.use(protect);
 router.get('/me', catchErrors(subscriptionController.getMySubscriptions));
 
 /**
+ * Obtenir les abonnements d'un utilisateur (Admin/Parent)
+ */
+router.get('/user/:userId', catchErrors(subscriptionController.getUserSubscriptions));
+
+/**
  * S'abonner à un plan (Gratuit ou Payant)
  */
 router.post('/subscribe', catchErrors(subscriptionController.subscribe));
+
+/**
+ * Vérifier un code promo
+ */
+router.post('/verify-promo', catchErrors(subscriptionController.verifyPromoCode));
 
 /**
  * Annuler un abonnement spécifique

@@ -34,9 +34,9 @@ exports.protect = async (req, res, next) => {
       decoded = jwt.verify(token, secret);
     } catch (err) {
       console.error('JWT verification failed:', err?.message || err);
-      return res.status(401).json({ 
-        success: false, 
-        message: err?.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide' 
+      return res.status(401).json({
+        success: false,
+        message: err?.name === 'TokenExpiredError' ? 'Session expirée' : 'Token invalide'
       });
     }
 
@@ -44,10 +44,17 @@ exports.protect = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Token invalide: ID manquant' });
     }
 
+
+
+
+
     const currentUser = await User.findById(decoded.id)
       .select('email roles role subscription isVerified isProfileComplete')
       .lean()
       .exec();
+
+    console.log('DEBUG AUTH: Found user:', currentUser ? currentUser._id : 'null');
+
     if (!currentUser) {
       return res.status(401).json({ success: false, message: "L'utilisateur associé à ce token n'existe plus" });
     }
@@ -91,9 +98,9 @@ exports.adminOnly = (req, res, next) => {
     }
     const userRoles = Array.isArray(req.user.roles) ? req.user.roles : (req.user.role ? [req.user.role] : []);
     if (!userRoles.includes('admin')) {
-      return res.status(403).json({ 
-        success: false, 
-        message: 'Permissions administrateur requises' 
+      return res.status(403).json({
+        success: false,
+        message: 'Permissions administrateur requises'
       });
     }
     next();
@@ -145,7 +152,7 @@ exports.optionalAuth = async (req, res, next) => {
         }
       }
     }
-    
+
     next();
   } catch (error) {
     console.error('Error in optionalAuth middleware:', error);

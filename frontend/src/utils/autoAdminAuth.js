@@ -1,6 +1,9 @@
 /**
  * Script d'authentification automatique pour les pages admin
- * S'exécute automatiquement sur toutes les pages /admin/*
+ * Vérifie l'authentification sur les pages /admin/* SANS injecter de tokens
+ * 
+ * IMPORTANT: Ce script ne crée PLUS de tokens automatiquement.
+ * Il vérifie seulement si l'admin est authentifié et affiche des avertissements si nécessaire.
  */
 
 import { initAdminAuth } from './adminAuthBridge';
@@ -9,18 +12,28 @@ import { initAdminAuth } from './adminAuthBridge';
 const autoInit = () => {
   // Vérifier si nous sommes sur une page admin
   const isAdminPage = window.location.pathname.includes('/admin/');
-  
+
   if (isAdminPage) {
-    console.log('🔧 Page admin détectée - Initialisation de l\'authentification...');
-    
+    console.log('🔧 Page admin détectée - Vérification de l\'authentification...');
+
     // Attendre que la page soit complètement chargée
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        initAdminAuth();
+        const authStatus = initAdminAuth();
+
+        if (authStatus === 'not_authenticated') {
+          console.warn('⚠️ ATTENTION: Vous accédez à une page admin sans authentification valide.');
+          console.warn('💡 Veuillez vous connecter via /admin/login');
+        }
       });
     } else {
       // Page déjà chargée
-      initAdminAuth();
+      const authStatus = initAdminAuth();
+
+      if (authStatus === 'not_authenticated') {
+        console.warn('⚠️ ATTENTION: Vous accédez à une page admin sans authentification valide.');
+        console.warn('💡 Veuillez vous connecter via /admin/login');
+      }
     }
   }
 };
@@ -37,4 +50,5 @@ setInterval(() => {
   }
 }, 1000);
 
-console.log('🔧 Auto Admin Auth chargé - Surveillance des pages admin activée');
+console.log('🔧 Auto Admin Auth chargé - Surveillance des pages admin activée (mode vérification uniquement)');
+

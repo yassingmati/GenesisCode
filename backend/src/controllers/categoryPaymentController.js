@@ -68,7 +68,7 @@ class CategoryPaymentController {
   static async initCategoryPayment(req, res) {
     try {
       const userId = req.user ? req.user.id : null;
-      const { categoryId, returnUrl, cancelUrl } = req.body;
+      const { categoryId, returnUrl, cancelUrl, promoCode } = req.body;
 
       if (!userId) {
         return res.status(401).json({
@@ -88,7 +88,8 @@ class CategoryPaymentController {
         userId,
         categoryId,
         returnUrl,
-        cancelUrl
+        cancelUrl,
+        promoCode
       );
 
       return res.json({
@@ -159,6 +160,10 @@ class CategoryPaymentController {
       const userId = req.user ? req.user.id : null;
       const { categoryId } = req.params;
 
+      console.log(`🔒 CheckCategoryAccess Request:`);
+      console.log(`   - User ID from Token: ${userId}`);
+      console.log(`   - Category ID from Params: ${categoryId}`);
+
       if (!userId) {
         return res.status(401).json({
           success: false,
@@ -174,6 +179,7 @@ class CategoryPaymentController {
       }
 
       const result = await CategoryPaymentService.checkCategoryAccess(userId, categoryId);
+      console.log(`🔒 CheckCategoryAccess Result:`, result);
 
       return res.json({
         success: true,
@@ -358,6 +364,33 @@ class CategoryPaymentController {
     } catch (error) {
       console.error('Error resetting access:', error);
       return res.status(500).json({ success: false, error: error.message });
+    }
+  }
+  /**
+   * Valide un code promo
+   */
+  static async validatePromoCode(req, res) {
+    try {
+      const { code, categoryPlanId } = req.body;
+
+      if (!code) {
+        return res.status(400).json({ success: false, message: 'Code requis' });
+      }
+
+      const result = await CategoryPaymentService.validatePromoCode(code, categoryPlanId);
+
+      return res.json({
+        success: true,
+        ...result
+      });
+
+    } catch (error) {
+      console.error('Error validating promo code:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur validation code',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 }

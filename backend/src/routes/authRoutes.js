@@ -22,6 +22,6 @@ router.put('/profile/complete', authMiddleware.protect, authController.completeP
 router.get('/profile', authMiddleware.protect, authController.getProfile);
 
 // Debug route for test user setup
-router.post('/debug/setup-test-user', authController.debugSetupTestUser); // TEMP DEBUG
+
 
 module.exports = router;

@@ -109,7 +109,89 @@ userProgressSchema.statics.updateProgress = async function (userId, exerciseId, 
   }
 
   const options = { upsert: true, new: true, setDefaultsOnInsert: true };
-  return this.findOneAndUpdate(filter, update, options).exec();
+  const updatedProgress = await this.findOneAndUpdate(filter, update, options).exec();
+
+  // --- Mise à jour du User (XP global, stats journalières/mensuelles, Badges) ---
+  try {
+    const User = mongoose.model('User');
+    const BADGES = require('../config/BadgeRegistry');
+
+    // 1. Récupérer l'utilisateur pour vérifier les dates de reset
+    const user = await User.findById(userObjectId);
+    if (user) {
+      const today = new Date();
+      const isNewDay = !user.xpStats?.lastDailyReset || user.xpStats.lastDailyReset.getDate() !== today.getDate() || user.xpStats.lastDailyReset.getMonth() !== today.getMonth();
+      const isNewMonth = !user.xpStats?.lastMonthlyReset || user.xpStats.lastMonthlyReset.getMonth() !== today.getMonth();
+
+      // Préparer la mise à jour
+      const userUpdate = {
+        $inc: { totalXP: xp },
+        $set: {}
+      };
+
+      // Gestion Daily
+      if (isNewDay) {
+        userUpdate.$set['xpStats.daily'] = xp;
+        userUpdate.$set['xpStats.lastDailyReset'] = today;
+      } else {
+        userUpdate.$inc['xpStats.daily'] = xp;
+      }
+
+      // Gestion Monthly
+      if (isNewMonth) {
+        userUpdate.$set['xpStats.monthly'] = xp;
+        userUpdate.$set['xpStats.lastMonthlyReset'] = today;
+      } else {
+        userUpdate.$inc['xpStats.monthly'] = xp;
+      }
+
+      // --- Logique des Badges ---
+      const currentBadges = user.badges || [];
+      const newBadges = [];
+
+      // Calculer les nouvelles valeurs (approximatives pour la vérification immédiate)
+      // Note: totalXP est mis à jour atomiquement, donc on utilise (user.totalXP + xp)
+      const projectedTotalXP = (user.totalXP || 0) + xp;
+
+      // On peut aussi avoir besoin du nombre total d'exercices, etc.
+      // Pour l'instant on se base sur ce qu'on a ou on fait une requête rapide si besoin d'info agrégée
+      // (Optimisation: passer les stats en paramètre ou les stocker sur le user)
+
+      Object.values(BADGES).forEach(badge => {
+        if (currentBadges.includes(badge.id)) return; // Déjà acquis
+
+        let earned = false;
+        if (badge.criteria.type === 'xp' && projectedTotalXP >= badge.criteria.value) {
+          earned = true;
+        } else if (badge.criteria.type === 'exercises') {
+          // Optimisation: On ne compte que si l'utilisateur n'a pas le badge
+          // Ce count peut être coûteux, à utiliser avec parcimonie ou stocker le compteur sur le User
+          // Pour l'instant on fait simple
+          // Note: completed vient d'être mis à jour dans userProgress, mais countDocuments peut ne pas le voir immédiatement si transaction ? 
+          // Non mongo est pas transactionnel par défaut ici. Mais on vient de faire findOneAndUpdate.
+          // On peut aussi estimer stats du user si on les avait stockées.
+        }
+        // Ajouter d'autres types de critères ici (streak, exercises count, etc.)
+        // Pour 'exercises', il faudrait count UserProgress. On peut le faire si on veut être précis.
+
+        if (earned) {
+          newBadges.push(badge.id);
+        }
+      });
+
+      if (newBadges.length > 0) {
+        userUpdate.$push = { badges: { $each: newBadges } };
+      }
+
+      // Appliquer la mise à jour utilisateur
+      await User.findByIdAndUpdate(userObjectId, userUpdate);
+    }
+  } catch (err) {
+    console.error("Erreur lors de la mise à jour du User XP/Badges:", err);
+    // On ne bloque pas le retour du progress si ça échoue, mais on log l'erreur
+  }
+
+  return updatedProgress;
 };
 
 // Méthode statique pour obtenir les statistiques d'un utilisateur

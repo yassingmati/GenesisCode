@@ -22,10 +22,21 @@ export default function DashboardLayout({ children, activePage, setActivePage })
     // Handle window resize
     useEffect(() => {
         const handleResize = () => {
-            if (window.innerWidth < 1024) {
+            if (window.innerWidth < 768) {
+                // Mobile: Drawer mode, state doesn't affect collapsed prop as much as CSS
+                // keeping it default false for drawer internal logic (expanded inside drawer)
+                setSidebarCollapsed(false);
+            } else if (window.innerWidth < 1024) {
+                // Tablet: Rail mode (Auto collapsed)
                 setSidebarCollapsed(true);
+            } else {
+                // Desktop: Default expanded
+                setSidebarCollapsed(false);
             }
         };
+
+        // Initial check
+        handleResize();
 
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);

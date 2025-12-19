@@ -154,7 +154,7 @@ exports.getChildDetails = async (req, res) => {
 
     // Progression par niveau
     const levelProgress = await UserProgress.aggregate([
-      { $match: { user: mongoose.Types.ObjectId(childId) } },
+      { $match: { user: new mongoose.Types.ObjectId(childId) } },
       { $lookup: { from: 'exercises', localField: 'exercise', foreignField: '_id', as: 'exercise' } },
       { $unwind: '$exercise' },
       { $lookup: { from: 'levels', localField: 'exercise.level', foreignField: '_id', as: 'level' } },

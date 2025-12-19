@@ -274,6 +274,9 @@ class LevelUnlockService {
 
         // Optionnel : envoyer une notification à l'utilisateur
         // await NotificationService.sendLevelUnlocked(userId, nextLevel);
+      } else {
+        // Si pas de niveau suivant, on vérifie si le parcours est terminé pour donner un badge
+        await this.checkPathCompletionAndAwardBadge(userId, levelId);
       }
 
       return nextLevel;
@@ -281,6 +284,39 @@ class LevelUnlockService {
     } catch (error) {
       console.error('❌ Erreur traitement niveau complété:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Vérifie si le parcours est terminé et donne un badge
+   */
+  static async checkPathCompletionAndAwardBadge(userId, completedLevelId) {
+    try {
+      const completedLevel = await Level.findById(completedLevelId).populate('path');
+      if (!completedLevel || !completedLevel.path) return;
+
+      const path = completedLevel.path;
+      const totalLevels = await Level.countDocuments({ path: path._id });
+      const completedLevels = await UserLevelProgress.countDocuments({
+        user: userId,
+        level: { $in: await Level.find({ path: path._id }).distinct('_id') },
+        completed: true
+      });
+
+      if (completedLevels >= totalLevels) {
+        const User = require('../models/User'); // Lazy load to avoid circular dependency
+        const badgeId = `PATH_${path._id}`;
+
+        const user = await User.findById(userId);
+        if (user && !user.badges.includes(badgeId)) {
+          await User.findByIdAndUpdate(userId, { $addToSet: { badges: badgeId } });
+          console.log(`🏆 Badge de parcours accordé: ${badgeId}`);
+        } else {
+          console.log(`ℹ️ Badge déjà acquis ou utilisateur introuvable`);
+        }
+      }
+    } catch (err) {
+      console.error('❌ Erreur badge parcours:', err);
     }
   }
 }

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Auto-Login</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .container {
+            background: white;
+            padding: 3rem;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            text-align: center;
+            max-width: 500px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+        .status {
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1.5rem 0;
+            font-weight: 500;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .token-display {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 Admin Auto-Login</h1>
+        <p>Cliquez sur le bouton pour vous connecter automatiquement</p>
+        
+        <div id="status" class="status loading">
+            En attente...
+        </div>
+        
+        <div id="tokenDisplay" class="token-display" style="display: none;"></div>
+        
+        <button id="loginBtn" onclick="autoLogin()">Se connecter</button>
+        <button id="redirectBtn" onclick="redirectToAdmin()" style="display: none; margin-top: 1rem;">
+            Aller à la page Category Plans
+        </button>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        const CREDENTIALS = {
+            email: 'admin2@test.com',
+            password: 'password123'
+        };
+
+        async function autoLogin() {
+            const statusEl = document.getElementById('status');
+            const loginBtn = document.getElementById('loginBtn');
+            const redirectBtn = document.getElementById('redirectBtn');
+            const tokenDisplay = document.getElementById('tokenDisplay');
+            
+            loginBtn.disabled = true;
+            statusEl.className = 'status loading';
+            statusEl.textContent = 'Connexion en cours...';
+            
+            try {
+                const response = await fetch(`${API_URL}/api/admin/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(CREDENTIALS)
+                });
+                
+                const data = await response.json();
+                
+                if (data.token) {
+                    // Sauvegarder le token
+                    localStorage.setItem('adminToken', data.token);
+                    localStorage.setItem('adminData', JSON.stringify(data.admin));
+                    
+                    statusEl.className = 'status success';
+                    statusEl.innerHTML = `
+                        ✅ Connexion réussie !<br>
+                        <small>Admin: ${data.admin.email}</small>
+                    `;
+                    
+                    tokenDisplay.style.display = 'block';
+                    tokenDisplay.textContent = `Token: ${data.token}`;
+                    
+                    redirectBtn.style.display = 'block';
+                    loginBtn.style.display = 'none';
+                } else {
+                    throw new Error(data.message || 'Échec de connexion');
+                }
+            } catch (error) {
+                statusEl.className = 'status error';
+                statusEl.textContent = `❌ Erreur: ${error.message}`;
+                loginBtn.disabled = false;
+            }
+        }
+        
+        function redirectToAdmin() {
+            window.location.href = 'http://localhost:3000/admin/category-plans';
+        }
+        
+        // Vérifier si déjà connecté
+        window.onload = function() {
+            const token = localStorage.getItem('adminToken');
+            if (token) {
+                document.getElementById('status').className = 'status success';
+                document.getElementById('status').textContent = '✅ Déjà connecté !';
+                document.getElementById('redirectBtn').style.display = 'block';
+                document.getElementById('loginBtn').style.display = 'none';
+            }
+        };
+    </script>
+</body>
+</html>

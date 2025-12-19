@@ -8,47 +8,47 @@ const categoryAccessSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  
+
   category: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Category',
     required: true,
     index: true
   },
-  
+
   categoryPlan: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'CategoryPlan',
+    type: String, // ID string ex: "plan-debutant"
+    ref: 'Plan',
     required: true
   },
-  
+
   // Statut de l'accès
   status: {
     type: String,
-    enum: ['active', 'expired', 'cancelled'],
+    enum: ['active', 'expired', 'cancelled', 'pending'],
     default: 'active',
     index: true
   },
-  
+
   // Type d'accès
   accessType: {
     type: String,
     enum: ['purchase', 'subscription', 'free', 'admin'],
     required: true
   },
-  
+
   // Date d'achat/activation
   purchasedAt: {
     type: Date,
     default: Date.now
   },
-  
+
   // Date d'expiration
   expiresAt: {
     type: Date,
     index: true
   },
-  
+
   // Informations de paiement
   payment: {
     konnectPaymentId: String,
@@ -56,7 +56,7 @@ const categoryAccessSchema = new mongoose.Schema({
     currency: String,
     status: String
   },
-  
+
   // Niveaux débloqués
   unlockedLevels: [{
     path: {
@@ -72,7 +72,7 @@ const categoryAccessSchema = new mongoose.Schema({
       default: Date.now
     }
   }],
-  
+
   // Métadonnées
   metadata: {
     type: mongoose.Schema.Types.Mixed,
@@ -88,7 +88,7 @@ categoryAccessSchema.index({ user: 1, status: 1, expiresAt: 1 });
 categoryAccessSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Méthodes statiques
-categoryAccessSchema.statics.findActiveByUser = function(userId) {
+categoryAccessSchema.statics.findActiveByUser = function (userId) {
   return this.find({
     user: userId,
     status: 'active',
@@ -99,7 +99,7 @@ categoryAccessSchema.statics.findActiveByUser = function(userId) {
   }).populate('category categoryPlan');
 };
 
-categoryAccessSchema.statics.findActiveByUserAndCategory = function(userId, categoryId, populate = false) {
+categoryAccessSchema.statics.findActiveByUserAndCategory = function (userId, categoryId, populate = false) {
   const query = this.findOne({
     user: userId,
     category: categoryId,
@@ -109,15 +109,15 @@ categoryAccessSchema.statics.findActiveByUserAndCategory = function(userId, cate
       { expiresAt: null }
     ]
   });
-  
+
   if (populate) {
     return query.populate('category categoryPlan');
   }
-  
+
   return query;
 };
 
-categoryAccessSchema.statics.findExpired = function() {
+categoryAccessSchema.statics.findExpired = function () {
   return this.find({
     status: 'active',
     expiresAt: { $lt: new Date() }
@@ -125,29 +125,29 @@ categoryAccessSchema.statics.findExpired = function() {
 };
 
 // Méthodes d'instance
-categoryAccessSchema.methods.isActive = function() {
+categoryAccessSchema.methods.isActive = function () {
   if (this.status !== 'active') return false;
   if (!this.expiresAt) return true;
   return this.expiresAt > new Date();
 };
 
-categoryAccessSchema.methods.isExpired = function() {
+categoryAccessSchema.methods.isExpired = function () {
   if (this.status === 'expired') return true;
   if (!this.expiresAt) return false;
   return this.expiresAt < new Date();
 };
 
-categoryAccessSchema.methods.expire = function() {
+categoryAccessSchema.methods.expire = function () {
   this.status = 'expired';
   return this.save();
 };
 
-categoryAccessSchema.methods.unlockLevel = function(pathId, levelId) {
+categoryAccessSchema.methods.unlockLevel = function (pathId, levelId) {
   const existingUnlock = this.unlockedLevels.find(
-    unlock => unlock.path.toString() === pathId.toString() && 
-              unlock.level.toString() === levelId.toString()
+    unlock => unlock.path.toString() === pathId.toString() &&
+      unlock.level.toString() === levelId.toString()
   );
-  
+
   if (!existingUnlock) {
     this.unlockedLevels.push({
       path: pathId,
@@ -156,14 +156,14 @@ categoryAccessSchema.methods.unlockLevel = function(pathId, levelId) {
     });
     return this.save();
   }
-  
+
   return Promise.resolve(this);
 };
 
-categoryAccessSchema.methods.hasUnlockedLevel = function(pathId, levelId) {
+categoryAccessSchema.methods.hasUnlockedLevel = function (pathId, levelId) {
   return this.unlockedLevels.some(
-    unlock => unlock.path.toString() === pathId.toString() && 
-              unlock.level.toString() === levelId.toString()
+    unlock => unlock.path.toString() === pathId.toString() &&
+      unlock.level.toString() === levelId.toString()
   );
 };
 

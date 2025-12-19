@@ -63,22 +63,94 @@ export default function AdminTaskManagement() {
     }, [selectedUser, selectedDate, taskFrequency]);
 
     const loadTasks = async () => {
-        const loadedTasks = await taskService.getTasks(selectedUser, selectedDate, taskFrequency);
-        setTasks([...loadedTasks]);
+        try {
+            // Fetch Assigned Tasks instead of legacy tasks
+            const assignedTasks = await taskService.getChildTasks(selectedUser, selectedDate, selectedDate);
+
+            // Normalize for display
+            const normalizedTasks = Array.isArray(assignedTasks) ? assignedTasks.map(t => ({
+                id: t._id, // AssignedTask ID
+                title: t.templateId?.title || 'Tâche assignée',
+                type: t.recurrenceType === 'monthly' ? 'monthly' : 'daily',
+                status: t.status || 'pending',
+                autoRenew: t.autoRenew
+            })) : [];
+
+            // Filter by frequency if needed (though the API call already scoped by date logic)
+            // But 'monthly' tasks might show up in daily view if they overlap?
+            // Let's filter by the UI switch
+            const filteredJson = normalizedTasks.filter(t =>
+                taskFrequency === 'daily' ? t.type !== 'monthly' : t.type === 'monthly'
+            );
+
+            setTasks(filteredJson);
+        } catch (error) {
+            console.error("Error loading tasks:", error);
+            setTasks([]);
+        }
     };
 
     const handleAddTask = async () => {
         if (!newTaskTitle.trim() || !selectedUser) return;
-        await taskService.addTask(selectedUser, selectedDate, newTaskTitle, taskFrequency);
-        setNewTaskTitle('');
-        onOpen(false);
-        loadTasks();
+
+        try {
+            // 1. Create a Task Template (Invisible to user, acting as a definition)
+            const templatePayload = {
+                title: newTaskTitle,
+                description: `Tâche ${taskFrequency === 'daily' ? 'journalière' : 'mensuelle'} créée par l'admin`,
+                type: 'custom',
+                recurrence: {
+                    type: taskFrequency,
+                    frequency: taskFrequency
+                },
+                target: {
+                    exercises_submitted: 1 // Default target
+                },
+                xpReward: 10
+            };
+
+            const template = await taskService.createTaskTemplate(templatePayload);
+
+            // 2. Assign the task
+            const startDate = new Date(selectedDate);
+            let endDate = new Date(selectedDate);
+
+            if (taskFrequency === 'daily') {
+                // Ensure end is end of day
+                endDate.setHours(23, 59, 59, 999);
+            } else {
+                // For monthly, set to end of month
+                endDate = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0, 23, 59, 59, 999);
+            }
+
+            const assignmentPayload = {
+                templateId: template._id,
+                childIds: [selectedUser],
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+                autoRenew: taskFrequency === 'daily' // Auto-renew only for daily tasks
+            };
+
+            await taskService.assignTasks(assignmentPayload);
+
+            setNewTaskTitle('');
+            onOpen(false);
+            loadTasks();
+        } catch (error) {
+            console.error("Error adding task:", error);
+            alert("Erreur lors de l'ajout de la tâche");
+        }
     };
 
     const handleDeleteTask = async (taskId) => {
         if (window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche ?')) {
-            await taskService.deleteTask(selectedUser, selectedDate, taskId);
-            loadTasks();
+            try {
+                await taskService.deleteAssignedTask(taskId);
+                loadTasks();
+            } catch (error) {
+                console.error("Error deleting task:", error);
+                alert("Erreur lors de la suppression");
+            }
         }
     };
 
@@ -160,6 +232,7 @@ export default function AdminTaskManagement() {
                                 <TableHeader>
                                     <TableColumn>TITRE</TableColumn>
                                     <TableColumn>TYPE</TableColumn>
+                                    <TableColumn>RENOUVELLEMENT</TableColumn>
                                     <TableColumn>STATUT</TableColumn>
                                     <TableColumn>ACTIONS</TableColumn>
                                 </TableHeader>
@@ -169,8 +242,15 @@ export default function AdminTaskManagement() {
                                             <TableCell className="font-medium">{task.title}</TableCell>
                                             <TableCell>
                                                 <Chip size="sm" color={task.type === 'auto' ? "warning" : "secondary"} variant="flat">
-                                                    {task.type === 'auto' ? 'Auto' : 'Manuel'}
+                                                    {task.type === 'monthly' ? 'Mensuel' : 'Journalier'}
                                                 </Chip>
+                                            </TableCell>
+                                            <TableCell>
+                                                {task.autoRenew ? (
+                                                    <Chip size="sm" color="success" variant="flat">Oui</Chip>
+                                                ) : (
+                                                    <Chip size="sm" color="default" variant="flat">Non</Chip>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <Chip
@@ -199,7 +279,7 @@ export default function AdminTaskManagement() {
                             </Table>
                         ) : (
                             <div className="text-center py-8 text-gray-500">
-                                Aucune tâche pour cette période.
+                                Aucune tâche trouvée pour cette période.
                             </div>
                         )}
                     </CardBody>
@@ -209,7 +289,7 @@ export default function AdminTaskManagement() {
             {/* Add Task Modal */}
             <Modal isOpen={isOpen} onClose={onClose}>
                 <ModalContent>
-                    <ModalHeader>Ajouter {taskFrequency === 'daily' ? 'une tâche manuelle' : 'un objectif mensuel'}</ModalHeader>
+                    <ModalHeader>Ajouter {taskFrequency === 'daily' ? 'une tâche' : 'un objectif mensuel'}</ModalHeader>
                     <ModalBody>
                         <Input
                             autoFocus
