@@ -5,20 +5,13 @@ import { FcGoogle } from 'react-icons/fc';
 import { FaEye, FaEyeSlash, FaEnvelope, FaLock, FaUserGraduate, FaUserTie, FaArrowLeft } from 'react-icons/fa';
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { app } from '../../firebaseConfig';
-import axios from 'axios';
-import { getApiUrl } from '../../utils/apiConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThemeToggle from '../../components/ThemeToggle';
 import LanguageSelector from '../../components/LanguageSelector';
 import { useTranslation } from '../../hooks/useTranslation';
+import * as authService from '../../services/authService';
 
 const auth = getAuth(app);
-// En production, utiliser URL relative (même domaine) pour éviter CORS
-// En développement, utiliser localhost
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
-  (process.env.NODE_ENV === 'production' ? 'https://codegenesis-backend.onrender.com' : getApiUrl(''));
-
-(process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
 
 const Auth = ({ type }) => {
   const { t } = useTranslation();
@@ -76,16 +69,13 @@ const Auth = ({ type }) => {
     }
 
     try {
-      // Appel API avec URL absolue
-      const endpoint = type === 'register'
-        ? `${API_BASE_URL}/api/auth/register`
-        : `${API_BASE_URL}/api/auth/login`;
+      let data;
 
-      const response = await axios.post(endpoint, {
-        email: formData.email,
-        password: formData.password,
-        userType: formData.userType // Inclure le type d'utilisateur
-      });
+      if (type === 'register') {
+        data = await authService.register(formData.email, formData.password, formData.userType);
+      } else {
+        data = await authService.login(formData.email, formData.password, formData.userType);
+      }
 
       // Nettoyage de toute session précédente
       localStorage.removeItem('token');
@@ -95,8 +85,8 @@ const Auth = ({ type }) => {
       localStorage.removeItem('accessToken');
 
       // Stockage du token et des données utilisateur
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
 
       setSuccessMessage(type === 'register'
         ? 'Compte créé! Vérifiez votre email'
@@ -109,7 +99,7 @@ const Auth = ({ type }) => {
           navigate('/login');
         } else {
           // Vérification robuste des propriétés avec valeurs par défaut
-          const user = response.data.user;
+          const user = data.user;
           const isVerified = user.isVerified ?? false;
           const isProfileComplete = user.isProfileComplete ?? false;
 
@@ -187,23 +177,16 @@ const Auth = ({ type }) => {
 
       // Envoyer le token au backend
       console.log('🔵 Envoi du token au backend...');
-      const response = await axios.post(`${API_BASE_URL}/api/auth/login/google`, {
-        idToken
-      }, {
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        timeout: Number(process.env.REACT_APP_GOOGLE_LOGIN_TIMEOUT_MS || 20000)
-      });
+      const data = await authService.loginWithGoogle(idToken);
 
-      if (!response.data || !response.data.token) {
+      if (!data || !data.token) {
         throw new Error('Réponse invalide du serveur');
       }
 
       console.log('✅ Réponse backend reçue:', {
-        hasToken: !!response.data.token,
-        hasUser: !!response.data.user,
-        userEmail: response.data.user?.email
+        hasToken: !!data.token,
+        hasUser: !!data.user,
+        userEmail: data.user?.email
       });
 
       // Nettoyage de toute session précédente
@@ -214,14 +197,14 @@ const Auth = ({ type }) => {
       localStorage.removeItem('accessToken');
 
       // Stocker le token et les données utilisateur
-      localStorage.setItem('token', response.data.token);
-      localStorage.setItem('user', JSON.stringify(response.data.user));
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data.user));
 
       setSuccessMessage('Connexion Google réussie!');
 
       setTimeout(() => {
         // Vérification robuste des propriétés avec valeurs par défaut
-        const user = response.data.user;
+        const user = data.user;
         const isVerified = user.isVerified ?? false;
         const isProfileComplete = user.isProfileComplete ?? false;
 

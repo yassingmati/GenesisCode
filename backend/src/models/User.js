@@ -55,6 +55,12 @@ const userSchema = new mongoose.Schema({
     email: { type: Boolean, default: true },
     push: { type: Boolean, default: true },
     sms: { type: Boolean, default: false }
+  },
+
+  // Fallback Authentication (Simple Auth)
+  localPasswordHash: {
+    type: String,
+    select: false // Ne jamais renvoyer ce champ par défaut dans les requêtes
   }
 }, {
   timestamps: true,
