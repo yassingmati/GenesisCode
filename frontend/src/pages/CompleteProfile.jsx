@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../utils/apiConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FaUser, FaPhone, FaUserGraduate, FaUserTie, FaCheck, FaArrowRight, FaArrowLeft } from 'react-icons/fa';
+import { FaUser, FaPhone, FaUserGraduate, FaUserTie, FaCheck, FaArrowRight, FaArrowLeft, FaLock, FaEye, FaEyeSlash } from 'react-icons/fa';
 import ThemeToggle from '../components/ThemeToggle';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
-const TOTAL_STEPS = 2;
+const TOTAL_STEPS = 3;
 
 const CompleteProfile = () => {
   const [step, setStep] = useState(1);
@@ -15,8 +15,12 @@ const CompleteProfile = () => {
     firstName: '',
     lastName: '',
     phone: '',
-    userType: 'student'
+    userType: 'student',
+    password: '',
+    confirmPassword: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const navigate = useNavigate();
@@ -28,6 +32,10 @@ const CompleteProfile = () => {
   const nextStep = () => {
     if (step === 1 && (!formData.firstName || !formData.lastName)) {
       setErrors({ general: "Veuillez remplir le nom et le prénom." });
+      return;
+    }
+    if (step === 2 && !formData.userType) {
+      setErrors({ general: "Veuillez sélectionner un rôle." });
       return;
     }
     setErrors({});
@@ -46,7 +54,18 @@ const CompleteProfile = () => {
     setErrors({});
 
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/auth/profile/complete`, formData, {
+      if (formData.password !== formData.confirmPassword) {
+        setErrors({ general: "Les mots de passe ne correspondent pas." });
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Prepare payload - only send password if provided (it's optional but recommended)
+      const payload = { ...formData };
+      if (!payload.password) delete payload.password;
+      delete payload.confirmPassword;
+
+      const response = await axios.put(`${API_BASE_URL}/api/auth/profile/complete`, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
@@ -201,8 +220,8 @@ const CompleteProfile = () => {
                             className="hidden"
                           />
                           <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col items-center gap-2 ${formData.userType === 'student'
-                              ? 'bg-blue-600/10 dark:bg-blue-600/20 border-blue-500 text-blue-600 dark:text-white shadow-[0_0_20px_rgba(59,130,246,0.1)] dark:shadow-[0_0_20px_rgba(59,130,246,0.2)]'
-                              : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                            ? 'bg-blue-600/10 dark:bg-blue-600/20 border-blue-500 text-blue-600 dark:text-white shadow-[0_0_20px_rgba(59,130,246,0.1)] dark:shadow-[0_0_20px_rgba(59,130,246,0.2)]'
+                            : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                             }`}>
                             <FaUserGraduate className={`text-2xl ${formData.userType === 'student' ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
                             <span className="font-medium text-sm">Étudiant</span>
@@ -219,14 +238,87 @@ const CompleteProfile = () => {
                             className="hidden"
                           />
                           <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col items-center gap-2 ${formData.userType === 'parent'
-                              ? 'bg-purple-600/10 dark:bg-purple-600/20 border-purple-500 text-purple-600 dark:text-white shadow-[0_0_20px_rgba(168,85,247,0.1)] dark:shadow-[0_0_20px_rgba(168,85,247,0.2)]'
-                              : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
+                            ? 'bg-purple-600/10 dark:bg-purple-600/20 border-purple-500 text-purple-600 dark:text-white shadow-[0_0_20px_rgba(168,85,247,0.1)] dark:shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                            : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                             }`}>
                             <FaUserTie className={`text-2xl ${formData.userType === 'parent' ? 'text-purple-500 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`} />
                             <span className="font-medium text-sm">Parent</span>
                           </div>
                         </label>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between pt-4">
+                    <button
+                      type="button"
+                      onClick={prevStep}
+                      className="text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 font-medium px-4 py-2 transition-colors flex items-center gap-2"
+                    >
+                      <FaArrowLeft /> Retour
+                    </button>
+                    <button
+                      type="button"
+                      onClick={nextStep}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-blue-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2"
+                    >
+                      Suivant <FaArrowRight />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {step === 3 && (
+                <motion.div
+                  key="step3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-5"
+                >
+                  <div className="text-center mb-2">
+                    <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Sécurisez votre compte</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400">Créez un mot de passe pour accéder à votre compte sans Google.</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="relative group">
+                      <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        placeholder="Nouveau mot de passe"
+                        value={formData.password}
+                        onChange={handleChange}
+                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl py-3.5 pl-11 pr-12 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                      >
+                        {showPassword ? <FaEyeSlash /> : <FaEye />}
+                      </button>
+                    </div>
+
+                    <div className="relative group">
+                      <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                      <input
+                        type={showConfirmPassword ? "text" : "password"}
+                        name="confirmPassword"
+                        placeholder="Confirmer le mot de passe"
+                        value={formData.confirmPassword}
+                        onChange={handleChange}
+                        className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-xl py-3.5 pl-11 pr-12 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                      >
+                        {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                      </button>
                     </div>
                   </div>
 

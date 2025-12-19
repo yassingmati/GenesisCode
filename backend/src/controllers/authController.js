@@ -419,8 +419,8 @@ exports.loginWithGoogle = async (req, res) => {
                 email,
                 firstName: name ? name.split(' ')[0] : '',
                 lastName: name ? (name.split(' ').slice(1).join(' ') || '') : '',
-                userType: 'student',
-                isProfileComplete: !!name,
+                userType: 'student', // Default, will be updated in onboarding
+                isProfileComplete: false, // Force false to trigger onboarding wizard
                 isVerified: true
             });
         } else {
@@ -543,7 +543,7 @@ exports.completeProfile = async (req, res) => {
             return res.status(401).json({ message: 'User not authenticated.' });
         }
 
-        const { firstName, lastName, userType } = req.body;
+        const { firstName, lastName, userType, password } = req.body;
 
         const user = await User.findById(userId);
         if (!user) {
@@ -553,6 +553,17 @@ exports.completeProfile = async (req, res) => {
         if (firstName) user.firstName = firstName;
         if (lastName) user.lastName = lastName;
         if (userType) user.userType = userType;
+
+        // Handle Password Creation (Secure Fallback)
+        if (password) {
+            if (password.length < 6) {
+                return res.status(400).json({ message: 'Password must be at least 6 characters.' });
+            }
+            // Hash password using authService
+            user.localPasswordHash = await authService.hashPassword(password);
+            console.log(`🔒 Password created for user ${user.email} during onboarding.`);
+        }
+
         user.isProfileComplete = true;
 
         await user.save();

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getApiUrl } from '../../utils/apiConfig';
+import api from '../../utils/api';
 import { Card, CardHeader, CardBody, Tab, Tabs, Avatar, Chip, CircularProgress } from '@nextui-org/react';
 import { TrophyIcon, FireIcon, CalendarIcon, StarIcon } from '@heroicons/react/24/solid';
 
@@ -15,11 +16,9 @@ const LeaderboardWidget = () => {
     const fetchLeaderboard = async () => {
         setLoading(true);
         try {
-            const url = getApiUrl(`/api/users/leaderboard?limit=10&period=${period}`);
-            const res = await fetch(url, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-            const data = await res.json();
+            // Using axios api instance which handles base URL and auth token auto-magically
+            const res = await api.get(`/api/users/leaderboard?limit=10&period=${period}`);
+            const data = res.data;
             if (Array.isArray(data)) {
                 setUsers(data);
             }
