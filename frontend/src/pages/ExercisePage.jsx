@@ -57,7 +57,7 @@ const ExercisePage = () => {
   const fetchExercise = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`http://localhost:5000/api/courses/exercises/${exerciseId}`);
+      const response = await axios.get(getApiUrl(`/api/courses/exercises/${exerciseId}`));
       setExercise(response.data);
 
       // Initialiser la réponse utilisateur selon le type

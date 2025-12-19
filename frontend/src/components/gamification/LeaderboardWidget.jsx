@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl } from '../../utils/apiConfig';
 import { Card, CardHeader, CardBody, Tab, Tabs, Avatar, Chip, CircularProgress } from '@nextui-org/react';
 import { TrophyIcon, FireIcon, CalendarIcon, StarIcon } from '@heroicons/react/24/solid';
 
@@ -14,8 +15,8 @@ const LeaderboardWidget = () => {
     const fetchLeaderboard = async () => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/users/leaderboard?limit=10&period=${period}`, {
+            const url = getApiUrl(`/api/users/leaderboard?limit=10&period=${period}`);
+            const res = await fetch(url, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             const data = await res.json();

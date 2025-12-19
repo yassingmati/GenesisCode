@@ -21,7 +21,7 @@ const TestKonnectPayment = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('http://localhost:5000/api/plans');
+      const response = await fetch('https://codegenesis-backend.onrender.com/api/plans');
       const data = await response.json();
 
       if (data.success) {
@@ -53,7 +53,7 @@ const TestKonnectPayment = () => {
   const handlePlanSelect = (plan) => {
     console.log('📋 Plan sélectionné:', plan);
     console.log('📋 Plan ID:', plan._id || plan.id);
-    
+
     setSelectedPlan(plan);
     setError(null);
     addTestResult('Plan sélectionné', 'info', `Plan: ${plan.name} (ID: ${plan._id || plan.id}) (${plan.priceMonthly ? (plan.priceMonthly / 100).toFixed(2) + ' TND' : 'Gratuit'})`);
@@ -129,8 +129,8 @@ const TestKonnectPayment = () => {
                   <div className="plan-header">
                     <h3>{plan.name}</h3>
                     <div className="plan-price">
-                      {plan.priceMonthly ? 
-                        `${(plan.priceMonthly / 100).toFixed(2)} ${plan.currency}` : 
+                      {plan.priceMonthly ?
+                        `${(plan.priceMonthly / 100).toFixed(2)} ${plan.currency}` :
                         'Gratuit'
                       }
                     </div>
@@ -168,7 +168,7 @@ const TestKonnectPayment = () => {
                 </div>
               </div>
             </div>
-            
+
             <KonnectPaymentHandler
               plan={selectedPlan}
               customerEmail="test@genesis.com"
@@ -187,7 +187,7 @@ const TestKonnectPayment = () => {
               Réinitialiser
             </button>
           </div>
-          
+
           <div className="test-results">
             {testResults.length === 0 ? (
               <p className="no-results">Aucun test effectué</p>

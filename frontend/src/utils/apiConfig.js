@@ -7,13 +7,13 @@ export const getApiBaseUrl = () => {
     return process.env.REACT_APP_API_BASE_URL;
   }
 
-  // En production, utiliser le backend Render
-  if (process.env.NODE_ENV === 'production') {
-    return 'https://codegenesis-backend.onrender.com';
-  }
+  // En production ou par défaut (demande utilisateur), utiliser le backend Render
+  // if (process.env.NODE_ENV === 'production') {
+  return 'https://codegenesis-backend.onrender.com';
+  // }
 
-  // En développement, utiliser localhost
-  return 'http://localhost:5000';
+  // En développement, utiliser localhost (commenté pour forcer la prod)
+  // return 'http://localhost:5000';
 };
 
 export const getApiUrl = (endpoint) => {

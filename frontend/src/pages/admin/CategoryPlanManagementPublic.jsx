@@ -19,7 +19,7 @@ import {
 import axios from 'axios';
 
 // Configuration API - SANS AUTHENTIFICATION pour test
-const API_BASE = 'http://localhost:5000';
+const API_BASE = 'https://codegenesis-backend.onrender.com';
 
 const api = axios.create({
     baseURL: API_BASE,
