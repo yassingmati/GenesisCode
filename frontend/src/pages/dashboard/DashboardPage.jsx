@@ -77,8 +77,9 @@ export default function DashboardPage() {
         return <ProfilePage />;
       default:
         return (
+    return (
           <div className="space-y-8 animate-fadeIn">
-            <DashboardContent t={t} />
+            <DashboardContent t={t} onSelectOption={handleWelcomeSelect} />
 
             {/* Banner supprimée et déplacée dans le Header */}
 
@@ -106,8 +107,8 @@ const WelcomeCard = ({ onSelectOption, t, navigate }) => {
     <Card className="w-full overflow-hidden border-none shadow-2xl bg-gradient-to-br from-blue-900 via-indigo-800 to-blue-800">
       <CardBody className="p-8 md:p-12 relative overflow-hidden">
         {/* Background decoration */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/3 blur-3xl animate-pulse-slow" />
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full translate-y-1/3 -translate-x-1/3 blur-3xl animate-pulse-slow" />
 
         <div className="relative z-10">
           <div className="text-center mb-10">
@@ -141,7 +142,7 @@ const WelcomeCard = ({ onSelectOption, t, navigate }) => {
           <div className="flex justify-center">
             <Button
               size="lg"
-              className="bg-white/10 backdrop-blur-sm border border-white/20 text-cyan-300 font-semibold shadow-lg hover:bg-white/20"
+              className="bg-white/10 backdrop-blur-sm border border-white/20 text-cyan-300 font-semibold shadow-lg hover:bg-white/20 transition-all"
               startContent={<span className="text-xl">👉</span>}
               onPress={() => navigate('/courses')}
             >
@@ -154,12 +155,13 @@ const WelcomeCard = ({ onSelectOption, t, navigate }) => {
   );
 };
 
-const DashboardContent = ({ t }) => {
+const DashboardContent = ({ t, onSelectOption }) => {
   // Lazy load pour éviter les problèmes d'import circulaires si présents, mais ici import direct ok
   const LeaderboardWidget = require('../../components/gamification/LeaderboardWidget').default;
   const Badge = require('../../components/gamification/Badge').default;
   const { BADGES } = require('../../config/badges');
   const [user, setUser] = React.useState(null);
+  const navigate = require('react-router-dom').useNavigate();
 
   React.useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -174,7 +176,7 @@ const DashboardContent = ({ t }) => {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
       <div className="lg:col-span-2 space-y-6">
-        <WelcomeCard t={t} navigate={require('react-router-dom').useNavigate()} />
+        <WelcomeCard t={t} navigate={navigate} onSelectOption={onSelectOption} />
 
         {/* Badges Section */}
         <Card className="bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700">
