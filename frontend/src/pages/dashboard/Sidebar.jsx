@@ -1,6 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useTranslation } from '../../hooks/useTranslation';
-import { Button, Tooltip, Avatar, Progress, Card, CardBody } from "@nextui-org/react";
+// ... imports ...
 import {
   IconLayoutDashboard,
   IconClock,
@@ -28,12 +26,11 @@ export default function Sidebar({
   const { t } = useTranslation();
 
   const tabs = [
-    { id: 'dashboard', name: t('dashboard.welcome'), icon: <IconLayoutDashboard size={24} /> },
-    { id: 'tasks', name: t('dashboard.tasks.title'), icon: <IconListCheck size={24} /> },
+    { id: 'dashboard', name: t('dashboard.welcome') || 'Tableau de bord', icon: <IconLayoutDashboard size={24} /> },
+    { id: 'tasks', name: t('dashboard.tasks.title') || 'Tâches', icon: <IconListCheck size={24} /> },
+    { id: 'pomodoro', name: t('nav.pomodoro') || 'Pomodoro', icon: <IconClock size={24} /> },
     { id: 'profile', name: t('nav.profile') || 'Profil', icon: <IconUser size={24} /> },
   ];
-
-  const [showPomodoro, setShowPomodoro] = useState(false);
 
   // Récupérer l'utilisateur du localStorage si non fourni
   const [currentUser, setCurrentUser] = useState(user);
@@ -53,12 +50,7 @@ export default function Sidebar({
   }, [user]);
 
   function handleNav(id) {
-    setActivePage && setActivePage(id);
-    if (id === 'pomodoro') {
-      setShowPomodoro(true);
-    } else if (showPomodoro && id !== 'pomodoro') {
-      setShowPomodoro(false);
-    }
+    if (setActivePage) setActivePage(id);
 
     // Fermer la sidebar sur mobile
     if (window.innerWidth < 1024 && setMobileOpen) {
@@ -154,12 +146,14 @@ export default function Sidebar({
         })}
       </nav>
 
-      {/* Pomodoro Widget */}
+      {/* Pomodoro Widget Button (Only visible if not on Pomodoro page to avoid redundancy, or keep as quick status) */}
+      {/* Lets treat the bottom widget as a shortcut to the page if it's running */}
       <div className={`px-4 mb-6 transition-all duration-300 ${collapsed ? 'px-2' : ''}`}>
         <PomodoroWidget
-          compact={collapsed || !showPomodoro}
-          onToggleExpand={() => setShowPomodoro(!showPomodoro)}
+          compact={true} // Always compact in sidebar, clicking opens page
+          onClick={() => handleNav('pomodoro')}
           t={t}
+          isActivePage={activePage === 'pomodoro'}
         />
       </div>
 
@@ -190,22 +184,22 @@ export default function Sidebar({
   );
 }
 
-// Composant PomodoroWidget Refactorisé
-function PomodoroWidget({ compact, onToggleExpand, t }) {
+// Composant PomodoroWidget Modifié
+function PomodoroWidget({ compact, onClick, t, isActivePage }) {
   const [minutes, setMinutes] = useState(25);
   const [seconds, setSeconds] = useState(0);
   const [isActive, setIsActive] = useState(false);
   const [mode, setMode] = useState('focus'); // 'focus', 'short', 'long'
-  const [completedCycles, setCompletedCycles] = useState(0);
   const intervalRef = useRef(null);
 
+  // Auto-start or sync if needed, but for now just a simple timer
   useEffect(() => {
     if (isActive) {
       intervalRef.current = setInterval(() => {
         setSeconds(prevSeconds => {
           if (prevSeconds === 0) {
             if (minutes === 0) {
-              handleTimerEnd();
+              setIsActive(false); // Timer finished
               return 0;
             } else {
               setMinutes(minutes - 1);
@@ -219,161 +213,39 @@ function PomodoroWidget({ compact, onToggleExpand, t }) {
     } else {
       clearInterval(intervalRef.current);
     }
-
     return () => clearInterval(intervalRef.current);
-  }, [isActive, minutes, seconds]);
-
-  const handleTimerEnd = () => {
-    setIsActive(false);
-    playCompletionSound();
-
-    if (mode === 'focus') {
-      setCompletedCycles(prev => prev + 1);
-      if (completedCycles > 0 && completedCycles % 3 === 0) {
-        setMode('long');
-        setMinutes(15);
-      } else {
-        setMode('short');
-        setMinutes(5);
-      }
-    } else {
-      setMode('focus');
-      setMinutes(25);
-    }
-    setSeconds(0);
-  };
-
-  const playCompletionSound = () => {
-    try {
-      const audio = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA');
-      audio.volume = 0.3;
-      audio.play().catch(() => { });
-    } catch (e) { }
-  };
-
-  const toggleTimer = (e) => {
-    if (e && typeof e.stopPropagation === 'function') {
-      e.stopPropagation();
-    }
-    setIsActive(!isActive);
-  };
-
-  const resetTimer = (e) => {
-    if (e && typeof e.stopPropagation === 'function') {
-      e.stopPropagation();
-    }
-    setIsActive(false);
-    setMinutes(mode === 'focus' ? 25 : mode === 'short' ? 5 : 15);
-    setSeconds(0);
-  };
-
-  const formatTime = () => {
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
+  }, [isActive, minutes]);
 
   const totalSeconds = mode === 'focus' ? 1500 : mode === 'short' ? 300 : 900;
   const currentSeconds = minutes * 60 + seconds;
   const progress = ((totalSeconds - currentSeconds) / totalSeconds) * 100;
 
-  if (compact) {
-    return (
-      <Tooltip content="Pomodoro Timer" placement="right" isDisabled={!compact}>
-        <div
-          className="bg-white/10 rounded-xl p-3 cursor-pointer hover:bg-white/15 transition-colors group border border-white/5"
-          onClick={onToggleExpand}
-        >
-          <div className="flex flex-col items-center gap-2">
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90">
-                <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-white/10" />
-                <circle
-                  cx="20" cy="20" r="18"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  fill="transparent"
-                  strokeDasharray={113}
-                  strokeDashoffset={113 - (113 * progress / 100)}
-                  className={`${isActive ? 'text-cyan-400' : 'text-white/50'} transition-all duration-500`}
-                />
-              </svg>
-              <span className="absolute text-[10px] font-bold">{minutes}</span>
-            </div>
-            {!compact && <span className="text-xs font-medium">{mode === 'focus' ? 'Focus' : 'Pause'}</span>}
-          </div>
-        </div>
-      </Tooltip>
-    );
-  }
-
+  // We only show the compact circle widget which acts as a button to the page
   return (
-    <Card className="bg-white/10 border-none shadow-xl backdrop-blur-md">
-      <CardBody className="p-4">
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex items-center gap-2 text-white/90">
-            {mode === 'focus' ? <IconBrain size={18} className="text-cyan-400" /> : <IconCoffee size={18} className="text-emerald-400" />}
-            <span className="font-semibold text-sm">{mode === 'focus' ? (t('pomodoro.focus') || 'Focus') : (t('pomodoro.break') || 'Pause')}</span>
+    <Tooltip content="Ouvrir Pomodoro" placement="right">
+      <div
+        className={`bg-white/10 rounded-xl p-3 cursor-pointer hover:bg-white/15 transition-colors group border border-white/5 ${isActivePage ? 'ring-2 ring-cyan-400' : ''}`}
+        onClick={onClick}
+      >
+        <div className="flex flex-col items-center gap-2">
+          <div className="relative w-10 h-10 flex items-center justify-center">
+            <svg className="w-full h-full -rotate-90">
+              <circle cx="20" cy="20" r="18" stroke="currentColor" strokeWidth="3" fill="transparent" className="text-white/10" />
+              <circle
+                cx="20" cy="20" r="18"
+                stroke="currentColor"
+                strokeWidth="3"
+                fill="transparent"
+                strokeDasharray={113}
+                strokeDashoffset={113 - (113 * progress / 100)}
+                className={`${isActive ? 'text-cyan-400' : 'text-white/50'} transition-all duration-500`}
+              />
+            </svg>
+            <span className="absolute text-[10px] font-bold">{minutes}</span>
           </div>
-          <button onClick={onToggleExpand} className="text-white/50 hover:text-white">×</button>
+          {!compact && <span className="text-xs font-medium">{mode === 'focus' ? 'Focus' : 'Pause'}</span>}
         </div>
-
-        <div className="flex flex-col items-center mb-4">
-          <div className="text-4xl font-bold font-mono tracking-wider mb-2 text-white">
-            {formatTime()}
-          </div>
-          <Progress
-            size="sm"
-            value={progress}
-            color={mode === 'focus' ? "primary" : "success"}
-            classNames={{
-              indicator: mode === 'focus' ? "bg-gradient-to-r from-cyan-400 to-blue-500" : "bg-gradient-to-r from-emerald-400 to-green-500",
-              track: "bg-white/10"
-            }}
-            aria-label="Timer progress"
-          />
-        </div>
-
-        <div className="flex justify-center gap-3">
-          <Button
-            isIconOnly
-            size="sm"
-            variant="flat"
-            className={`${isActive ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400'}`}
-            onPress={toggleTimer}
-          >
-            {isActive ? <IconPlayerPause size={18} /> : <IconPlayerPlay size={18} />}
-          </Button>
-          <Button
-            isIconOnly
-            size="sm"
-            variant="flat"
-            className="bg-white/10 text-white/70 hover:text-white"
-            onPress={resetTimer}
-          >
-            <IconRefresh size={18} />
-          </Button>
-        </div>
-
-        <div className="flex justify-center gap-2 mt-4 pt-4 border-t border-white/10">
-          <button
-            onClick={() => { setMode('focus'); setMinutes(25); setSeconds(0); setIsActive(false); }}
-            className={`text-xs px-2 py-1 rounded ${mode === 'focus' ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white'}`}
-          >
-            25m
-          </button>
-          <button
-            onClick={() => { setMode('short'); setMinutes(5); setSeconds(0); setIsActive(false); }}
-            className={`text-xs px-2 py-1 rounded ${mode === 'short' ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white'}`}
-          >
-            5m
-          </button>
-          <button
-            onClick={() => { setMode('long'); setMinutes(15); setSeconds(0); setIsActive(false); }}
-            className={`text-xs px-2 py-1 rounded ${mode === 'long' ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white'}`}
-          >
-            15m
-          </button>
-        </div>
-      </CardBody>
-    </Card>
+      </div>
+    </Tooltip>
   );
 }

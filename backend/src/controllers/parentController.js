@@ -23,20 +23,25 @@ exports.inviteChild = async (req, res) => {
       return res.status(404).json({ message: 'Enfant non trouvé avec cet email' });
     }
 
-    // Vérifier qu'il n'y a pas déjà une relation
-    const existingRelation = await ParentChild.findOne({ parent: parentId, child: child._id });
-    if (existingRelation) {
-      return res.status(409).json({ message: 'Relation déjà existante avec cet enfant' });
+    // Vérifier qu'il n'y a pas déjà une relation active
+    let parentChild = await ParentChild.findOne({ parent: parentId, child: child._id });
+
+    if (parentChild) {
+      if (parentChild.status === 'active') {
+        return res.status(409).json({ message: 'Cet enfant est déjà lié à votre compte' });
+      }
+
+      // Si la relation existe mais n'est pas active (pending, rejected, etc.), on la réactive/renvoie
+      parentChild.status = 'pending';
+      // On pourrait aussi mettre à jour d'autres champs si nécessaire
+    } else {
+      // Créer la relation si elle n'existe pas
+      parentChild = new ParentChild({
+        parent: parentId,
+        child: child._id,
+        status: 'pending'
+      });
     }
-
-    // Créer la relation
-    const parentChild = new ParentChild({
-      parent: parentId,
-      child: child._id,
-      status: 'pending'
-    });
-
-    await parentChild.save();
 
     await parentChild.save();
 
@@ -55,7 +60,7 @@ exports.inviteChild = async (req, res) => {
     // TODO: Envoyer email d'invitation à l'enfant
     console.log(`Invitation envoyée à ${childEmail} par le parent ${parentId}`);
 
-    res.status(201).json({
+    res.status(parentChild.isNew ? 201 : 200).json({
       message: 'Invitation envoyée avec succès',
       relation: {
         id: parentChild._id,

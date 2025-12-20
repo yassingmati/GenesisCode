@@ -15,13 +15,13 @@ export default function Footer() {
         </div>
 
         <div className="flex gap-6">
-          <Link href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
+          <Link href="/legal" className="text-gray-400 hover:text-white text-sm transition-colors">
             {t('legalNotice')}
           </Link>
-          <Link href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
+          <Link href="mailto:contact@codegenesis.com" className="text-gray-400 hover:text-white text-sm transition-colors">
             {t('contact')}
           </Link>
-          <Link href="#" className="text-gray-400 hover:text-white text-sm transition-colors">
+          <Link href="mailto:support@codegenesis.com" className="text-gray-400 hover:text-white text-sm transition-colors">
             {t('support')}
           </Link>
         </div>

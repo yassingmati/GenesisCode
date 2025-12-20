@@ -77,7 +77,6 @@ export default function DashboardPage() {
         return <ProfilePage />;
       default:
         return (
-    return (
           <div className="space-y-8 animate-fadeIn">
             <DashboardContent t={t} onSelectOption={handleWelcomeSelect} />
 
@@ -114,10 +113,14 @@ const WelcomeCard = ({ onSelectOption, t, navigate }) => {
           <div className="text-center mb-10">
             <h1 className="text-3xl md:text-5xl font-bold text-white mb-4 leading-tight">
               <span className="mr-3 inline-block animate-bounce-slow">👋</span>
-              {t('dashboard.welcome')} sur GenesisCode !
+              Deviens le héros de ton propre code !
             </h1>
-            <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto font-light">
-              {t('dashboard.welcomeMessage')}
+            <p className="text-lg md:text-xl text-blue-100 max-w-2xl mx-auto font-light leading-relaxed">
+              Tu as entre 8 et 17 ans et tu rêves de créer tes propres jeux ou sites web ?
+              CodeGenesis t'accompagne dans une aventure numérique unique.
+              <br /><br />
+              Apprends à coder en t'amusant avec nos tutoriels vidéo, gagne des badges d'expert et grimpe dans le classement mondial.
+              <strong>L'aventure commence ici !</strong>
             </p>
           </div>
 

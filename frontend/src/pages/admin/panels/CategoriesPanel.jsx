@@ -160,59 +160,86 @@ export default function CategoriesPanel({ onOpenCreate }) {
 
       <div className="mt-4">
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Card key={i}>
-                <CardBody className="gap-2">
-                  <Skeleton className="h-4 w-3/4 rounded-lg" />
-                  <Skeleton className="h-3 w-1/2 rounded-lg" />
-                  <Skeleton className="h-3 w-2/3 rounded-lg" />
+              <Card key={i} className="rounded-2xl border border-gray-100 shadow-sm">
+                <CardBody className="gap-3 p-5">
+                  <Skeleton className="h-6 w-3/4 rounded-lg" />
+                  <Skeleton className="h-4 w-1/2 rounded-lg" />
+                  <Skeleton className="h-10 w-full rounded-xl mt-2" />
                 </CardBody>
               </Card>
             ))}
           </div>
         ) : pagedCategories.length ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {pagedCategories.map(cat => (
-                <Card key={cat._id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader className="flex-col items-start gap-2">
-                    <div className="flex justify-between w-full">
-                      <h4 className="text-lg font-semibold">{pickTitle(cat) || 'Sans nom'}</h4>
-                      <Chip size="sm" variant="flat" color={cat.type === 'specific' ? 'secondary' : 'default'}>
-                        {cat.type || 'classic'}
-                      </Chip>
+                <Card
+                  key={cat._id}
+                  className="group relative overflow-hidden bg-white hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-gray-100 rounded-2xl"
+                >
+                  {/* Decorative Gradient Bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r ${cat.type === 'specific' ? 'from-violet-500 to-fuchsia-500' : 'from-blue-500 to-cyan-500'
+                    }`} />
+
+                  <CardBody className="p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <Chip
+                          size="sm"
+                          variant="flat"
+                          classNames={{
+                            base: cat.type === 'specific' ? "bg-violet-50 text-violet-600" : "bg-blue-50 text-blue-600",
+                            content: "font-semibold"
+                          }}
+                        >
+                          {cat.type === 'specific' ? 'Spécifique' : 'Classique'}
+                        </Chip>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-500 font-mono text-xs font-bold border border-gray-100">
+                        {cat.order}
+                      </div>
                     </div>
-                    <p className="text-sm text-default-500">Ordre: {cat.order || 0}</p>
-                  </CardHeader>
-                  <CardFooter className="gap-2">
-                    <Button
-                      size="sm"
-                      variant="flat"
-                      startContent={<IconEdit size={16} />}
-                      onPress={() => startEdit(cat)}
-                      className="flex-1"
-                    >
-                      Éditer
-                    </Button>
-                    <Button
-                      size="sm"
-                      color="danger"
-                      variant="flat"
-                      startContent={<IconTrash size={16} />}
-                      onPress={() => askDelete(cat._id)}
-                      className="flex-1"
-                    >
-                      Supprimer
-                    </Button>
-                  </CardFooter>
+
+                    <h4 className="text-xl font-bold text-gray-800 mb-1 group-hover:text-indigo-600 transition-colors line-clamp-1">
+                      {pickTitle(cat) || 'Sans nom'}
+                    </h4>
+
+                    <div className="flex gap-2 text-xs text-gray-400 font-medium mb-6">
+                      <span className="uppercase tracking-wider">ID: {String(cat._id).slice(-6)}</span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3 mt-auto">
+                      <Button
+                        size="md"
+                        variant="flat"
+                        color="primary"
+                        startContent={<IconEdit size={18} />}
+                        onPress={() => startEdit(cat)}
+                        className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 font-medium rounded-xl"
+                      >
+                        Éditer
+                      </Button>
+                      <Button
+                        size="md"
+                        variant="light"
+                        color="danger"
+                        startContent={<IconTrash size={18} />}
+                        onPress={() => askDelete(cat._id)}
+                        className="text-red-500 hover:bg-red-50 font-medium rounded-xl"
+                      >
+                        Supprimer
+                      </Button>
+                    </div>
+                  </CardBody>
                 </Card>
               ))}
             </div>
 
-            <div className="mt-4 flex justify-between items-center">
-              <p className="text-sm text-default-500">
-                Affichage {(page - 1) * perPage + 1} - {Math.min(page * perPage, filteredCategories.length)} / {filteredCategories.length}
+            <div className="mt-8 flex flex-col sm:flex-row justify-between items-center gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+              <p className="text-sm text-gray-500 font-medium">
+                Affichage <span className="text-gray-900 font-bold">{(page - 1) * perPage + 1}</span> - <span className="text-gray-900 font-bold">{Math.min(page * perPage, filteredCategories.length)}</span> sur <span className="text-gray-900 font-bold">{filteredCategories.length}</span> résultats
               </p>
               <Pagination
                 page={page}

@@ -41,7 +41,7 @@ export const LanguageProvider = ({ children }) => {
     const languages = {
       fr: { code: 'fr', label: 'Français', flag: '🇫🇷', direction: 'ltr' },
       en: { code: 'en', label: 'English', flag: '🇺🇸', direction: 'ltr' },
-      ar: { code: 'ar', label: 'العربية', flag: '🇸🇦', direction: 'rtl' }
+      ar: { code: 'ar', label: 'العربية', flag: '🇹🇳', direction: 'rtl' }
     };
     return languages[langCode] || languages.fr;
   };

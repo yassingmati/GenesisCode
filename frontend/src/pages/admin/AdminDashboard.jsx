@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { systemApi as api } from './components/common';
-import AdminTaskManagement from '../../components/admin/AdminTaskManagement';
+
 import {
   IconUsers,
   IconBook,
@@ -11,8 +11,8 @@ import {
   IconActivity
 } from '@tabler/icons-react';
 import { Tabs, Tab } from "@nextui-org/react";
-import UserManagementPanel from './panels/UserManagementPanel';
-import PromoCodesPanel from './panels/PromoCodesPanel';
+
+
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({ users: 0, courses: 0, payments: 0, contentItems: 0 });
@@ -191,24 +191,6 @@ export default function AdminDashboard() {
                 </button>
               </div>
             </div>
-          </div>
-        </Tab>
-
-        <Tab key="users" title="Utilisateurs">
-          <div className="mt-6">
-            <UserManagementPanel />
-          </div>
-        </Tab>
-
-        <Tab key="tasks" title="Gestion des Tâches">
-          <div className="mt-6">
-            <AdminTaskManagement />
-          </div>
-        </Tab>
-
-        <Tab key="promocodes" title="Codes Promo">
-          <div className="mt-6">
-            <PromoCodesPanel />
           </div>
         </Tab>
       </Tabs>

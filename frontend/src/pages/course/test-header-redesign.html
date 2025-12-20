@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,11 +13,13 @@
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
         }
+
         .test-container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
         }
+
         .test-section {
             margin-bottom: 2rem;
             padding: 1.5rem;
@@ -26,12 +29,14 @@
             backdrop-filter: blur(10px);
             color: white;
         }
+
         .test-title {
             color: white;
             margin-bottom: 1rem;
             font-size: 1.5rem;
             font-weight: 700;
         }
+
         .success-badge {
             background: linear-gradient(135deg, #10b981, #34d399);
             color: #052014;
@@ -41,6 +46,7 @@
             font-weight: 700;
             margin-left: 0.5rem;
         }
+
         .header-demo {
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
             border-radius: 12px;
@@ -49,6 +55,7 @@
             box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
             overflow: hidden;
         }
+
         .header-content {
             display: flex;
             align-items: center;
@@ -57,24 +64,31 @@
             height: 70px;
             color: white;
         }
-        .header-left, .header-center, .header-right {
+
+        .header-left,
+        .header-center,
+        .header-right {
             display: flex;
             align-items: center;
         }
+
         .header-left {
             flex: 0 0 auto;
             min-width: 200px;
         }
+
         .header-center {
             flex: 1;
             justify-content: center;
             max-width: 600px;
         }
+
         .header-right {
             flex: 0 0 auto;
             min-width: 200px;
             justify-content: flex-end;
         }
+
         .logo-section {
             display: flex;
             align-items: center;
@@ -84,10 +98,12 @@
             transition: all 0.3s ease;
             cursor: pointer;
         }
+
         .logo-section:hover {
             background: rgba(255, 255, 255, 0.05);
             transform: translateY(-1px);
         }
+
         .logo-img {
             width: 40px;
             height: 40px;
@@ -95,6 +111,7 @@
             object-fit: cover;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
+
         .logo-text {
             font-weight: 700;
             font-size: 1.25rem;
@@ -103,11 +120,13 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
+
         .quick-actions {
             display: flex;
             gap: 8px;
             align-items: center;
         }
+
         .action-btn {
             display: flex;
             align-items: center;
@@ -122,17 +141,20 @@
             font-size: 0.9rem;
             font-weight: 500;
         }
+
         .action-btn:hover {
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
+
         .header-actions {
             display: flex;
             align-items: center;
             gap: 12px;
         }
+
         .language-selector {
             background: rgba(255, 255, 255, 0.05);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -144,11 +166,13 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
+
         .language-selector:hover {
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.2);
             transform: translateY(-1px);
         }
+
         .notification-bell {
             position: relative;
             background: transparent;
@@ -159,10 +183,12 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
+
         .notification-bell:hover {
             background: rgba(255, 255, 255, 0.05);
             transform: scale(1.05);
         }
+
         .notification-dot {
             position: absolute;
             top: 6px;
@@ -173,10 +199,21 @@
             background: linear-gradient(135deg, #ef4444, #dc2626);
             animation: pulse 2s infinite;
         }
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.7; transform: scale(1.1); }
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.7;
+                transform: scale(1.1);
+            }
         }
+
         .user-avatar {
             width: 40px;
             height: 40px;
@@ -191,10 +228,12 @@
             cursor: pointer;
             transition: all 0.3s ease;
         }
+
         .user-avatar:hover {
             transform: scale(1.05);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
+
         .logout-btn {
             display: flex;
             align-items: center;
@@ -209,11 +248,13 @@
             font-weight: 500;
             font-size: 0.9rem;
         }
+
         .logout-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
             filter: brightness(1.1);
         }
+
         .mobile-menu-toggle {
             display: none;
             background: transparent;
@@ -228,10 +269,12 @@
             align-items: center;
             justify-content: center;
         }
+
         .mobile-menu-toggle:hover {
             background: rgba(255, 255, 255, 0.05);
             border-color: rgba(255, 255, 255, 0.2);
         }
+
         .hamburger-icon {
             display: flex;
             flex-direction: column;
@@ -239,6 +282,7 @@
             width: 20px;
             height: 16px;
         }
+
         .hamburger-line {
             width: 100%;
             height: 2px;
@@ -247,84 +291,100 @@
             transition: all 0.3s ease;
             transform-origin: center;
         }
+
         .hamburger-line.active:nth-child(1) {
             transform: rotate(45deg) translate(6px, 6px);
         }
+
         .hamburger-line.active:nth-child(2) {
             opacity: 0;
         }
+
         .hamburger-line.active:nth-child(3) {
             transform: rotate(-45deg) translate(6px, -6px);
         }
+
         .feature-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 1rem;
             margin-top: 1rem;
         }
+
         .feature-card {
             background: rgba(255, 255, 255, 0.1);
             padding: 1rem;
             border-radius: 8px;
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
+
         .feature-card h4 {
             margin: 0 0 0.5rem 0;
             color: #fbbf24;
             font-size: 1rem;
         }
+
         .feature-list {
             list-style: none;
             padding: 0;
             margin: 0;
         }
+
         .feature-list li {
             padding: 0.25rem 0;
             color: #e5e7eb;
             font-size: 0.9rem;
         }
+
         .feature-list li:before {
             content: "✅ ";
             margin-right: 0.5rem;
         }
+
         @media (max-width: 768px) {
             .quick-actions {
                 display: none;
             }
+
             .header-center {
                 display: none;
             }
+
             .logo-text {
                 display: none;
             }
+
             .logout-btn span:not(.logout-icon) {
                 display: none;
             }
+
             .mobile-menu-toggle {
                 display: flex;
             }
         }
     </style>
 </head>
+
 <body>
     <div class="test-container">
         <h1 style="text-align: center; color: white; margin-bottom: 2rem;">
             🎨 Test Header Redesign - CodeGenesis
         </h1>
-        
+
         <!-- Démonstration du nouveau header -->
         <div class="test-section">
             <h2 class="test-title">
                 🎯 Nouveau Design Header
                 <span class="success-badge">MODERNE</span>
             </h2>
-            
+
             <div class="header-demo">
                 <div class="header-content">
                     <!-- Logo et navigation principale -->
                     <div class="header-left">
                         <div class="logo-section">
-                            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9InVybCgjZ3JhZGllbnQwX2RlZmluZV8xXzEpIi8+CjxwYXRoIGQ9Ik0xMiAyMEwyMCAxMkwyOCAyMEwyMCAyOEwxMiAyMFoiIGZpbGw9IndoaXRlIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9ImdyYWRpZW50MF9kZWZpbmVfMV8xIiB4MT0iMCIgeTE9IjAiIHgyPSI0MCIgeTI9IjQwIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiMwNkI2RDQiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjN0MzQUVEIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+" alt="GenesisCode" class="logo-img" />
+                            <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjAiIGN5PSIyMCIgcj0iMjAiIGZpbGw9InVybCgjZ3JhZGllbnQwX2RlZmluZV8xXzEpIi8+CjxwYXRoIGQ9Ik0xMiAyMEwyMCAxMkwyOCAyMEwyMCAyOEwxMiAyMFoiIGZpbGw9IndoaXRlIi8+CjxkZWZzPgo8bGluZWFyR3JhZGllbnQgaWQ9ImdyYWRpZW50MF9kZWZpbmVfMV8xIiB4MT0iMCIgeTE9IjAiIHgyPSI0MCIgeTI9IjQwIiBncmFkaWVudFVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+CjxzdG9wIHN0b3AtY29sb3I9IiMwNkI2RDQiLz4KPHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjN0MzQUVEIi8+CjwvbGluZWFyR3JhZGllbnQ+CjwvZGVmcz4KPC9zdmc+"
+                                alt="GenesisCode" class="logo-img" />
                             <span class="logo-text">GenesisCode</span>
                         </div>
                     </div>
@@ -354,24 +414,24 @@
                             <select class="language-selector">
                                 <option value="fr">🇫🇷 FR</option>
                                 <option value="en">🇺🇸 EN</option>
-                                <option value="ar">🇸🇦 AR</option>
+                                <option value="ar">🇹🇳 AR</option>
                             </select>
-                            
+
                             <!-- Notifications -->
                             <button class="notification-bell">
                                 🔔
                                 <span class="notification-dot"></span>
                             </button>
-                            
+
                             <!-- Menu utilisateur -->
                             <div class="user-avatar">JD</div>
-                            
+
                             <!-- Bouton de déconnexion -->
                             <button class="logout-btn">
                                 <span>🚪</span>
                                 <span>Déconnexion</span>
                             </button>
-                            
+
                             <!-- Menu mobile -->
                             <button class="mobile-menu-toggle">
                                 <div class="hamburger-icon">
@@ -392,7 +452,7 @@
                 ✨ Fonctionnalités du Nouveau Header
                 <span class="success-badge">COMPLET</span>
             </h2>
-            
+
             <div class="feature-grid">
                 <div class="feature-card">
                     <h4>🎨 Design Moderne</h4>
@@ -404,7 +464,7 @@
                         <li>Responsive design</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>🌐 Sélecteur de Langue</h4>
                     <ul class="feature-list">
@@ -415,7 +475,7 @@
                         <li>Position optimisée</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>📱 Navigation Mobile</h4>
                     <ul class="feature-list">
@@ -426,7 +486,7 @@
                         <li>Animations fluides</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>🔔 Notifications</h4>
                     <ul class="feature-list">
@@ -437,7 +497,7 @@
                         <li>Accessibilité</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>👤 Menu Utilisateur</h4>
                     <ul class="feature-list">
@@ -448,7 +508,7 @@
                         <li>Design moderne</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>🚪 Déconnexion</h4>
                     <ul class="feature-list">
@@ -468,7 +528,7 @@
                 🔧 Améliorations Techniques
                 <span class="success-badge">OPTIMISÉ</span>
             </h2>
-            
+
             <div class="feature-grid">
                 <div class="feature-card">
                     <h4>🎯 Structure</h4>
@@ -480,7 +540,7 @@
                         <li>Code maintenable</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>🎨 CSS Variables</h4>
                     <ul class="feature-list">
@@ -491,7 +551,7 @@
                         <li>Thème unifié</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>📱 Responsive</h4>
                     <ul class="feature-list">
@@ -502,7 +562,7 @@
                         <li>Performance mobile</li>
                     </ul>
                 </div>
-                
+
                 <div class="feature-card">
                     <h4>♿ Accessibilité</h4>
                     <ul class="feature-list">
@@ -522,7 +582,8 @@
                 ✅ Résumé du Redesign
                 <span class="success-badge" style="background: #052014; color: #10b981;">TERMINÉ</span>
             </h2>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+            <div
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
                 <div style="background: rgba(255, 255, 255, 0.2); padding: 1rem; border-radius: 8px;">
                     <h4 style="margin: 0 0 0.5rem 0; color: #052014;">🎨 Design</h4>
                     <ul style="margin: 0; padding-left: 1rem; color: #052014;">
@@ -532,7 +593,7 @@
                         <li>Animations fluides</li>
                     </ul>
                 </div>
-                
+
                 <div style="background: rgba(255, 255, 255, 0.2); padding: 1rem; border-radius: 8px;">
                     <h4 style="margin: 0 0 0.5rem 0; color: #052014;">🔧 Technique</h4>
                     <ul style="margin: 0; padding-left: 1rem; color: #052014;">
@@ -542,7 +603,7 @@
                         <li>Performance améliorée</li>
                     </ul>
                 </div>
-                
+
                 <div style="background: rgba(255, 255, 255, 0.2); padding: 1rem; border-radius: 8px;">
                     <h4 style="margin: 0 0 0.5rem 0; color: #052014;">📱 Mobile</h4>
                     <ul style="margin: 0; padding-left: 1rem; color: #052014;">
@@ -552,7 +613,7 @@
                         <li>Responsive design</li>
                     </ul>
                 </div>
-                
+
                 <div style="background: rgba(255, 255, 255, 0.2); padding: 1rem; border-radius: 8px;">
                     <h4 style="margin: 0 0 0.5rem 0; color: #052014;">🌐 Multilingue</h4>
                     <ul style="margin: 0; padding-left: 1rem; color: #052014;">
@@ -569,7 +630,7 @@
     <script>
         // Animation du menu hamburger
         document.querySelectorAll('.mobile-menu-toggle').forEach(button => {
-            button.addEventListener('click', function() {
+            button.addEventListener('click', function () {
                 const lines = this.querySelectorAll('.hamburger-line');
                 lines.forEach(line => line.classList.toggle('active'));
             });
@@ -577,11 +638,11 @@
 
         // Animation des boutons
         document.querySelectorAll('.action-btn, .logout-btn, .user-avatar').forEach(button => {
-            button.addEventListener('mouseenter', function() {
+            button.addEventListener('mouseenter', function () {
                 this.style.transform = 'translateY(-2px)';
             });
-            
-            button.addEventListener('mouseleave', function() {
+
+            button.addEventListener('mouseleave', function () {
                 this.style.transform = 'translateY(0)';
             });
         });
@@ -595,4 +656,5 @@
         console.log('🎉 Header entièrement redesigné !');
     </script>
 </body>
+
 </html>

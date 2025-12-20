@@ -77,7 +77,7 @@ export default function SpecificLanguageCategories() {
     <ClientPageLayout
       title="Choisir ton propre langage"
       subtitle="Sélectionne le langage de programmation que tu veux apprendre et commence ton parcours personnalisé."
-      breadcrumbs={[{ label: 'Langages' }]}
+      breadcrumbs={[]}
       loading={loading}
       error={error}
       onRetry={() => window.location.reload()}

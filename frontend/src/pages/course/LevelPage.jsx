@@ -16,7 +16,7 @@ import {
 import { motion } from 'framer-motion';
 
 const API_BASE = getApiUrl('/api/courses');
-const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇸🇦' }];
+const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇹🇳' }];
 
 // Helper functions (kept from original)
 async function findAccessiblePath(token) {

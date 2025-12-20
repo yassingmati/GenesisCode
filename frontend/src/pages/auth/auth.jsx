@@ -487,19 +487,19 @@ const Auth = ({ type }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 hover:from-indigo-500 hover:via-purple-500 hover:to-violet-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-500/30 hover:shadow-indigo-500/40 transition-all transform hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center uppercase tracking-wide text-sm"
             >
               {isSubmitting ? (
                 <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : type === 'login' ? t('auth.login.action') : t('auth.register.action')}
             </button>
 
-            <div className="relative py-2">
+            <div className="relative py-3">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-[#162032] px-2 text-slate-500">{t('auth.orContinueWith')}</span>
+              <div className="relative flex justify-center text-xs uppercase tracking-wider">
+                <span className="bg-white dark:bg-[#162032] px-3 text-slate-400 font-medium">{t('auth.orContinueWith')}</span>
               </div>
             </div>
 
@@ -507,7 +507,7 @@ const Auth = ({ type }) => {
               type="button"
               onClick={handleGoogleLogin}
               disabled={isSubmitting}
-              className="w-full bg-slate-50 dark:bg-white text-slate-700 font-semibold py-3.5 rounded-xl shadow-sm border border-slate-200 dark:border-transparent hover:bg-slate-100 dark:hover:bg-slate-50 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70"
+              className="w-full bg-white dark:bg-[#1e293b] text-slate-700 dark:text-white font-semibold py-3.5 rounded-xl shadow-md border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all transform hover:-translate-y-0.5 active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70"
             >
               <FcGoogle className="text-xl" />
               <span>{type === 'login' ? t('auth.login.google') : t('auth.register.google')}</span>
@@ -518,14 +518,14 @@ const Auth = ({ type }) => {
             {type === 'login' ? (
               <p>
                 {t('auth.login.noAccount')}{' '}
-                <Link to="/register" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors">
+                <Link to="/register" className="ml-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold underline decoration-2 underline-offset-2 transition-colors">
                   {t('auth.login.link')}
                 </Link>
               </p>
             ) : (
               <p>
                 {t('auth.register.hasAccount')}{' '}
-                <Link to="/login" className="text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 font-medium transition-colors">
+                <Link to="/login" className="ml-1 text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-bold underline decoration-2 underline-offset-2 transition-colors">
                   {t('auth.register.link')}
                 </Link>
               </p>
@@ -540,7 +540,9 @@ const Auth = ({ type }) => {
 
         {/* Right Side - Hero/Image */}
         <div className="hidden lg:block relative overflow-hidden bg-gradient-to-br from-blue-600 to-purple-600 p-12 text-white">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
+          <div className="absolute inset-0 flex items-center justify-center opacity-30">
+            <img src={require('../../assets/images/logo-removebg-preview.png')} alt="CodeGenesis Logo" className="w-3/4 h-auto object-contain" />
+          </div>
           <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
 
           <div className="relative z-10 h-full flex flex-col justify-between">
