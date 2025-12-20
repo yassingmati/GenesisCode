@@ -1,5 +1,5 @@
 // src/pages/VerifyEmailReminder.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../utils/apiConfig';
@@ -14,6 +14,7 @@ const VerifyEmailReminder = () => {
   const [messageType, setMessageType] = useState(''); // success, error, warning
   const [userEmail, setUserEmail] = useState('');
   const navigate = useNavigate();
+  const pollInterval = useRef(null);
 
   useEffect(() => {
     // Récupérer l'email de l'utilisateur depuis le localStorage
@@ -21,6 +22,8 @@ const VerifyEmailReminder = () => {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       if (userData.email) {
         setUserEmail(userData.email);
+        // Start auto-polling
+        startPolling();
       } else {
         // En cas d'absence d'email (ex: reload sans session valide), rediriger vers login
         navigate('/login');
@@ -29,7 +32,24 @@ const VerifyEmailReminder = () => {
       console.error("Erreur parsing user data", e);
       navigate('/login');
     }
+
+    return () => stopPolling();
   }, [navigate]);
+
+  const startPolling = () => {
+    // Check every 5 seconds
+    stopPolling();
+    pollInterval.current = setInterval(() => {
+      checkVerificationStatus(true); // true = silent mode (no loading spinner for user)
+    }, 5000);
+  };
+
+  const stopPolling = () => {
+    if (pollInterval.current) {
+      clearInterval(pollInterval.current);
+      pollInterval.current = null;
+    }
+  };
 
   const handleResendEmail = async () => {
     setIsSending(true);
@@ -48,15 +68,24 @@ const VerifyEmailReminder = () => {
       setMessageType('success');
     } catch (error) {
       console.error("Erreur renvoi email:", error);
-      const errorMsg = error.response?.data?.message || error.message || 'Erreur lors de l\'envoi';
-      setMessage(errorMsg);
-      setMessageType('error');
+
+      // Check for specific backend error code
+      const responseData = error.response?.data;
+      if (responseData?.error === 'EMAIL_SERVICE_NOT_CONFIGURED') {
+        setMessage('Le service d\'email n\'est pas configuré sur le serveur. Veuillez contacter le support.');
+        setMessageType('error');
+      } else {
+        const errorMsg = responseData?.message || error.message || 'Erreur lors de l\'envoi';
+        setMessage(errorMsg);
+        setMessageType('error');
+      }
     } finally {
       setIsSending(false);
     }
   };
 
   const handleLogout = () => {
+    stopPolling();
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('accessToken');
@@ -65,19 +94,21 @@ const VerifyEmailReminder = () => {
     navigate('/login');
   };
 
-  const checkVerificationStatus = async () => {
-    setIsChecking(true);
-    setMessage('');
+  const checkVerificationStatus = async (silent = false) => {
+    if (!silent) setIsChecking(true);
+    if (!silent) setMessage('');
+
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        setMessage('Session expirée. Veuillez vous reconnecter.');
-        setMessageType('error');
-        setTimeout(() => navigate('/login'), 2000);
+        if (!silent) {
+          setMessage('Session expirée. Veuillez vous reconnecter.');
+          setMessageType('error');
+          setTimeout(() => navigate('/login'), 2000);
+        }
         return;
       }
 
-      // CORRECTION MAJEURE : Utilisation du bon endpoint /api/users/profile
       const response = await axios.get(getApiUrl('/api/users/profile'), {
         headers: {
           Authorization: `Bearer ${token}`
@@ -93,6 +124,7 @@ const VerifyEmailReminder = () => {
 
         setMessage('Email vérifié avec succès ! Redirection...');
         setMessageType('success');
+        stopPolling();
 
         setTimeout(() => {
           if (user.isProfileComplete) {
@@ -102,15 +134,19 @@ const VerifyEmailReminder = () => {
           }
         }, 1500);
       } else {
-        setMessage('Votre email n\'est pas encore vérifié. Veuillez cliquer sur le lien dans l\'email reçu.');
-        setMessageType('warning');
+        if (!silent) {
+          setMessage('Votre email n\'est pas encore vérifié. Veuillez cliquer sur le lien dans l\'email reçu.');
+          setMessageType('warning');
+        }
       }
     } catch (error) {
       console.error('Erreur vérification statut:', error);
-      setMessage('Impossible de vérifier le statut. Assurez-vous d\'être connecté.');
-      setMessageType('error');
+      if (!silent) {
+        setMessage('Impossible de vérifier le statut. Assurez-vous d\'être connecté.');
+        setMessageType('error');
+      }
     } finally {
-      setIsChecking(false);
+      if (!silent) setIsChecking(false);
     }
   };
 
@@ -146,7 +182,7 @@ const VerifyEmailReminder = () => {
           </motion.div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">Vérifiez votre email</h2>
           <p className="text-slate-600 dark:text-slate-300">
-            Un lien de vérification a été envoyé à <br />
+            Un lien de vérification à été envoyé à <br />
             <span className="font-semibold text-blue-600 dark:text-blue-300 mt-1 inline-block bg-blue-50 dark:bg-blue-900/30 px-3 py-1 rounded-full border border-blue-100 dark:border-blue-500/30">{userEmail}</span>
           </p>
         </div>
@@ -157,18 +193,21 @@ const VerifyEmailReminder = () => {
             <div className="text-sm text-amber-800 dark:text-yellow-100/90 space-y-1">
               <p>• Vérifiez votre dossier de spam ou courriers indésirables</p>
               <p>• Le lien expire après 1 heure</p>
+              <p className="font-semibold text-green-600 dark:text-green-400 mt-2 flex items-center gap-2">
+                <FaSpinner className="animate-spin text-xs" /> Vérification automatique en cours...
+              </p>
             </div>
           </div>
         </div>
 
         <div className="space-y-4">
           <button
-            onClick={checkVerificationStatus}
+            onClick={() => checkVerificationStatus(false)}
             disabled={isChecking}
             className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-green-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isChecking ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
-            {isChecking ? 'Vérification en cours...' : 'J\'ai cliqué sur le lien'}
+            {isChecking ? 'Vérification en cours...' : 'Vérifier manuellement'}
           </button>
 
           <button
@@ -188,8 +227,8 @@ const VerifyEmailReminder = () => {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               className={`mt-6 p-4 rounded-xl flex items-center gap-3 text-sm border ${messageType === 'success' ? 'bg-green-50 dark:bg-green-500/10 text-green-700 dark:text-green-400 border-green-200 dark:border-green-500/20' :
-                  messageType === 'warning' ? 'bg-amber-50 dark:bg-yellow-500/10 text-amber-700 dark:text-yellow-400 border-amber-200 dark:border-yellow-500/20' :
-                    'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20'
+                messageType === 'warning' ? 'bg-amber-50 dark:bg-yellow-500/10 text-amber-700 dark:text-yellow-400 border-amber-200 dark:border-yellow-500/20' :
+                  'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20'
                 }`}
             >
               {messageType === 'success' && <FaCheckCircle className="flex-shrink-0 text-lg" />}

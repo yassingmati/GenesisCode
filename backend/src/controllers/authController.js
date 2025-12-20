@@ -490,7 +490,19 @@ exports.sendVerification = async (req, res) => {
 
     } catch (error) {
         console.error('Email Sending Error:', error);
-        res.status(500).json({ message: 'Failed to send verification email.' });
+
+        // Return specific error if email service is not configured
+        if (error.message && error.message.includes('Email service not configured')) {
+            return res.status(500).json({
+                message: 'Email service not configured. Please contact support.',
+                error: 'EMAIL_SERVICE_NOT_CONFIGURED'
+            });
+        }
+
+        res.status(500).json({
+            message: 'Failed to send verification email.',
+            error: error.message
+        });
     }
 };
 
