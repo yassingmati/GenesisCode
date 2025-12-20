@@ -12,8 +12,9 @@ import {
   IconCoffee,
   IconBrain
 } from '@tabler/icons-react';
-
-// Composant Sidebar refactorisé avec NextUI et Tailwind
+import { useTranslation } from '../../hooks/useTranslation';
+import { useState, useEffect } from 'react';
+import { Button, Tooltip, Avatar } from "@nextui-org/react";
 export default function Sidebar({
   activePage,
   setActivePage,

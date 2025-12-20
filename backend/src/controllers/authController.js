@@ -1005,3 +1005,48 @@ exports.testEmailDebug = async (req, res) => {
         });
     }
 };
+/**
+ * @route   POST /api/auth/sync-verification
+ * @desc    Sync Firebase verification status to MongoDB
+ * @access  Private
+ */
+exports.syncFirebaseVerification = async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await User.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (user.isVerified) {
+            return res.json({ success: true, message: 'User already verified' });
+        }
+
+        // Check Firebase status
+        if (!isFirebaseAvailable()) {
+            return res.status(503).json({ message: 'Firebase service unavailable' });
+        }
+
+        const firebaseUser = await admin.auth().getUser(user.firebaseUid);
+
+        if (firebaseUser.emailVerified) {
+            user.isVerified = true;
+            await user.save();
+            return res.json({
+                success: true,
+                message: 'Verification synced successfully',
+                user: formatUserResponse(user)
+            });
+        } else {
+            return res.status(400).json({
+                success: false,
+                message: 'Email not verified in Firebase yet'
+            });
+        }
+
+    } catch (error) {
+        console.error('Sync Verification Error:', error);
+        res.status(500).json({ message: 'Failed to sync verification' });
+    }
+};

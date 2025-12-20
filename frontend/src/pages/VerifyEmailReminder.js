@@ -6,6 +6,8 @@ import { getApiUrl } from '../utils/apiConfig';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaEnvelope, FaPaperPlane, FaCheckCircle, FaSignOutAlt, FaInfoCircle, FaSpinner, FaExclamationTriangle, FaArrowLeft } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import { getAuth, sendEmailVerification, reload } from 'firebase/auth'; // Firebase Native Auth
+import { app } from '../firebaseConfig'; // Ensure this path is correct
 
 const VerifyEmailReminder = () => {
   const [isSending, setIsSending] = useState(false);
@@ -15,6 +17,7 @@ const VerifyEmailReminder = () => {
   const [userEmail, setUserEmail] = useState('');
   const navigate = useNavigate();
   const pollInterval = useRef(null);
+  const auth = getAuth(app); // Get Auth instance
 
   useEffect(() => {
     // Récupérer l'email de l'utilisateur depuis le localStorage
@@ -22,10 +25,8 @@ const VerifyEmailReminder = () => {
       const userData = JSON.parse(localStorage.getItem('user') || '{}');
       if (userData.email) {
         setUserEmail(userData.email);
-        // Start auto-polling
         startPolling();
       } else {
-        // En cas d'absence d'email (ex: reload sans session valide), rediriger vers login
         navigate('/login');
       }
     } catch (e) {
@@ -37,10 +38,9 @@ const VerifyEmailReminder = () => {
   }, [navigate]);
 
   const startPolling = () => {
-    // Check every 5 seconds
     stopPolling();
     pollInterval.current = setInterval(() => {
-      checkVerificationStatus(true); // true = silent mode (no loading spinner for user)
+      checkVerificationStatus(true);
     }, 5000);
   };
 
@@ -55,30 +55,25 @@ const VerifyEmailReminder = () => {
     setIsSending(true);
     setMessage('');
     try {
-      const token = localStorage.getItem('token');
-      if (!token) throw new Error("Vous n'êtes pas connecté.");
+      if (!auth.currentUser) {
+        // Fallback: Si currentUser est null (rare, mais possible), on demande re-login
+        throw new Error("Session Firebase introuvable. Veuillez vous reconnecter.");
+      }
 
-      await axios.post(getApiUrl('/api/auth/send-verification'), {}, {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      await sendEmailVerification(auth.currentUser);
 
-      setMessage('Un nouvel email de vérification a été envoyé !');
+      setMessage('Un nouvel email de vérification a été envoyé via Google !');
       setMessageType('success');
     } catch (error) {
       console.error("Erreur renvoi email:", error);
+      let errorMsg = error.message;
 
-      // Check for specific backend error code
-      const responseData = error.response?.data;
-      if (responseData?.error === 'EMAIL_SERVICE_NOT_CONFIGURED') {
-        setMessage('Le service d\'email n\'est pas configuré sur le serveur. Veuillez contacter le support.');
-        setMessageType('error');
-      } else {
-        const errorMsg = responseData?.message || error.message || 'Erreur lors de l\'envoi';
-        setMessage(errorMsg);
-        setMessageType('error');
+      if (error.code === 'auth/too-many-requests') {
+        errorMsg = "Trop de tentatives. Veuillez patienter un moment.";
       }
+
+      setMessage(errorMsg);
+      setMessageType('error');
     } finally {
       setIsSending(false);
     }
@@ -91,12 +86,12 @@ const VerifyEmailReminder = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('adminToken');
     localStorage.removeItem('adminData');
+    auth.signOut();
     navigate('/login');
   };
 
   const checkVerificationStatus = async (silent = false) => {
     if (!silent) setIsChecking(true);
-    if (!silent) setMessage('');
 
     try {
       const token = localStorage.getItem('token');
@@ -109,40 +104,64 @@ const VerifyEmailReminder = () => {
         return;
       }
 
-      const response = await axios.get(getApiUrl('/api/users/profile'), {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      });
+      if (auth.currentUser) {
+        await reload(auth.currentUser); // Important: Rafraîchir le token Firebase
 
-      if (response.data && (response.data.isVerified || response.data.user?.isVerified)) {
-        // Gérer les deux formats possibles de réponse (data directement ou data.user)
-        const user = response.data.user || response.data;
+        if (auth.currentUser.emailVerified) {
+          // 1. Sync Backend
+          try {
+            const syncResponse = await axios.post(getApiUrl('/api/auth/sync-verification'), {}, {
+              headers: { Authorization: `Bearer ${token}` }
+            });
 
-        // Mettre à jour le localStorage avec les nouvelles données
-        localStorage.setItem('user', JSON.stringify(user));
+            if (syncResponse.data.success) {
+              // 2. Success Logic
+              const user = syncResponse.data.user || JSON.parse(localStorage.getItem('user'));
+              user.isVerified = true;
+              localStorage.setItem('user', JSON.stringify(user));
 
-        setMessage('Email vérifié avec succès ! Redirection...');
-        setMessageType('success');
-        stopPolling();
+              setMessage('Email vérifié avec succès ! Redirection...');
+              setMessageType('success');
+              stopPolling();
 
-        setTimeout(() => {
-          if (user.isProfileComplete) {
-            navigate('/dashboard');
-          } else {
-            navigate('/complete-profile');
+              setTimeout(() => {
+                if (user.isProfileComplete) {
+                  navigate('/dashboard');
+                } else {
+                  navigate('/complete-profile');
+                }
+              }, 1500);
+              return;
+            }
+          } catch (syncError) {
+            console.error("Sync Error", syncError);
+            // Continue polling if sync fails temporarily
           }
-        }, 1500);
+        }
       } else {
-        if (!silent) {
-          setMessage('Votre email n\'est pas encore vérifié. Veuillez cliquer sur le lien dans l\'email reçu.');
-          setMessageType('warning');
+        // Si on perd l'auth firebase mais qu'on a le token local, on essaye via l'API classique profile
+        // (Fallback ancien code)
+        const response = await axios.get(getApiUrl('/api/users/profile'), {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (response.data && (response.data.isVerified || response.data.user?.isVerified)) {
+          setMessage('Email vérifié !');
+          setMessageType('success');
+          stopPolling();
+          setTimeout(() => navigate('/dashboard'), 1500);
+          return;
         }
       }
+
+      if (!silent) {
+        setMessage('Votre email n\'est pas encore vérifié. Veuillez cliquer sur le lien dans l\'email reçu.');
+        setMessageType('warning');
+      }
+
     } catch (error) {
       console.error('Erreur vérification statut:', error);
       if (!silent) {
-        setMessage('Impossible de vérifier le statut. Assurez-vous d\'être connecté.');
+        setMessage('Impossible de vérifier le statut.');
         setMessageType('error');
       }
     } finally {
@@ -207,7 +226,7 @@ const VerifyEmailReminder = () => {
             className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-green-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
             {isChecking ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
-            {isChecking ? 'Vérification en cours...' : 'Vérifier manuellement'}
+            {isChecking ? 'Vérifier maintenant' : 'Vérifier manuellement'}
           </button>
 
           <button
@@ -216,7 +235,7 @@ const VerifyEmailReminder = () => {
             className="w-full bg-slate-100 dark:bg-white/10 hover:bg-slate-200 dark:hover:bg-white/20 text-slate-700 dark:text-white font-medium py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSending ? <FaSpinner className="animate-spin" /> : <FaPaperPlane />}
-            {isSending ? 'Envoi en cours...' : 'Renvoyer l\'email'}
+            {isSending ? 'Envoi en cours...' : 'Renvoyer l\'email (Google)'}
           </button>
         </div>
 

@@ -11,6 +11,7 @@ router.post('/login/google', checkMongoConnection, authController.loginWithGoogl
 
 // Vérification email
 router.post('/send-verification', authMiddleware.protect, authController.sendVerification);
+router.post('/sync-verification', authMiddleware.protect, authController.syncFirebaseVerification);
 router.get('/verify-email', authController.verifyEmail);
 
 // Mot de passe oublié
