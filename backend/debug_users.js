@@ -14,7 +14,7 @@ const debugUsers = async () => {
         const users = await User.find({}, 'email firstName lastName').limit(5);
         console.log('First 5 users:', users);
 
-        const targetUser = await User.findOne({ email: 'genesiscodee@gmail.com' });
+        const targetUser = await User.findOne({ email: 'yassine.gmatii@gmail.com' });
         console.log('Target user search:', targetUser ? 'FOUND' : 'NOT FOUND');
 
         process.exit(0);
