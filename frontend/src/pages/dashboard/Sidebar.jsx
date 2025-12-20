@@ -13,7 +13,7 @@ import {
   IconBrain
 } from '@tabler/icons-react';
 import { useTranslation } from '../../hooks/useTranslation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Button, Tooltip, Avatar } from "@nextui-org/react";
 export default function Sidebar({
   activePage,
