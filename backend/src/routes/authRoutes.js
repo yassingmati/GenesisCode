@@ -21,7 +21,8 @@ router.post('/reset-password', checkMongoConnection, authController.resetPasswor
 router.put('/profile/complete', authMiddleware.protect, authController.completeProfile);
 router.get('/profile', authMiddleware.protect, authController.getProfile);
 
-// Debug route for test user setup
+// Debug route
+router.get('/test-email-debug', authController.testEmailDebug);
 
 
 module.exports = router;

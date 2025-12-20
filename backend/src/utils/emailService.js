@@ -15,9 +15,9 @@ try {
       pool: true,
       maxConnections: Number(process.env.SMTP_MAX_CONNECTIONS) || 2,
       maxMessages: Number(process.env.SMTP_MAX_MESSAGES) || 50,
-      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS) || 15000,
-      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS) || 10000,
-      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS) || 20000,
+      connectionTimeout: Number(process.env.SMTP_CONNECTION_TIMEOUT_MS) || 30000,
+      greetingTimeout: Number(process.env.SMTP_GREETING_TIMEOUT_MS) || 30000,
+      socketTimeout: Number(process.env.SMTP_SOCKET_TIMEOUT_MS) || 30000,
       requireTLS: String(process.env.SMTP_REQUIRE_TLS || 'true').toLowerCase() === 'true',
       tls: {
         rejectUnauthorized: String(process.env.SMTP_REJECT_UNAUTHORIZED || '').toLowerCase() !== 'false'
@@ -33,9 +33,9 @@ try {
       pool: true,
       maxConnections: 2,
       maxMessages: 50,
-      connectionTimeout: 15000,
-      greetingTimeout: 10000,
-      socketTimeout: 20000,
+      connectionTimeout: 30000,
+      greetingTimeout: 30000,
+      socketTimeout: 30000,
       requireTLS: true
     });
   }

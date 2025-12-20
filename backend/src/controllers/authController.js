@@ -917,3 +917,91 @@ exports.repairTestUser = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+/**
+ * @route   GET /api/auth/test-email-debug
+ * @desc    Debug email configuration
+ * @access  Public (Debug only)
+ */
+exports.testEmailDebug = async (req, res) => {
+    try {
+        console.log('🔍 Starting debug email test...');
+
+        // 1. Check Env Vars
+        const config = {
+            hasEmailUser: !!process.env.EMAIL_USER,
+            hasEmailPass: !!process.env.EMAIL_PASS,
+            hasSmtpHost: !!process.env.SMTP_HOST,
+            smtpHost: process.env.SMTP_HOST,
+            smtpPort: process.env.SMTP_PORT,
+            smtpSecure: process.env.SMTP_SECURE,
+            timestamp: new Date().toISOString()
+        };
+
+        console.log('Config Snapshot:', config);
+
+        // 2. Try simple nodemailer verification
+        const nodemailer = require('nodemailer');
+        let transporter;
+
+        if (process.env.SMTP_HOST) {
+            transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: Number(process.env.SMTP_PORT) || 587,
+                secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
+                auth: {
+                    user: process.env.SMTP_USER || process.env.EMAIL_USER,
+                    pass: process.env.SMTP_PASS || process.env.EMAIL_PASS
+                },
+                connectionTimeout: 30000, // 30s debug
+                debug: true,
+                logger: true
+            });
+        } else {
+            transporter = nodemailer.createTransport({
+                service: 'gmail',
+                auth: {
+                    user: process.env.EMAIL_USER,
+                    pass: process.env.EMAIL_PASS
+                },
+                connectionTimeout: 30000,
+                debug: true,
+                logger: true
+            });
+        }
+
+        console.log('Attempting verify()...');
+        await transporter.verify();
+        console.log('✅ Verify successful.');
+
+        // 3. Try sendMail
+        console.log('Attempting sendMail()...');
+        const info = await transporter.sendMail({
+            from: process.env.EMAIL_USER || process.env.SMTP_USER,
+            to: process.env.EMAIL_USER || process.env.SMTP_USER, // Send to self
+            subject: 'Debug Test Email CodeGenesis',
+            text: 'It works!'
+        });
+        console.log('✅ Email sent:', info.messageId);
+
+        res.json({
+            success: true,
+            message: 'Email test passed',
+            config,
+            verify: 'OK',
+            messageId: info.messageId
+        });
+
+    } catch (error) {
+        console.error('❌ Debug Email Failed:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Debug Test Failed',
+            error: error.message,
+            stack: error.stack, // Return stack for easier debug
+            code: error.code,
+            command: error.command,
+            response: error.response,
+            responseCode: error.responseCode
+        });
+    }
+};
