@@ -122,8 +122,8 @@ const translations = {
     home: {
       hero: {
         badge: '🚀 La plateforme n°1 pour apprendre à coder',
-        title: 'Apprentissage dynamique & sécurisé pour les 8–17 ans',
-        subtitle: 'Tutoriels vidéo, quiz interactifs, projets guidés, badges et classements : tout est conçu pour motiver les enfants et adolescents à apprendre la programmation chaque jour dans un environnement sécurisé.',
+        title: 'Deviens le héros de ton propre code !',
+        subtitle: 'Tu as entre 8 et 17 ans et tu rêves de créer tes propres jeux ou sites web ? CodeGenesis t\'accompagne dans une aventure numérique unique. Apprends à coder en t\'amusant avec nos tutoriels vidéo, gagne des badges d\'expert et grimpe dans le classement mondial. L\'aventure commence ici !',
         tryFree: 'Essayer gratuitement',
         viewDemo: 'Voir la démo'
       },
@@ -246,6 +246,18 @@ const translations = {
         successMessage: 'Si un compte avec cet email existe, un lien de réinitialisation a été envoyé.',
         checkSpam: 'Vérifiez votre boîte de réception et votre dossier spam. Le lien expirera dans 1 heure.',
         backToLogin: 'Retour à la connexion'
+      },
+      errors: {
+        emailInUse: "Cette adresse email est déjà utilisée.",
+        userNotFound: "Aucun compte associé à cet email.",
+        wrongPassword: "Mot de passe incorrect.",
+        accountDisabled: "Ce compte a été désactivé.",
+        missingFields: "Email et mot de passe requis.",
+        incorrectCredentials: "Email ou mot de passe incorrect.",
+        weakPassword: "Le mot de passe doit contenir au moins 6 caractères.",
+        matchPassword: "Les mots de passe ne correspondent pas.",
+        invalidEmail: "Format d'email invalide.",
+        default: "Une erreur est survenue."
       }
     },
 
@@ -469,8 +481,8 @@ const translations = {
     home: {
       hero: {
         badge: '🚀 The #1 platform to learn coding',
-        title: 'Dynamic & secure learning for 8–17 year olds',
-        subtitle: 'Video tutorials, interactive quizzes, guided projects, badges and leaderboards: everything is designed to motivate children and teenagers to learn programming every day in a secure environment.',
+        title: 'Become the Hero of Your Own Code!',
+        subtitle: 'Are you between 8 and 17 years old and dream of creating your own games or websites? CodeGenesis guides you on a unique digital adventure. Learn to code while having fun with our video tutorials, earn expert badges, and climb the global leaderboard. The adventure starts here!',
         tryFree: 'Try for free',
         viewDemo: 'View demo'
       },
@@ -593,6 +605,18 @@ const translations = {
         successMessage: 'If an account with this email exists, a reset link has been sent.',
         checkSpam: 'Check your inbox and spam folder. The link will expire in 1 hour.',
         backToLogin: 'Back to login'
+      },
+      errors: {
+        emailInUse: "This email is already in use.",
+        userNotFound: "No account is associated with this email.",
+        wrongPassword: "Incorrect password.",
+        accountDisabled: "This account has been disabled.",
+        missingFields: "Email and password are required.",
+        incorrectCredentials: "Incorrect email or password.",
+        weakPassword: "Password must be at least 6 characters long.",
+        matchPassword: "Passwords do not match.",
+        invalidEmail: "Invalid email format.",
+        default: "An error occurred."
       }
     },
 
@@ -816,8 +840,8 @@ const translations = {
     home: {
       hero: {
         badge: '🚀 المنصة رقم 1 لتعلم البرمجة',
-        title: 'تعلم ديناميكي وآمن للأعمار من 8 إلى 17 عامًا',
-        subtitle: 'دروس فيديو، اختبارات تفاعلية، مشاريع موجهة، شارات ولوحات صدارة: كل شيء مصمم لتحفيز الأطفال والمراهقين على تعلم البرمجة كل يوم في بيئة آمنة.',
+        title: 'كن بطل كودك الخاص!',
+        subtitle: 'هل عمرك بين 8 و17 عاماً وتحلم بإنشاء ألعابك أو مواقعك الإلكترونية الخاصة؟ CodeGenesis ترافقك في مغامرة رقمية فريدة. تعلم البرمجة بالمرح مع دروسنا المصورة، اربح شارات الخبراء وارتق في الترتيب العالمي. المغامرة تبدأ هنا!',
         tryFree: 'جرب مجانًا',
         viewDemo: 'شاهد العرض التوضيحي'
       },

@@ -1,13 +1,13 @@
 // Header moderne et professionnel pour le dashboard client
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
-import { 
-  FiMenu, 
-  FiX, 
-  FiBell, 
-  FiSearch, 
-  FiSettings, 
-  FiUser, 
+import {
+  FiMenu,
+  FiX,
+  FiBell,
+  FiSearch,
+  FiSettings,
+  FiUser,
   FiLogOut,
   FiSun,
   FiMoon,
@@ -15,10 +15,10 @@ import {
 } from 'react-icons/fi';
 import './ModernHeader.css';
 
-const ModernHeader = ({ 
-  onToggleSidebar, 
-  onToggleMobileMenu, 
-  mobileMenuOpen 
+const ModernHeader = ({
+  onToggleSidebar,
+  onToggleMobileMenu,
+  mobileMenuOpen
 }) => {
   const { t } = useTranslation();
   const [user, setUser] = useState(null);
@@ -82,7 +82,7 @@ const ModernHeader = ({
       <div className="header-container">
         {/* Section gauche */}
         <div className="header-left">
-          <button 
+          <button
             className="sidebar-toggle"
             onClick={onToggleSidebar}
             aria-label="Basculer la sidebar"
@@ -115,7 +115,7 @@ const ModernHeader = ({
         {/* Section droite */}
         <div className="header-right">
           {/* Bouton thème */}
-          <button 
+          <button
             className="theme-toggle"
             onClick={toggleTheme}
             aria-label={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
@@ -125,7 +125,7 @@ const ModernHeader = ({
 
           {/* Notifications */}
           <div className="notifications-container">
-            <button 
+            <button
               className="notifications-toggle"
               onClick={() => setShowNotifications(!showNotifications)}
               aria-label="Notifications"
@@ -140,7 +140,7 @@ const ModernHeader = ({
               <div className="notifications-dropdown">
                 <div className="dropdown-header">
                   <h3>Notifications</h3>
-                  <button 
+                  <button
                     className="close-dropdown"
                     onClick={() => setShowNotifications(false)}
                   >
@@ -171,7 +171,7 @@ const ModernHeader = ({
 
           {/* Menu utilisateur */}
           <div className="user-menu-container">
-            <button 
+            <button
               className="user-menu-toggle"
               onClick={() => setShowUserMenu(!showUserMenu)}
               aria-label="Menu utilisateur"
@@ -196,9 +196,9 @@ const ModernHeader = ({
                     <p>{user?.email || 'user@example.com'}</p>
                   </div>
                 </div>
-                
+
                 <div className="menu-divider"></div>
-                
+
                 <div className="menu-items">
                   <button className="menu-item">
                     <FiUser />
@@ -218,7 +218,7 @@ const ModernHeader = ({
           </div>
 
           {/* Menu mobile */}
-          <button 
+          <button
             className="mobile-menu-toggle"
             onClick={onToggleMobileMenu}
             aria-label="Menu mobile"
@@ -230,7 +230,7 @@ const ModernHeader = ({
 
       {/* Overlay pour les dropdowns */}
       {(showUserMenu || showNotifications) && (
-        <div 
+        <div
           className="dropdown-overlay"
           onClick={() => {
             setShowUserMenu(false);

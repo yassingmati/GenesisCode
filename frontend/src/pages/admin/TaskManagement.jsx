@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { motion } from 'framer-motion';
 import {
     getTaskTemplates,
     createTaskTemplate,
@@ -408,59 +409,72 @@ const TaskManagement = () => {
 
 
     if (loading && templates.length === 0) return (
-        <div className="flex justify-center items-center h-screen bg-gray-50">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="flex justify-center items-center h-screen bg-gray-50/50 dark:bg-[#0f172a]">
+            <div className="relative">
+                <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-xl animate-pulse"></div>
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 relative z-10"></div>
+            </div>
         </div>
     );
 
     return (
-        <div className="light text-foreground bg-background min-h-screen p-6">
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="p-8 max-w-[1600px] mx-auto min-h-screen"
+        >
             {/* Header */}
-            <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col md:flex-row justify-between items-end mb-8 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
-                        <IconClipboardList size={32} className="text-primary" />
+                    <h1 className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-600 to-fuchsia-600 dark:from-violet-400 dark:to-fuchsia-400 tracking-tight mb-2 flex items-center gap-3">
+                        <IconClipboardList className="text-violet-500" size={36} />
                         Gestion des Tâches
                     </h1>
-                    <p className="text-gray-500 mt-1">Gérez les modèles de tâches et assignez-les aux étudiants.</p>
-                </div>
-                <div className="flex gap-2">
-                    {/* Actions go here if any global actions needed */}
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Gérez les modèles de tâches et assignez-les aux étudiants.</p>
                 </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <Card className="shadow-sm border border-gray-200 bg-white">
-                    <CardBody className="flex flex-row items-center gap-4 p-6">
-                        <div className="p-3 rounded-full bg-primary/10 text-primary">
+                <Card className="bg-white/80 dark:bg-[#1e293b]/50 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-xl rounded-2xl overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+                    <CardBody className="flex flex-row items-center gap-4 p-6 relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
+                            <IconClipboardList size={80} />
+                        </div>
+                        <div className="p-4 rounded-2xl bg-violet-500/20 text-violet-600 dark:text-violet-400">
                             <IconClipboardList size={32} />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-gray-500">Modèles Actifs</p>
-                            <h3 className="text-2xl font-bold text-gray-900">{templates.filter(t => t.active).length}</h3>
+                            <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Modèles Actifs</p>
+                            <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">{templates.filter(t => t.active).length}</h3>
                         </div>
                     </CardBody>
                 </Card>
-                <Card className="shadow-sm border border-gray-200 bg-white">
-                    <CardBody className="flex flex-row items-center gap-4 p-6">
-                        <div className="p-3 rounded-full bg-success/10 text-success">
+                <Card className="bg-white/80 dark:bg-[#1e293b]/50 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-xl rounded-2xl overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+                    <CardBody className="flex flex-row items-center gap-4 p-6 relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
+                            <IconListCheck size={80} />
+                        </div>
+                        <div className="p-4 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                             <IconListCheck size={32} />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-gray-500">Tâches Assignées</p>
-                            <h3 className="text-2xl font-bold text-gray-900">{assignedTasks.length}</h3>
+                            <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Tâches Assignées</p>
+                            <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">{assignedTasks.length}</h3>
                         </div>
                     </CardBody>
                 </Card>
-                <Card className="shadow-sm border border-gray-200 bg-white">
-                    <CardBody className="flex flex-row items-center gap-4 p-6">
-                        <div className="p-3 rounded-full bg-warning/10 text-warning">
+                <Card className="bg-white/80 dark:bg-[#1e293b]/50 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-xl rounded-2xl overflow-hidden group hover:scale-[1.02] transition-transform duration-300">
+                    <CardBody className="flex flex-row items-center gap-4 p-6 relative">
+                        <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:scale-125 transition-transform duration-500">
+                            <IconUsers size={80} />
+                        </div>
+                        <div className="p-4 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400">
                             <IconUsers size={32} />
                         </div>
                         <div>
-                            <p className="text-sm font-medium text-gray-500">Étudiants</p>
-                            <h3 className="text-2xl font-bold text-gray-900">{students.length}</h3>
+                            <p className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">Étudiants</p>
+                            <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white drop-shadow-sm">{students.length}</h3>
                         </div>
                     </CardBody>
                 </Card>
@@ -825,7 +839,7 @@ const TaskManagement = () => {
                     )}
                 </ModalContent>
             </Modal>
-        </div>
+        </motion.div>
     );
 };
 

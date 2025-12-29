@@ -326,6 +326,20 @@ exports.getUsers = async (req, res) => {
 };
 
 /**
+ * Récupérer toutes les catégories (pour les dropdowns admin)
+ */
+exports.getAllCategories = async (req, res) => {
+  try {
+    const Category = require('../models/Category');
+    const categories = await Category.find({}).sort({ order: 1 });
+    res.json({ success: true, categories });
+  } catch (err) {
+    console.error('getAllCategories error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
  * --- GESTION DES PLANS ---
  */
 
@@ -411,14 +425,47 @@ exports.getAllPayments = async (req, res) => {
     const total = await Payment.countDocuments();
     const payments = await Payment.find({})
       .populate('user', 'email firstName lastName')
-      .populate('plan', 'name')
+      .populate('plan') // Polymorphic populate
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
+    // Normalize data for frontend
+    const normalizedPayments = payments.map(p => {
+      let planName = 'Plan Inconnu';
+      let planType = 'unknown';
+
+      if (p.plan) {
+        if (p.planModel === 'CategoryPlan') {
+          planName = p.plan.translations?.fr?.name || p.plan.translations?.en?.name || 'Plan Catégorie';
+          planType = 'CategoryPlan';
+        } else {
+          planName = p.plan.name || 'Plan Global';
+          planType = 'Plan';
+        }
+      }
+
+      // Return a plain object structure matching frontend expectations
+      return {
+        _id: p._id,
+        konnectPaymentId: p.konnectPaymentId,
+        amount: p.amount,
+        currency: p.currency,
+        status: p.status,
+        createdAt: p.createdAt,
+        updatedAt: p.updatedAt,
+        user: p.user,
+        plan: {
+          _id: p.plan?._id,
+          name: planName,
+          type: planType
+        }
+      };
+    });
+
     res.json({
       success: true,
-      payments,
+      payments: normalizedPayments,
       pagination: {
         total,
         page,
@@ -427,6 +474,7 @@ exports.getAllPayments = async (req, res) => {
     });
 
   } catch (err) {
+    console.error('getAllPayments error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 };
@@ -465,24 +513,263 @@ exports.getDashboardStats = async (req, res) => {
   try {
     const User = require('../models/User');
     const Payment = require('../models/Payment');
-    const Course = require('../models/Plan'); // Using Plans as proxy for "courses/access" or just count actual content if we had models
-    // For "Courses", maybe we count Levels or Categories?
     const Category = require('../models/Category');
+    const Path = require('../models/Path');
+    const Level = require('../models/Level');
 
-    const totalUsers = await User.countDocuments();
-    const totalCourses = await Category.countDocuments();
+    const [
+      totalUsers,
+      totalStudents,
+      totalParents,
+      totalCategories,
+      totalPaths,
+      totalLevels,
+      levelsWithContent,
+      payments
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ userType: 'student' }),
+      User.countDocuments({ userType: 'parent' }),
+      Category.countDocuments(),
+      Path.countDocuments(),
+      Level.countDocuments(),
+      Level.find({}).select('pdfs videos'),
+      Payment.find({ status: 'completed' })
+    ]);
+
+    // Calculate content (pdfs/videos)
+    let totalPDFs = 0;
+    let totalVideos = 0;
+
+    levelsWithContent.forEach(level => {
+      // Logic: If pdfs.fr is a string (path), counts as 1.
+      // We assume if one language exists, the resource exists.
+      // Or we can count all language variants. Let's count "resources" (so if avail in 3 langs, maybe just 1 resource? or 3?)
+      // User likely wants "Combien de PDF j'ai uploadé".
+      // Let's count non-empty paths in any language for now as separate files if they are distinct,
+      // but usually the schema is { fr: 'path', en: 'path' }.
+      // Let's count "Active Content Items".
+      if (level.pdfs?.fr || level.pdfs?.en || level.pdfs?.ar) totalPDFs++;
+      if (level.videos?.fr || level.videos?.en || level.videos?.ar) totalVideos++;
+    });
 
     // Revenue calc
-    const payments = await Payment.find({ status: 'completed' });
     const totalRevenue = payments.reduce((acc, curr) => acc + (curr.amount || 0), 0) / 1000; // Convert millimes to TND
 
     res.json({
-      users: totalUsers,
-      courses: totalCourses,
+      users: {
+        total: totalUsers,
+        students: totalStudents,
+        parents: totalParents
+      },
+      content: {
+        categories: totalCategories,
+        paths: totalPaths,
+        levels: totalLevels,
+        pdfs: totalPDFs,
+        videos: totalVideos
+      },
       payments: totalRevenue.toFixed(2),
-      contentItems: 0 // Placeholder or real count
+      // Legacy support if frontend expects flat structure initially (we will update frontend immediately though)
+      // totalCourses below is actually Categories count as placeholder in previous version
+      courses: totalCategories
     });
   } catch (err) {
+    console.error('Dashboard Stats Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * --- GESTION ACCÈS CATÉGORIES (SUBSCRIPTIONS) ---
+ */
+exports.getAllCategoryAccesses = async (req, res) => {
+  try {
+    const CategoryAccess = require('../models/CategoryAccess');
+    const User = require('../models/User'); // Ensure User model is available
+
+    const { page = 1, limit = 50, search } = req.query;
+    const skip = (page - 1) * limit;
+
+    const query = {};
+
+    // Si recherche par email ou nom utilisateur
+    if (search) {
+      const users = await User.find({
+        $or: [
+          { email: { $regex: search, $options: 'i' } },
+          { firstName: { $regex: search, $options: 'i' } },
+          { lastName: { $regex: search, $options: 'i' } }
+        ]
+      }).select('_id');
+
+      // On cherche les accès appartenant à ces users
+      query.user = { $in: users.map(u => u._id) };
+    }
+
+    const total = await CategoryAccess.countDocuments(query);
+    const accesses = await CategoryAccess.find(query)
+      .populate('user', 'email firstName lastName')
+      .populate('category') // To get translations
+      .populate('categoryPlan', 'name priceMonthly currency') // Optional if we want plan details
+      .sort({ createdAt: -1 })
+      .skip(Number(skip))
+      .limit(Number(limit));
+
+    // Normalize for frontend
+    const normalizedAccesses = accesses.map(acc => {
+      const accObj = acc.toObject();
+
+      // Flatten category name
+      let categoryName = 'Unknown Category';
+      if (acc.category && acc.category.translations) {
+        categoryName = acc.category.translations.fr?.name || acc.category.translations.en?.name || 'Category';
+      }
+
+      return {
+        ...accObj,
+        categoryName,
+        user: acc.user
+      };
+    });
+
+    res.json({
+      success: true,
+      accesses: normalizedAccesses,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit)
+    });
+  } catch (err) {
+    console.error('getAllCategoryAccesses error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Créer un CategoryAccess manuellement
+ */
+exports.createCategoryAccess = async (req, res) => {
+  try {
+    const CategoryAccess = require('../models/CategoryAccess');
+    const { userId, categoryId, categoryPlan, accessType, status, expiresAt } = req.body;
+
+    if (!userId || !categoryId || !accessType) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId, categoryId et accessType sont requis'
+      });
+    }
+
+    // Check if access already exists
+    const existing = await CategoryAccess.findOne({
+      user: userId,
+      category: categoryId,
+      status: 'active'
+    });
+
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: 'Un accès actif existe déjà pour cet utilisateur et cette catégorie'
+      });
+    }
+
+    const accessData = {
+      user: userId,
+      category: categoryId,
+      categoryPlan: categoryPlan || 'manual-access',
+      accessType: accessType || 'admin',
+      status: status || 'active',
+      purchasedAt: new Date()
+    };
+
+    // Set expiration if provided
+    if (expiresAt) {
+      accessData.expiresAt = new Date(expiresAt);
+    }
+
+    const newAccess = await CategoryAccess.create(accessData);
+
+    // Populate for response
+    const populatedAccess = await CategoryAccess.findById(newAccess._id)
+      .populate('user', 'email firstName lastName')
+      .populate('category');
+
+    res.status(201).json({
+      success: true,
+      message: 'Accès créé avec succès',
+      access: populatedAccess
+    });
+  } catch (err) {
+    console.error('createCategoryAccess error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Mettre à jour un CategoryAccess
+ */
+exports.updateCategoryAccess = async (req, res) => {
+  try {
+    const CategoryAccess = require('../models/CategoryAccess');
+    const { id } = req.params;
+    const { status, expiresAt, accessType } = req.body;
+
+    const updateData = {};
+    if (status) updateData.status = status;
+    if (expiresAt) updateData.expiresAt = new Date(expiresAt);
+    if (accessType) updateData.accessType = accessType;
+
+    const updatedAccess = await CategoryAccess.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    )
+      .populate('user', 'email firstName lastName')
+      .populate('category');
+
+    if (!updatedAccess) {
+      return res.status(404).json({
+        success: false,
+        message: 'Accès introuvable'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Accès mis à jour',
+      access: updatedAccess
+    });
+  } catch (err) {
+    console.error('updateCategoryAccess error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
+/**
+ * ADMIN: Supprimer un CategoryAccess
+ */
+exports.deleteCategoryAccess = async (req, res) => {
+  try {
+    const CategoryAccess = require('../models/CategoryAccess');
+    const { id } = req.params;
+
+    const deletedAccess = await CategoryAccess.findByIdAndDelete(id);
+
+    if (!deletedAccess) {
+      return res.status(404).json({
+        success: false,
+        message: 'Accès introuvable'
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Accès supprimé définitivement'
+    });
+  } catch (err) {
+    console.error('deleteCategoryAccess error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 };

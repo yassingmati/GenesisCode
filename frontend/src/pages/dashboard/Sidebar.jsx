@@ -72,34 +72,34 @@ export default function Sidebar({
   return (
     <aside
       className={`
-        fixed lg:static inset-y-0 left-0 z-[100]
+        fixed md:static inset-y-0 left-0 z-[202]
         ${sidebarWidth} 
-        ${mobileClasses}
-        bg-gradient-to-b from-indigo-900 via-purple-900 to-blue-900
+        ${mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full md:translate-x-0'}
+        bg-gradient-to-b from-[#0f0c29] via-[#302b63] to-[#24243e]
         text-white transition-all duration-300 ease-in-out
-        flex flex-col shadow-2xl border-r border-white/10
+        flex flex-col border-r border-white/5
       `}
     >
       {/* Top Section */}
       <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} p-6 h-20`}>
         {!collapsed && (
           <div className="flex items-center gap-3 font-bold text-xl tracking-tight">
-            <img src={require('../../assets/icons/logo.png')} alt="CodeGenesis" className="h-10 w-auto" />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-white to-white/80">
+            <img src={require('../../assets/icons/logo.png')} alt="CodeGenesis" className="h-10 w-auto drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" />
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400 drop-shadow-sm">
               GenesisCode
             </span>
           </div>
         )}
         {collapsed && (
           <div className="flex items-center justify-center">
-            <img src={require('../../assets/icons/logo.png')} alt="G" className="h-10 w-auto" />
+            <img src={require('../../assets/icons/logo.png')} alt="G" className="h-10 w-auto drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]" />
           </div>
         )}
 
         <Button
           isIconOnly
           variant="light"
-          className="text-white/70 hover:text-white hover:bg-white/10"
+          className="text-white/50 hover:text-white hover:bg-white/10"
           onPress={() => setCollapsed(!collapsed)}
         >
           {collapsed ? <IconChevronRight /> : <IconChevronLeft />}
@@ -115,24 +115,29 @@ export default function Sidebar({
             <button
               onClick={() => handleNav(tab.id)}
               className={`
-                w-full flex items-center gap-4 p-3 rounded-xl transition-all duration-200 group relative
+                w-full flex items-center gap-4 p-3 rounded-xl transition-all duration-300 group relative overflow-hidden
                 ${isActive
-                  ? 'bg-white/10 text-white shadow-lg shadow-purple-500/10'
-                  : 'text-white/60 hover:text-white hover:bg-white/5'
+                  ? 'bg-white/5 text-white shadow-[0_0_15px_rgba(34,211,238,0.15)] border border-cyan-500/30'
+                  : 'text-white/60 hover:text-white hover:bg-white/5 border border-transparent'
                 }
                 ${collapsed ? 'justify-center' : ''}
               `}
             >
-              <span className={`transition-transform duration-200 ${isActive ? 'scale-110 text-cyan-400' : 'group-hover:scale-110'}`}>
+              {/* Active Background Glow */}
+              {isActive && (
+                <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/10 to-purple-500/10 opacity-100 transition-opacity duration-300" />
+              )}
+
+              <span className={`relative z-10 transition-transform duration-300 ${isActive ? 'scale-110 text-cyan-400 drop-shadow-[0_0_5px_rgba(34,211,238,0.8)]' : 'group-hover:scale-110 group-hover:text-white'}`}>
                 {tab.icon}
               </span>
 
               {!collapsed && (
-                <span className="font-medium">{tab.name}</span>
+                <span className={`relative z-10 font-medium tracking-wide ${isActive ? 'text-white' : ''}`}>{tab.name}</span>
               )}
 
               {isActive && !collapsed && (
-                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)]" />
+                <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,1)] animate-pulse" />
               )}
             </button>
           );

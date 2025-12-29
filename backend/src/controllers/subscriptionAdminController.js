@@ -50,13 +50,30 @@ exports.getPlan = async (req, res) => {
 
 exports.createPlan = async (req, res) => {
   try {
-    const { _id, name, description = '', features = [], priceCents = null, currency = 'TND', interval = 'month', active = true } = req.body;
+    const { _id, name, description = '', features = [], priceCents = null, currency = 'TND', interval = 'month', active = true, type = 'global', targetId = null, allowedPaths = [] } = req.body;
     if (!String(_id || '').trim() || !name) return res.status(400).json({ message: 'plan _id et name sont requis' });
 
     const exists = await Plan.findById(_id).lean().exec();
     if (exists) return res.status(409).json({ message: 'Plan déjà existant. Utilisez PUT pour mettre à jour.' });
 
-    const planData = { _id: String(_id), name, description, priceMonthly: priceCents ? Number(priceCents) : null, currency, interval, features: Array.isArray(features) ? features : [], active: !!active };
+    // Validation basique
+    if ((type === 'Category' || type === 'Path') && !targetId) {
+      return res.status(400).json({ message: 'targetId est requis pour les plans de type Category ou Path' });
+    }
+
+    const planData = {
+      _id: String(_id),
+      name,
+      description,
+      priceMonthly: priceCents ? Number(priceCents) : null,
+      currency,
+      interval,
+      features: Array.isArray(features) ? features : [],
+      active: !!active,
+      type,       // 'global', 'Category', 'Path'
+      targetId,   // ObjectId
+      allowedPaths: Array.isArray(allowedPaths) ? allowedPaths : []
+    };
     const created = await Plan.create(planData);
     return res.status(201).json({ message: 'Plan créé', plan: created });
   } catch (err) {
@@ -70,7 +87,7 @@ exports.updatePlan = async (req, res) => {
     const plan = await Plan.findById(req.params.planId);
     if (!plan) return res.status(404).json({ message: 'Plan introuvable' });
     const updates = req.body || {};
-    const allowed = ['name', 'description', 'priceMonthly', 'currency', 'interval', 'features', 'active'];
+    const allowed = ['name', 'description', 'priceMonthly', 'currency', 'interval', 'features', 'active', 'type', 'targetId', 'allowedPaths'];
     allowed.forEach(k => { if (typeof updates[k] !== 'undefined') plan[k] = updates[k]; });
     await plan.save();
     return res.json({ message: 'Plan mis à jour', plan });

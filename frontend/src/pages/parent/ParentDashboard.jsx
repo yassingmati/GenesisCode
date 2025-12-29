@@ -5,7 +5,9 @@ import PaymentControlWidget from '../../components/parent/PaymentControlWidget';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import { getApiUrl } from '../../utils/apiConfig';
 import { Card, CardBody, User, Tabs, Tab, Button, Chip, Avatar, Tooltip } from "@nextui-org/react";
-import { IconLogout, IconSettings, IconPlus, IconUser, IconChartBar, IconCreditCard } from '@tabler/icons-react';
+import { IconLogout, IconSettings, IconPlus, IconUser, IconChartBar, IconCreditCard, IconTrash } from '@tabler/icons-react';
+
+
 import ThemeToggle from '../../components/ThemeToggle';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -45,6 +47,40 @@ export default function ParentDashboard() {
       setError(error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRemoveChild = async (childId, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Êtes-vous sûr de vouloir retirer cet enfant de votre liste ? Cette action est irréversible et supprimera l'historique de suivi.")) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(getApiUrl(`/api/parent/children/${childId}`), {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        // childId passed to this function is now the RELATION ID (_id)
+        const relationId = childId;
+
+        // Find the deleted relation to check if it was selected
+        const deletedRelation = children.find(c => c._id === relationId);
+        const wasSelected = deletedRelation && deletedRelation.child && deletedRelation.child._id === selectedChild;
+
+        setChildren(prev => prev.filter(c => c._id !== relationId));
+
+        if (wasSelected) {
+          setSelectedChild(null);
+        }
+      } else {
+        alert("Erreur lors de la suppression");
+      }
+    } catch (error) {
+      console.error("Erreur suppression:", error);
     }
   };
 
@@ -175,11 +211,20 @@ export default function ParentDashboard() {
                           </h4>
                           <p className="text-xs text-gray-500 truncate">{childData.child.email}</p>
                         </div>
-                        {childData.status === 'pending' && (
-                          <Tooltip content="Invitation en attente">
-                            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                          </Tooltip>
-                        )}
+                        <div className="flex items-center gap-2">
+                          {childData.status === 'pending' && (
+                            <Tooltip content="Invitation en attente">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                            </Tooltip>
+                          )}
+                          <button
+                            onClick={(e) => handleRemoveChild(childData._id, e)}
+                            className="p-1.5 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors z-20 relative"
+                            title="Retirer l'enfant"
+                          >
+                            <IconTrash size={18} />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -212,51 +257,70 @@ export default function ParentDashboard() {
 
             {/* Main Content Area */}
             <div className="lg:col-span-9">
-              {selectedChild && (
-                <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] md:rounded-[2.5rem] p-1 shadow-2xl border border-white/20 dark:border-slate-800">
-                  <Tabs
-                    aria-label="Options"
-                    color="primary"
-                    variant="bordered"
-                    radius="full"
-                    size="lg"
-                    classNames={{
-                      base: "w-full p-2 h-auto",
-                      tabList: "w-full bg-gray-100/50 dark:bg-slate-950/50 p-1 border border-white/10 dark:border-slate-800 flex-col md:flex-row h-auto",
-                      cursor: "bg-white dark:bg-slate-800 shadow-sm",
-                      tab: "h-12 font-medium text-gray-600 dark:text-gray-400 data-[selected=true]:text-gray-900 dark:data-[selected=true]:text-white transition-colors",
-                      tabContent: "group-data-[selected=true]:font-bold"
-                    }}
-                  >
-                    <Tab
-                      key="tasks"
-                      title={
-                        <div className="flex items-center gap-2">
-                          <IconChartBar size={18} />
-                          <span>Progression & Suivi</span>
-                        </div>
-                      }
-                    >
-                      <div className="p-3 md:p-8">
-                        <TaskManagementWidget childId={selectedChild} />
+              {selectedChild && (() => {
+                const currentChild = children.find(c => c.child._id === selectedChild);
+                if (currentChild?.status === 'pending') {
+                  return (
+                    <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] p-8 shadow-xl border border-white/20 dark:border-slate-800 flex flex-col items-center justify-center min-h-[400px] text-center">
+                      <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mb-6 animate-pulse">
+                        <IconUser size={40} className="text-amber-500" />
                       </div>
-                    </Tab>
-                    <Tab
-                      key="payments"
-                      title={
-                        <div className="flex items-center gap-2">
-                          <IconCreditCard size={18} />
-                          <span>Abonnements & Contrôles</span>
-                        </div>
-                      }
+                      <h3 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">Invitation en attente</h3>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-md mb-8">
+                        La demande de suivi a été envoyée à <strong>{currentChild.child.email}</strong>.
+                        L'accès aux données sera débloqué une fois que l'enfant aura accepté votre invitation.
+                      </p>
+                      <Chip color="warning" variant="flat" size="lg">En attente de confirmation</Chip>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl rounded-[2rem] md:rounded-[2.5rem] p-1 shadow-2xl border border-white/20 dark:border-slate-800">
+                    <Tabs
+                      aria-label="Options"
+                      color="primary"
+                      variant="bordered"
+                      radius="full"
+                      size="lg"
+                      classNames={{
+                        base: "w-full p-2 h-auto",
+                        tabList: "w-full bg-gray-100/50 dark:bg-slate-950/50 p-1 border border-white/10 dark:border-slate-800 flex-col md:flex-row h-auto",
+                        cursor: "bg-white dark:bg-slate-800 shadow-sm",
+                        tab: "h-12 font-medium text-gray-600 dark:text-gray-400 data-[selected=true]:text-gray-900 dark:data-[selected=true]:text-white transition-colors",
+                        tabContent: "group-data-[selected=true]:font-bold"
+                      }}
                     >
-                      <div className="p-3 md:p-8">
-                        <PaymentControlWidget childId={selectedChild} />
-                      </div>
-                    </Tab>
-                  </Tabs>
-                </div>
-              )}
+                      <Tab
+                        key="tasks"
+                        title={
+                          <div className="flex items-center gap-2">
+                            <IconChartBar size={18} />
+                            <span>Progression & Suivi</span>
+                          </div>
+                        }
+                      >
+                        <div className="p-3 md:p-8">
+                          <TaskManagementWidget childId={selectedChild} />
+                        </div>
+                      </Tab>
+                      <Tab
+                        key="payments"
+                        title={
+                          <div className="flex items-center gap-2">
+                            <IconCreditCard size={18} />
+                            <span>Abonnements & Contrôles</span>
+                          </div>
+                        }
+                      >
+                        <div className="p-3 md:p-8">
+                          <PaymentControlWidget childId={selectedChild} />
+                        </div>
+                      </Tab>
+                    </Tabs>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}

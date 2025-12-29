@@ -46,7 +46,7 @@ export default function DashboardLayout({ children, activePage, setActivePage })
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
     return (
-        <div className="flex h-screen bg-gray-50 dark:bg-slate-900 overflow-hidden transition-colors duration-300">
+        <div className="flex h-screen bg-[#0f0c29] bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white lg:overflow-hidden overflow-y-auto transition-colors duration-300">
             <TimeTracker />
 
             {/* Sidebar */}
@@ -60,7 +60,7 @@ export default function DashboardLayout({ children, activePage, setActivePage })
             />
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300">
+            <div className="flex-1 flex flex-col min-w-0 lg:overflow-hidden overflow-visible transition-all duration-300">
                 <Header
                     toggleSidebar={toggleSidebar}
                     collapsed={sidebarCollapsed}
@@ -68,8 +68,8 @@ export default function DashboardLayout({ children, activePage, setActivePage })
                     setActivePage={setActivePage}
                 />
 
-                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scroll-smooth">
-                    <div className="max-w-7xl mx-auto w-full">
+                <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:'none']">
+                    <div className="max-w-7xl mx-auto w-full h-full">
                         {children}
                     </div>
                 </main>

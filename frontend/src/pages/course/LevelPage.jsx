@@ -16,7 +16,7 @@ import {
 import { motion } from 'framer-motion';
 
 const API_BASE = getApiUrl('/api/courses');
-const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇸🇦' }];
+const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇹🇳' }];
 
 // Helper functions (kept from original)
 async function findAccessiblePath(token) {
@@ -138,8 +138,13 @@ export default function LevelPage() {
         setLevel(l);
 
         // Path info logic
-        if (l.path && l.path._id) {
-          setPathInfo({ _id: l.path._id, name: l.path.translations?.[lang]?.name || l.path.translations?.fr?.name || 'Parcours' });
+        if (l.path) {
+          const pId = typeof l.path === 'object' ? l.path._id : l.path;
+          const pName = (typeof l.path === 'object' && l.path.translations)
+            ? (l.path.translations?.[lang]?.name || l.path.translations?.fr?.name)
+            : 'Parcours';
+
+          setPathInfo({ _id: pId, name: pName });
         } else {
           const accessiblePath = await findAccessiblePath(token);
           setPathInfo({ _id: accessiblePath?._id || 'default', name: accessiblePath?.name || 'Parcours' });
@@ -238,7 +243,7 @@ export default function LevelPage() {
   const levelTitle = level?.translations?.[lang]?.title || level?.translations?.fr?.title || 'Niveau';
 
   return (
-    <CourseAccessGuard pathId={level?.path?._id || pathInfo?._id} levelId={levelId}>
+    <CourseAccessGuard pathId={pathInfo?._id || (typeof level?.path === 'object' ? level?.path?._id : level?.path)} levelId={levelId}>
       <ClientPageLayout
         title={levelTitle}
         subtitle="Contenu du cours"

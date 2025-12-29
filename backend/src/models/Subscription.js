@@ -10,9 +10,16 @@ const subscriptionSchema = new mongoose.Schema({
   },
 
   plan: {
+    type: mongoose.Schema.Types.Mixed, // Supports String (Plan) and ObjectId (CategoryPlan)
+    required: true,
+    refPath: 'planModel'
+  },
+
+  planModel: {
     type: String,
-    ref: 'Plan',
-    required: true
+    required: true,
+    enum: ['Plan', 'CategoryPlan'],
+    default: 'Plan'
   },
 
   promoCode: {

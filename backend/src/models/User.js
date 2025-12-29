@@ -68,6 +68,11 @@ const userSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
+// Virtual pour vérifier si l'utilisateur a un mot de passe local défini
+userSchema.virtual('hasPassword').get(function () {
+  return !!this.localPasswordHash;
+});
+
 // Virtual pour récupérer tous les abonnements de l'utilisateur
 userSchema.virtual('subscriptions', {
   ref: 'Subscription',

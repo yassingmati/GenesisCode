@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { getLevelsByPath, getPathsByCategory, getCategories } from '../../services/courseService';
-import CategoryPaymentService from '../../services/categoryPaymentService';
+// import CategoryPaymentService from '../../services/categoryPaymentService'; // Deprecated for this view
+import AccessService from '../../services/accessService';
 import API_CONFIG from '../../config/api';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
 import {
@@ -25,6 +26,7 @@ export default function SpecificPathLevels() {
 
   // Access & Progress State
   const [hasAccess, setHasAccess] = useState(false);
+  const [accessInfo, setAccessInfo] = useState({}); // New state for detailed access info
   const [userProgress, setUserProgress] = useState({ completedLevels: [] });
   const [previewLevel, setPreviewLevel] = useState(null);
 
@@ -35,7 +37,7 @@ export default function SpecificPathLevels() {
           getLevelsByPath(pathId),
           getPathsByCategory(categoryId),
           getCategories('specific'),
-          CategoryPaymentService.checkCategoryAccess(categoryId).catch(() => ({ hasAccess: false }))
+          AccessService.checkAccess(pathId).catch(() => ({ success: false, access: { hasAccess: false } }))
         ]);
 
         const sortedLevels = (levelsData || []).sort((a, b) => (a.order || 0) - (b.order || 0));
@@ -45,7 +47,10 @@ export default function SpecificPathLevels() {
         const currentCategory = categoriesData?.find(cat => cat._id === categoryId);
         setPath(currentPath);
         setCategory(currentCategory);
-        setHasAccess(accessData?.hasAccess || false);
+
+        // Store access info (structure from checkAccess is { success, access: { hasAccess, ... } })
+        setHasAccess(accessData?.access?.hasAccess || false);
+        setAccessInfo(accessData?.access || {});
 
         // Fetch User Progress
         const token = localStorage.getItem('token');
@@ -88,6 +93,12 @@ export default function SpecificPathLevels() {
 
   const isLevelUnlocked = (index) => {
     if (!hasAccess) return false; // Category locked
+
+    // Admin Bypass: If access type is admin, everything is unlocked
+    if (accessInfo?.type === 'admin' || accessInfo?.id === 'admin_bypass') {
+      return true;
+    }
+
     if (index === 0) return true; // First level always open if category access
     const prevLevelId = levels[index - 1]._id;
     return isLevelCompleted(prevLevelId);

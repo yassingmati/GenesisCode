@@ -6,6 +6,7 @@ const CategoryAccess = require('../models/CategoryAccess');
 const Category = require('../models/Category');
 const Path = require('../models/Path');
 const Level = require('../models/Level');
+const Subscription = require('../models/Subscription');
 
 /**
  * Unified access control service for path/level/exercise
@@ -37,8 +38,23 @@ class AccessControlService {
       const cached = accessCache.get(cacheKey);
       if (cached) return cached;
 
-      const user = await User.findById(userId).select('subscription').lean();
+      const user = await User.findById(userId).select('subscription roles role').lean();
       if (!user) return { hasAccess: false, reason: 'user_not_found' };
+
+      // 0) Admin Bypass
+      // Check for admin role in 'roles' array or legacy 'role' field
+      const isAdmin = (user.roles && user.roles.includes('admin')) || user.role === 'admin';
+
+      if (isAdmin) {
+        return {
+          hasAccess: true,
+          accessType: 'admin',
+          canView: true,
+          canInteract: true,
+          canDownload: true,
+          source: 'admin_bypass'
+        };
+      }
 
       // 1) Explicit access (CourseAccess)
       const explicit = await CourseAccess.checkAccess(userId, pathId, levelId, exerciseId);
@@ -87,21 +103,122 @@ class AccessControlService {
 
   static async checkSubscriptionCoverage(user, pathId, levelId = null) {
     try {
-      if (!user?.subscription || user.subscription.status !== 'active') {
+      // FIX: Check the separate Subscription model instead of the deprecated embedded field
+      const activeSub = await Subscription.findActiveByUser(user._id);
+
+      if (!activeSub) {
+        console.log(`[DEBUG] No active subscription found for user ${user._id}`);
         return { hasAccess: false };
       }
 
-      // If subscription exists, optionally restrict by plan coverage
-      // Note: Implement plan coverage rules here if needed.
-      return {
-        hasAccess: true,
-        accessType: 'subscription',
-        canView: true,
-        canInteract: true,
-        canDownload: false,
-        source: 'subscription'
-      };
+      // Ensure plan is populated
+      if (!activeSub.plan) {
+        // Should have been populated by findActiveByUser, but double check
+        await activeSub.populate('plan');
+      }
+      const plan = activeSub.plan;
+
+      console.log(`[DEBUG] Active subscription found: ${plan ? plan.name : 'Unknown Plan'} (${activeSub.status})`);
+
+      if (!plan) {
+        console.warn(`[WARN] Active subscription ${activeSub._id} refers to missing plan ${activeSub.plan}`);
+        return { hasAccess: false, reason: 'invalid_subscription_plan' };
+      }
+
+      // If no pathId check requested (general check), grant access
+      if (!pathId) {
+        return {
+          hasAccess: true,
+          accessType: 'subscription',
+          canView: true,
+          canInteract: true,
+          canDownload: false,
+          source: 'subscription',
+          plan: plan
+        };
+      }
+
+      // ----------------------------------------------------
+      // Verify Plan Scope (Global vs Category vs Path)
+      // ----------------------------------------------------
+
+      // 1. Global Access
+      if (!plan.type || plan.type === 'global') {
+        return {
+          hasAccess: true,
+          accessType: 'subscription',
+          canView: true,
+          canInteract: true,
+          canDownload: false,
+          source: 'subscription_global',
+          plan: plan
+        };
+      }
+
+      // Load the requested path to find its category
+      const pathDoc = await Path.findById(pathId).select('category').lean();
+      if (!pathDoc) {
+        console.log(`[DEBUG] Path not found: ${pathId}`);
+        return { hasAccess: false };
+      }
+
+      // 2. Category Access
+      if (plan.type === 'Category') {
+        // If plan has targetId, it must match path's category
+        if (plan.targetId && pathDoc.category) {
+          if (plan.targetId.toString() === pathDoc.category.toString()) {
+            return {
+              hasAccess: true,
+              accessType: 'subscription',
+              canView: true,
+              canInteract: true,
+              canDownload: false,
+              source: 'subscription_category',
+              plan: plan
+            };
+          } else {
+            console.log(`[DEBUG] Plan category mismatch: Plan=${plan.targetId} vs Path=${pathDoc.category}`);
+            // Fallthrough to return false
+          }
+        }
+      }
+
+      // 3. Path Access (Specific Paths)
+      if (plan.type === 'Path') {
+        // Check targetId
+        if (plan.targetId && plan.targetId.toString() === pathId.toString()) {
+          return {
+            hasAccess: true,
+            accessType: 'subscription',
+            canView: true,
+            canInteract: true,
+            canDownload: false,
+            source: 'subscription_path',
+            plan: plan
+          };
+        }
+        // Check allowedPaths list
+        if (plan.allowedPaths && plan.allowedPaths.length > 0) {
+          const allowed = plan.allowedPaths.some(p => p.toString() === pathId.toString());
+          if (allowed) {
+            return {
+              hasAccess: true,
+              accessType: 'subscription',
+              canView: true,
+              canInteract: true,
+              canDownload: false,
+              source: 'subscription_path_list',
+              plan: plan
+            };
+          }
+        }
+      }
+
+      console.log(`[DEBUG] Access denied by plan scope. Plan type: ${plan.type}`);
+      return { hasAccess: false, reason: 'plan_scope_mismatch' };
+
     } catch (e) {
+      console.error('AccessControlService.checkSubscriptionCoverage error:', e);
       return { hasAccess: false };
     }
   }

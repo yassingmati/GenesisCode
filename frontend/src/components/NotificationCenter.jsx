@@ -3,9 +3,9 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { getApiUrl } from '../utils/apiConfig';
 
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
-  (process.env.NODE_ENV === 'production' 
-    ? 'https://codegenesis-backend.onrender.com' 
+const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://codegenesis-backend.onrender.com'
     : getApiUrl(''));
 
 /**
@@ -55,9 +55,9 @@ export default function NotificationCenter({ user }) {
 
   const getDemoNotifications = () => {
     if (!user) return [];
-    
+
     const demoNotifications = [];
-    
+
     // Notification d'invitation parent pour les étudiants
     if (user.userType === 'student') {
       demoNotifications.push({
@@ -70,7 +70,7 @@ export default function NotificationCenter({ user }) {
         priority: 'high'
       });
     }
-    
+
     // Notification de progression
     demoNotifications.push({
       id: 'demo-progress',
@@ -81,7 +81,7 @@ export default function NotificationCenter({ user }) {
       read: false,
       priority: 'medium'
     });
-    
+
     // Notification de rappel
     demoNotifications.push({
       id: 'demo-reminder',
@@ -92,14 +92,14 @@ export default function NotificationCenter({ user }) {
       read: true,
       priority: 'low'
     });
-    
+
     return demoNotifications;
   };
 
   const markAsRead = async (notificationId) => {
     try {
       const token = localStorage.getItem('token');
-      
+
       // Vérifier si la notification est déjà marquée comme lue
       const notification = notifications.find(n => n.id === notificationId);
       if (notification && notification.read) {
@@ -112,10 +112,10 @@ export default function NotificationCenter({ user }) {
           'Content-Type': 'application/json'
         }
       });
-      
+
       // Mettre à jour l'état local immédiatement
-      setNotifications(prev => 
-        prev.map(notif => 
+      setNotifications(prev =>
+        prev.map(notif =>
           notif.id === notificationId ? { ...notif, read: true } : notif
         )
       );
@@ -129,14 +129,14 @@ export default function NotificationCenter({ user }) {
       }
     } catch (error) {
       console.error('Erreur marquage notification:', error);
-      
+
       // En cas d'erreur, marquer comme lu localement quand même
-      setNotifications(prev => 
-        prev.map(notif => 
+      setNotifications(prev =>
+        prev.map(notif =>
           notif.id === notificationId ? { ...notif, read: true } : notif
         )
       );
-      
+
       // Afficher un message d'erreur à l'utilisateur
       console.warn('Impossible de marquer la notification comme lue sur le serveur, mais elle a été marquée localement.');
     }
@@ -168,10 +168,43 @@ export default function NotificationCenter({ user }) {
     const minutes = Math.floor(diff / (1000 * 60));
     const hours = Math.floor(diff / (1000 * 60 * 60));
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    
+
     if (minutes < 60) return `Il y a ${minutes} min`;
     if (hours < 24) return `Il y a ${hours}h`;
     return `Il y a ${days} jour${days > 1 ? 's' : ''}`;
+  };
+
+  const handleAcceptInvitation = async (notificationId, parentId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_BASE_URL}/api/parent/accept-invitation`, { parentId }, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      // Mark as read and show success
+      await markAsRead(notificationId);
+      alert("Invitation acceptée avec succès !");
+      window.location.reload(); // Refresh to update access
+    } catch (error) {
+      console.error('Erreur acceptation:', error);
+      alert("Erreur lors de l'acceptation de l'invitation.");
+    }
+  };
+
+  const handleRejectInvitation = async (notificationId, parentId) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_BASE_URL}/api/parent/reject-invitation`, { parentId }, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      // Mark as read (or delete) 
+      await markAsRead(notificationId);
+      alert("Invitation refusée.");
+    } catch (error) {
+      console.error('Erreur refus:', error);
+      alert("Erreur lors du refus de l'invitation.");
+    }
   };
 
   const markAllAsRead = async () => {
@@ -181,10 +214,10 @@ export default function NotificationCenter({ user }) {
     try {
       const token = localStorage.getItem('token');
       const unreadIds = unreadNotifications.map(n => n.id);
-      
+
       // Marquer toutes les notifications non lues comme lues
       await Promise.all(
-        unreadIds.map(id => 
+        unreadIds.map(id =>
           axios.put(`${API_BASE_URL}/api/notifications/${id}/read`, {}, {
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -193,17 +226,17 @@ export default function NotificationCenter({ user }) {
           })
         )
       );
-      
+
       // Mettre à jour l'état local
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(notif => ({ ...notif, read: true }))
       );
-      
+
       console.log('Toutes les notifications ont été marquées comme lues');
     } catch (error) {
       console.error('Erreur marquage toutes notifications:', error);
       // En cas d'erreur, marquer toutes comme lues localement
-      setNotifications(prev => 
+      setNotifications(prev =>
         prev.map(notif => ({ ...notif, read: true }))
       );
     }
@@ -229,7 +262,7 @@ export default function NotificationCenter({ user }) {
         <h3>🔔 Notifications {unreadCount > 0 && <span className="unread-badge">{unreadCount}</span>}</h3>
         <div className="header-actions">
           {unreadCount > 0 && (
-            <button 
+            <button
               className="mark-all-read-btn"
               onClick={markAllAsRead}
               title="Marquer tout comme lu"
@@ -238,7 +271,7 @@ export default function NotificationCenter({ user }) {
             </button>
           )}
           {notifications.length > 3 && (
-            <button 
+            <button
               className="toggle-btn"
               onClick={() => setShowAll(!showAll)}
             >
@@ -247,7 +280,7 @@ export default function NotificationCenter({ user }) {
           )}
         </div>
       </div>
-      
+
       {notifications.length === 0 ? (
         <div className="no-notifications">
           <p>Aucune notification pour le moment</p>
@@ -255,10 +288,10 @@ export default function NotificationCenter({ user }) {
       ) : (
         <div className="notifications-list">
           {displayedNotifications.map((notification) => (
-            <div 
-              key={notification.id} 
+            <div
+              key={notification.id}
               className={`notification-item ${!notification.read ? 'unread' : ''}`}
-              onClick={() => !notification.read && markAsRead(notification.id)}
+              onClick={() => !notification.read && notification.type !== 'parent_invitation' && markAsRead(notification.id)}
             >
               <div className="notification-icon">
                 {getNotificationIcon(notification.type)}
@@ -271,11 +304,39 @@ export default function NotificationCenter({ user }) {
                 <div className="notification-message">
                   {notification.message}
                 </div>
+                {notification.type === 'parent_invitation' && !notification.read && notification.data && (
+                  <div className="notification-actions" style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAcceptInvitation(notification.id, notification.data.parentId);
+                      }}
+                      style={{
+                        padding: '6px 12px', borderRadius: '6px', border: 'none',
+                        background: '#10b981', color: 'white', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
+                      }}
+                    >
+                      Accepter
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRejectInvitation(notification.id, notification.data.parentId);
+                      }}
+                      style={{
+                        padding: '6px 12px', borderRadius: '6px', border: 'none',
+                        background: '#ef4444', color: 'white', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold'
+                      }}
+                    >
+                      Refuser
+                    </button>
+                  </div>
+                )}
                 <div className="notification-time">
                   {formatTimestamp(notification.timestamp)}
                 </div>
               </div>
-              <div 
+              <div
                 className="notification-priority"
                 style={{ backgroundColor: getPriorityColor(notification.priority) }}
               ></div>

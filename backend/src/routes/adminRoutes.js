@@ -37,6 +37,12 @@ router.put('/subscriptions/status', adminProtect, adminOnly, subscriptionControl
 router.delete('/subscriptions/:subscriptionId', adminProtect, adminOnly, subscriptionController.deleteSubscriptionAdmin);
 router.post('/subscriptions/cancel', adminProtect, adminOnly, subscriptionController.cancelSubscriptionAdmin);
 
+// Route pour récupérer les CategoryAccess (vrais abonnements selon la demande)
+router.get('/category-accesses', adminProtect, adminOnly, adminController.getAllCategoryAccesses);
+router.post('/category-accesses', adminProtect, adminOnly, adminController.createCategoryAccess);
+router.put('/category-accesses/:id', adminProtect, adminOnly, adminController.updateCategoryAccess);
+router.delete('/category-accesses/:id', adminProtect, adminOnly, adminController.deleteCategoryAccess);
+
 router.post('/migrate-plans', adminController.migratePlans);
 router.post('/promo-codes', adminProtect, adminOnly, adminController.createPromoCode);
 router.get('/promo-codes', adminProtect, adminOnly, adminController.getPromoCodes);
@@ -53,6 +59,9 @@ router.get('/payments/history', adminProtect, adminOnly, adminController.getAllP
 router.get('/users', adminProtect, adminOnly, adminController.getUsers);
 router.put('/users/:id/role', adminProtect, adminOnly, adminController.updateUserRole);
 router.delete('/users/:id', adminProtect, adminOnly, adminController.deleteUser);
+
+// --- Catégories (pour dropdowns) ---
+router.get('/categories', adminProtect, adminOnly, adminController.getAllCategories);
 
 router.get('/dashboard-stats', adminProtect, adminOnly, adminController.getDashboardStats);
 

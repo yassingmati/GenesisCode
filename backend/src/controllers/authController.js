@@ -351,6 +351,8 @@ exports.loginWithEmail = async (req, res) => {
                     return res.status(404).json({ message: 'No account is associated with this email.' });
                 case 'INVALID_PASSWORD':
                     return res.status(401).json({ message: 'Incorrect password.' });
+                case 'INVALID_LOGIN_CREDENTIALS':
+                    return res.status(401).json({ message: 'Incorrect email or password.' });
                 case 'USER_DISABLED':
                     return res.status(403).json({ message: 'This account has been disabled.' });
                 default:

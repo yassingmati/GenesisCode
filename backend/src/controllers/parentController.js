@@ -23,24 +23,31 @@ exports.inviteChild = async (req, res) => {
       return res.status(404).json({ message: 'Enfant non trouvé avec cet email' });
     }
 
-    // Vérifier qu'il n'y a pas déjà une relation
-    const existingRelation = await ParentChild.findOne({ parent: parentId, child: child._id });
-    if (existingRelation) {
-      return res.status(409).json({ message: 'Relation déjà existante avec cet enfant' });
+    // Vérifier si relation existante
+    let parentChild = await ParentChild.findOne({ parent: parentId, child: child._id });
+    let created = false;
+
+    if (parentChild) {
+      if (parentChild.status === 'active') {
+        return res.status(409).json({ message: 'Cet enfant est déjà connecté à votre compte' });
+      }
+
+      // Si pending ou autre, on réinitialise/renvoie
+      parentChild.status = 'pending';
+      parentChild.invitedAt = new Date(); // Update date
+      await parentChild.save();
+    } else {
+      // Créer la relation
+      parentChild = new ParentChild({
+        parent: parentId,
+        child: child._id,
+        status: 'pending'
+      });
+      await parentChild.save();
+      created = true;
     }
 
-    // Créer la relation
-    const parentChild = new ParentChild({
-      parent: parentId,
-      child: child._id,
-      status: 'pending'
-    });
-
-    await parentChild.save();
-
-    await parentChild.save();
-
-    // Envoyer notification à l'enfant
+    // Envoyer notification à l'enfant (dans tous les cas valides)
     await NotificationController.createNotification({
       recipient: child._id,
       type: 'parent_invitation',
@@ -55,8 +62,8 @@ exports.inviteChild = async (req, res) => {
     // TODO: Envoyer email d'invitation à l'enfant
     console.log(`Invitation envoyée à ${childEmail} par le parent ${parentId}`);
 
-    res.status(201).json({
-      message: 'Invitation envoyée avec succès',
+    res.status(created ? 201 : 200).json({
+      message: created ? 'Invitation envoyée avec succès' : 'Invitation renvoyée avec succès',
       relation: {
         id: parentChild._id,
         child: {
@@ -84,6 +91,17 @@ exports.getChildren = async (req, res) => {
     const childrenWithStats = await Promise.all(
       children.map(async (relation) => {
         try {
+          // Robustesse: Si populate a échoué ou l'enfant n'existe plus
+          if (!relation.child) {
+            console.warn(`Relation ${relation._id} a un enfant null/inconnu.`);
+            return {
+              ...relation,
+              child: { firstName: 'Inconnu', lastName: '(Supprimé)', email: 'N/A', _id: relation.child }, // relation.child is ObjectId if populate fails? No, if lean() used it remains ID.
+              stats: { totalXp: 0 },
+              status: 'revoked' // Force status to hide or show as error
+            };
+          }
+
           const stats = await UserProgress.getUserStats(relation.child._id);
           const recentActivity = await UserActivity.findOne(
             { user: relation.child._id },
@@ -109,7 +127,7 @@ exports.getChildren = async (req, res) => {
             controls: relation.parentalControls
           };
         } catch (error) {
-          console.error(`Erreur stats pour enfant ${relation.child._id}:`, error);
+          console.error(`Erreur stats pour enfant ${relation.child?._id}:`, error);
           return {
             ...relation,
             stats: { totalXp: 0, totalExercises: 0, completedExercises: 0, averageScore: 0, totalAttempts: 0 },
@@ -341,6 +359,31 @@ exports.acceptInvitation = async (req, res) => {
   }
 };
 
+// Refuser une invitation (pour l'enfant)
+exports.rejectInvitation = async (req, res) => {
+  try {
+    const childId = req.user.id;
+    const { parentId } = req.body;
+
+    const relation = await ParentChild.findOneAndDelete({
+      parent: parentId,
+      child: childId,
+      status: 'pending'
+    });
+
+    if (!relation) {
+      return res.status(404).json({ message: 'Invitation non trouvée' });
+    }
+
+    res.json({
+      message: 'Invitation refusée avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur refus invitation:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 // Suspendre/activer un enfant
 exports.toggleChildStatus = async (req, res) => {
   try {
@@ -368,6 +411,30 @@ exports.toggleChildStatus = async (req, res) => {
     });
   } catch (error) {
     console.error('Erreur changement statut:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+// Retirer un enfant (Supprimer la relation)
+exports.removeChild = async (req, res) => {
+  try {
+    const parentId = req.user.id;
+    const relationId = req.params.childId; // On utilise l'ID de la relation maintenant
+
+    const relation = await ParentChild.findOneAndDelete({
+      _id: relationId,
+      parent: parentId
+    });
+
+    if (!relation) {
+      return res.status(404).json({ message: 'Relation non trouvée' });
+    }
+
+    res.json({
+      message: 'Enfant retiré avec succès'
+    });
+  } catch (error) {
+    console.error('Erreur suppression enfant:', error);
     res.status(500).json({ error: error.message });
   }
 };

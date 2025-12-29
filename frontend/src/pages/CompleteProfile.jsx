@@ -7,10 +7,15 @@ import { FaUser, FaPhone, FaUserGraduate, FaUserTie, FaCheck, FaArrowRight, FaAr
 import ThemeToggle from '../components/ThemeToggle';
 
 const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || (process.env.NODE_ENV === 'production' ? '' : getApiUrl(''));
-const TOTAL_STEPS = 3;
 
 const CompleteProfile = () => {
   const [step, setStep] = useState(1);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const hasPassword = user.hasPassword || false;
+
+  // If user already has a password, the final step is 2 (Role), otherwise 3 (Password)
+  const FINAL_STEP = hasPassword ? 2 : 3;
+
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -39,7 +44,7 @@ const CompleteProfile = () => {
       return;
     }
     setErrors({});
-    if (step < TOTAL_STEPS) {
+    if (step < FINAL_STEP) {
       setStep(step + 1);
     }
   };
@@ -54,7 +59,7 @@ const CompleteProfile = () => {
     setErrors({});
 
     try {
-      if (formData.password !== formData.confirmPassword) {
+      if (!hasPassword && (formData.password !== formData.confirmPassword)) {
         setErrors({ general: "Les mots de passe ne correspondent pas." });
         setIsSubmitting(false);
         return;
@@ -69,7 +74,6 @@ const CompleteProfile = () => {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
 
-      const user = JSON.parse(localStorage.getItem('user'));
       const updatedUser = { ...user, ...response.data.user, isProfileComplete: true };
       localStorage.setItem('user', JSON.stringify(updatedUser));
 
@@ -82,7 +86,7 @@ const CompleteProfile = () => {
     }
   };
 
-  const progress = (step / TOTAL_STEPS) * 100;
+  const progress = (step / FINAL_STEP) * 100;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gradient-to-br dark:from-[#0f172a] dark:via-[#1e293b] dark:to-[#0f172a] p-4 relative overflow-hidden transition-colors duration-300">
@@ -122,7 +126,7 @@ const CompleteProfile = () => {
           {/* Progress Bar */}
           <div className="mb-8">
             <div className="flex justify-between text-xs font-medium text-slate-500 dark:text-slate-400 mb-2">
-              <span>Étape {step} sur {TOTAL_STEPS}</span>
+              <span>Étape {step} sur {FINAL_STEP}</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <div className="h-2 w-full bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
@@ -258,17 +262,22 @@ const CompleteProfile = () => {
                       <FaArrowLeft /> Retour
                     </button>
                     <button
-                      type="button"
-                      onClick={nextStep}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-blue-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2"
+                      type={hasPassword ? 'submit' : 'button'}
+                      onClick={hasPassword ? handleSubmit : nextStep}
+                      className={`bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-blue-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                      disabled={isSubmitting}
                     >
-                      Suivant <FaArrowRight />
+                      {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        hasPassword ? <>Terminer <FaCheck /></> : <>Suivant <FaArrowRight /></>
+                      )}
                     </button>
                   </div>
                 </motion.div>
               )}
 
-              {step === 3 && (
+              {step === 3 && !hasPassword && (
                 <motion.div
                   key="step3"
                   initial={{ opacity: 0, x: 20 }}

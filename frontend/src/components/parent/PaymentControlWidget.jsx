@@ -379,6 +379,7 @@ export default function PaymentControlWidget({ childId }) {
                                                         radius="full"
                                                         size="lg"
                                                         startContent={<IconCreditCard size={18} />}
+                                                        onPress={() => handleSelectPlan(plan)}
                                                     >
                                                         Choisir ce plan
                                                     </Button>

@@ -1,12 +1,12 @@
 // Sidebar moderne et professionnelle pour le dashboard client
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../hooks/useTranslation';
-import { 
-  FiHome, 
-  FiBookOpen, 
-  FiPlay, 
-  FiCheckSquare, 
-  FiUser, 
+import {
+  FiHome,
+  FiBookOpen,
+  FiPlay,
+  FiCheckSquare,
+  FiUser,
   FiSettings,
   FiBarChart3,
   FiCalendar,
@@ -18,10 +18,10 @@ import {
 } from 'react-icons/fi';
 import './ModernSidebar.css';
 
-const ModernSidebar = ({ 
-  collapsed, 
-  mobileOpen, 
-  onClose 
+const ModernSidebar = ({
+  collapsed,
+  mobileOpen,
+  onClose
 }) => {
   const { t } = useTranslation();
   const [activeItem, setActiveItem] = useState('dashboard');
@@ -123,7 +123,7 @@ const ModernSidebar = ({
             <div className="logo-icon">🚀</div>
             {!collapsed && <span className="logo-text">GenesisCode</span>}
           </div>
-          
+
           {!collapsed && (
             <button className="sidebar-close-mobile" onClick={onClose}>
               <FiX />
@@ -137,7 +137,7 @@ const ModernSidebar = ({
             <div className="nav-section-title">
               {!collapsed && <span>Navigation</span>}
             </div>
-            
+
             <div className="nav-items">
               {navigationItems.map((item) => {
                 const Icon = item.icon;
@@ -172,26 +172,26 @@ const ModernSidebar = ({
           <div className="sidebar-widget">
             <div className="widget-header">
               <h3>Pomodoro Timer</h3>
-              <button 
+              <button
                 className="widget-toggle"
                 onClick={() => setShowPomodoro(!showPomodoro)}
               >
                 {showPomodoro ? <FiChevronLeft /> : <FiChevronRight />}
               </button>
             </div>
-            
+
             {showPomodoro && (
               <div className="pomodoro-widget">
                 <div className="pomodoro-timer">
                   <div className="timer-display">25:00</div>
                   <div className="timer-mode">Focus Time</div>
                 </div>
-                
+
                 <div className="pomodoro-controls">
                   <button className="timer-btn start">Start</button>
                   <button className="timer-btn reset">Reset</button>
                 </div>
-                
+
                 <div className="pomodoro-modes">
                   <button className="mode-btn active">Focus (25m)</button>
                   <button className="mode-btn">Short Break (5m)</button>

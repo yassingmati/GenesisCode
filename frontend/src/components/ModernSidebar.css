@@ -518,9 +518,11 @@
 
 /* Responsive design */
 @media (max-width: 1024px) {
+
   /* Tablet Mode: Rail (Collapsed but visible) */
   .modern-sidebar {
-    width: 80px; /* Force collapsed width */
+    width: 80px;
+    /* Force collapsed width */
   }
 
   /* Force elements to behave as if collapsed even if prop isn't set yet (handled by JS mainly, but good backup) */
@@ -545,13 +547,15 @@
 }
 
 @media (max-width: 768px) {
+
   /* Mobile Mode: Drawer (Hidden by default) */
   .sidebar-overlay {
     display: block;
   }
-  
+
   .modern-sidebar {
-    width: 280px; /* Restore full width for drawer */
+    width: 280px;
+    /* Restore full width for drawer */
     position: fixed;
     top: 0;
     left: 0;
@@ -561,11 +565,11 @@
     border-right: none;
     box-shadow: var(--shadow-xl);
   }
-  
+
   .modern-sidebar.mobile-open {
     transform: translateX(0);
   }
-  
+
   /* Restore visibility of elements in drawer */
   .modern-sidebar .logo-text,
   .modern-sidebar .nav-label,
@@ -574,7 +578,8 @@
   .modern-sidebar .sidebar-widget,
   .modern-sidebar .widget-header,
   .modern-sidebar .pomodoro-widget {
-    display: block; /* Show again in mobile drawer */
+    display: block;
+    /* Show again in mobile drawer */
   }
 
   .modern-sidebar .nav-item {
@@ -585,7 +590,7 @@
   .modern-sidebar .nav-item-content {
     justify-content: flex-start;
   }
-  
+
   .sidebar-close-mobile {
     display: flex;
   }
@@ -593,14 +598,15 @@
 
 @media (max-width: 480px) {
   .modern-sidebar {
-    width: 85vw; /* Almost full screen on very small phones */
+    width: 85vw;
+    /* Almost full screen on very small phones */
     max-width: 320px;
   }
-  
+
   .sidebar-header {
     padding: var(--space-md);
   }
-  
+
   .sidebar-nav {
     padding: var(--space-md) 0;
   }
@@ -612,6 +618,7 @@
     opacity: 0;
     transform: translateY(-5px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -646,10 +653,3 @@
 .dark .modern-sidebar::-webkit-scrollbar-thumb {
   background: var(--gray-600);
 }
-
-
-
-
-
-
-

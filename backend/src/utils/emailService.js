@@ -46,7 +46,8 @@ try {
 
 // Vérifier si le transporteur est configuré
 const isEmailConfigured = () => {
-  return !!(process.env.EMAIL_USER && process.env.EMAIL_PASS);
+  return !!((process.env.EMAIL_USER && process.env.EMAIL_PASS) ||
+    (process.env.SMTP_USER && process.env.SMTP_PASS));
 };
 
 /**
@@ -56,36 +57,43 @@ const isEmailConfigured = () => {
  */
 const sendVerificationEmail = async (email, token) => {
   if (!isEmailConfigured()) {
-    console.error('❌ Email non configuré - EMAIL_USER et EMAIL_PASS requis');
-    console.error('   EMAIL_USER:', process.env.EMAIL_USER ? 'DÉFINI' : 'NON DÉFINI');
-    console.error('   EMAIL_PASS:', process.env.EMAIL_PASS ? 'DÉFINI' : 'NON DÉFINI');
-    throw new Error('Email service not configured. EMAIL_USER and EMAIL_PASS environment variables are required.');
+    console.error('❌ Email non configuré - Credentials requis');
+    throw new Error('Email service not configured. SMTP credentials are required.');
   }
 
   const verificationLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${token}`;
+  const fromEmail = process.env.SMTP_USER || process.env.EMAIL_USER;
 
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || fromEmail,
     to: email,
     subject: 'Vérification de votre email - CodeGenesis',
     html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #4a90e2 0%, #7b61ff 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">CodeGenesis</h1>
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
+        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px 20px; text-align: center;">
+          <img src="https://placehold.co/200x50/0f172a/ffffff?text=CodeGenesis" alt="CodeGenesis" style="height: 50px; border-radius: 4px;" />
         </div>
-        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-          <h2 style="color: #333; margin-top: 0;">Vérification d'email</h2>
-          <p style="color: #666; line-height: 1.6;">Merci de vous être inscrit sur notre plateforme. Veuillez cliquer sur le lien ci-dessous pour vérifier votre adresse email :</p>
-          <p style="margin: 30px 0; text-align: center;">
-          <a href="${verificationLink}" 
-               style="display: inline-block; padding: 15px 30px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-            Vérifier mon email
-          </a>
-        </p>
-          <p style="color: #999; font-size: 14px; margin-top: 30px;">Si vous n'avez pas créé de compte, veuillez ignorer cet email.</p>
-          <p style="color: #999; font-size: 12px; margin-top: 20px; border-top: 1px solid #eee; padding-top: 20px;">
-            Ce lien expirera dans 1 heure.
+        <div style="padding: 40px 30px; background-color: #ffffff;">
+          <h2 style="color: #1e293b; margin-top: 0; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 20px;">Vérifiez votre email</h2>
+          <p style="color: #475569; line-height: 1.6; font-size: 16px; margin-bottom: 30px; text-align: center;">
+            Merci de vous être inscrit sur CodeGenesis ! Pour sécuriser votre compte et accéder à tous nos cours, veuillez vérifier votre adresse email en cliquant sur le bouton ci-dessous.
           </p>
+          <div style="text-align: center; margin: 35px 0;">
+            <a href="${verificationLink}" 
+               style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; text-decoration: none; border-radius: 50px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2); transition: all 0.2s;">
+              Vérifier mon email
+            </a>
+          </div>
+          <p style="color: #94a3b8; font-size: 14px; margin-top: 30px; text-align: center;">
+            Si le bouton ne fonctionne pas, copiez ce lien : <br/>
+            <a href="${verificationLink}" style="color: #4F46E5; text-decoration: underline; word-break: break-all;">${verificationLink}</a>
+          </p>
+          <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #f1f5f9; text-align: center;">
+            <p style="color: #cbd5e1; font-size: 12px; margin: 0;">
+              Ce lien expirera dans 1 heure.<br/>
+              Si vous n'avez pas créé de compte, vous pouvez ignorer cet email.
+            </p>
+          </div>
         </div>
       </div>
     `
@@ -124,8 +132,10 @@ const sendPasswordResetEmail = async (email, token) => {
 
   const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password?token=${token}`;
 
+  const fromEmail = process.env.SMTP_USER || process.env.EMAIL_USER;
+
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || fromEmail,
     to: email,
     subject: 'Réinitialisation de votre mot de passe - CodeGenesis',
     html: `
@@ -175,8 +185,10 @@ const sendPasswordResetEmail = async (email, token) => {
 const sendSubscriptionConfirmationEmail = async (email, planName, amount, currency) => {
   if (!isEmailConfigured()) return;
 
+  const fromEmail = process.env.SMTP_USER || process.env.EMAIL_USER;
+
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || fromEmail,
     to: email,
     subject: 'Confirmation de votre abonnement - CodeGenesis',
     html: `
@@ -213,8 +225,10 @@ const sendSubscriptionConfirmationEmail = async (email, planName, amount, curren
 const sendRenewalReminderEmail = async (email, planName, renewalDate) => {
   if (!isEmailConfigured()) return;
 
+  const fromEmail = process.env.SMTP_USER || process.env.EMAIL_USER;
+
   const mailOptions = {
-    from: process.env.EMAIL_USER,
+    from: process.env.EMAIL_FROM || fromEmail,
     to: email,
     subject: 'Rappel de renouvellement - CodeGenesis',
     html: `

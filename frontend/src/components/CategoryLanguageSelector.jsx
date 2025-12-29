@@ -16,7 +16,7 @@ const CategoryLanguageSelector = () => {
   const languages = [
     { code: 'fr', label: 'Français', flag: '🇫🇷', description: 'Apprendre en français' },
     { code: 'en', label: 'English', flag: '🇺🇸', description: 'Learn in English' },
-    { code: 'ar', label: 'العربية', flag: '🇸🇦', description: 'تعلم بالعربية', isRTL: true }
+    { code: 'ar', label: 'العربية', flag: '🇹🇳', description: 'تعلم بالعربية', isRTL: true }
   ];
 
   useEffect(() => {
@@ -27,7 +27,7 @@ const CategoryLanguageSelector = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
-      
+
       const response = await fetch(API_CONFIG.getFullUrl('/courses/categories'), {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -38,13 +38,13 @@ const CategoryLanguageSelector = () => {
       if (response.ok) {
         const data = await response.json();
         const cats = data.categories || [];
-        
+
         // Filtrer les catégories qui ont du contenu dans la langue sélectionnée
         const categoriesWithLanguage = cats.filter(cat => {
           const translation = cat.translations?.[selectedLanguage];
           return translation && translation.name;
         });
-        
+
         setCategories(categoriesWithLanguage);
       }
     } catch (error) {
@@ -66,7 +66,7 @@ const CategoryLanguageSelector = () => {
 
   return (
     <div className="category-language-selector">
-      <motion.div 
+      <motion.div
         className="selector-container"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -100,7 +100,7 @@ const CategoryLanguageSelector = () => {
               <h3 className={`language-label ${lang.isRTL ? 'rtl' : ''}`}>{lang.label}</h3>
               <p className={`language-description ${lang.isRTL ? 'rtl' : ''}`}>{lang.description}</p>
               {selectedLanguage === lang.code && (
-                <motion.div 
+                <motion.div
                   className="selected-indicator"
                   layoutId="selected"
                   initial={{ scale: 0 }}
@@ -142,7 +142,7 @@ const CategoryLanguageSelector = () => {
               <div className="categories-grid">
                 {categories.map((category, index) => {
                   const translation = category.translations?.[selectedLanguage];
-                  
+
                   return (
                     <motion.div
                       key={category._id}
@@ -151,7 +151,7 @@ const CategoryLanguageSelector = () => {
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      whileHover={{ 
+                      whileHover={{
                         scale: 1.03,
                         boxShadow: "0 10px 30px rgba(0, 0, 0, 0.2)"
                       }}

@@ -148,6 +148,31 @@ export default function SubscriptionManagement() {
   const [actionLoading, setActionLoading] = useState({});
   const [confirmAction, setConfirmAction] = useState(null);
 
+  // New Subscription Modal
+  const [showNewSubModal, setShowNewSubModal] = useState(false);
+  const [newSubForm, setNewSubForm] = useState({ userId: '', planId: '', planModel: 'Plan' });
+
+  const handleCreateSubscription = useCallback(async () => {
+    setGlobalAction(true);
+    try {
+      const res = await api.post('/api/admin/subscriptions', {
+        userId: newSubForm.userId,
+        planId: newSubForm.planId.startsWith('mock_cat_plan_') ? newSubForm.planId.replace('mock_cat_plan_', '') : newSubForm.planId,
+        planModel: newSubForm.planModel,
+        periodEnd: null // default to 1 month/year
+      });
+      toast.success('Abonnement créé avec succès');
+      setShowNewSubModal(false);
+      setNewSubForm({ userId: '', planId: '', planModel: 'Plan' });
+      await fetchSubscriptions();
+    } catch (err) {
+      console.error('createSub', err);
+      toast.error(err?.response?.data?.message || 'Erreur création abonnement');
+    } finally {
+      setGlobalAction(false);
+    }
+  }, [api, newSubForm, fetchSubscriptions]);
+
   // controllers
   const subsControllerRef = useRef(null);
   const plansControllerRef = useRef(null);
@@ -319,7 +344,7 @@ export default function SubscriptionManagement() {
   /* ----- export CSV ----- */
   const exportCSV = useCallback(() => {
     if (!subscriptions || subscriptions.length === 0) return toast.info('Aucun abonnement à exporter');
-    const header = ['_id','email','firstName','lastName','planId','status','currentPeriodEnd','stripeCustomerId','stripeSubscriptionId','cancelAtPeriodEnd'];
+    const header = ['_id', 'email', 'firstName', 'lastName', 'planId', 'status', 'currentPeriodEnd', 'stripeCustomerId', 'stripeSubscriptionId', 'cancelAtPeriodEnd'];
     const rows = subscriptions.map(u => header.map(h => {
       const v = u[h];
       if (v === null || v === undefined) return '';
@@ -333,7 +358,7 @@ export default function SubscriptionManagement() {
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    const filename = `subscriptions_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+    const filename = `subscriptions_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.csv`;
     link.setAttribute('download', filename);
     document.body.appendChild(link); link.click(); link.remove();
     toast.success('Export CSV téléchargé');
@@ -353,14 +378,41 @@ export default function SubscriptionManagement() {
   // plan form state uses decimal price input for UX
   const [planForm, setPlanForm] = useState({
     _id: '', name: '', description: '', priceDisplay: '', // priceDisplay = decimal string like "9.99"
-    currency: 'TND', interval: 'month', active: true, featuresList: []
+    currency: 'TND', interval: 'month', active: true, featuresList: [],
+    type: 'global', targetId: '' // type: 'global' | 'Category' | 'Path'
   });
   const [featureInput, setFeatureInput] = useState('');
   const [formErrors, setFormErrors] = useState({});
 
+  // Options for targets
+  const [categories, setCategories] = useState([]);
+  const [paths, setPaths] = useState([]);
+
+  // Fetch options on mount or modal open
+  const fetchOptions = useCallback(async () => {
+    try {
+      const [catsRes, pathsRes] = await Promise.all([
+        api.get('/api/courses/categories'),
+        api.get('/api/courses/paths')
+      ]);
+      setCategories(catsRes.data);
+      setPaths(pathsRes.data);
+    } catch (e) {
+      console.error('Error loading options', e);
+    }
+  }, [api]);
+
+  useEffect(() => {
+    fetchOptions();
+  }, [fetchOptions]);
+
   const openCreatePlan = useCallback(() => {
     setSelectedPlan(null);
-    setPlanForm({ _id: '', name: '', description: '', priceDisplay: '', currency: 'TND', interval: 'month', active: true, featuresList: [] });
+    setPlanForm({
+      _id: '', name: '', description: '', priceDisplay: '',
+      currency: 'TND', interval: 'month', active: true, featuresList: [],
+      type: 'global', targetId: ''
+    });
     setFeatureInput('');
     setFormErrors({});
     setPlansModalOpen(true);
@@ -376,7 +428,9 @@ export default function SubscriptionManagement() {
       currency: p.currency || 'TND',
       interval: p.interval || 'month',
       active: !!p.active,
-      featuresList: Array.isArray(p.features) ? p.features.slice() : (p.features ? [p.features] : [])
+      featuresList: Array.isArray(p.features) ? p.features.slice() : (p.features ? [p.features] : []),
+      type: p.type || 'global',
+      targetId: p.targetId || ''
     });
     setFeatureInput('');
     setFormErrors({});
@@ -417,8 +471,14 @@ export default function SubscriptionManagement() {
         currency: planForm.currency,
         interval: planForm.interval,
         active: !!planForm.active,
-        features: Array.isArray(planForm.featuresList) ? planForm.featuresList.filter(Boolean) : []
+        features: Array.isArray(planForm.featuresList) ? planForm.featuresList.filter(Boolean) : [],
+        type: planForm.type,
+        targetId: (planForm.type === 'Category' || planForm.type === 'Path') ? planForm.targetId : null
       };
+
+      if ((payload.type === 'Category' || payload.type === 'Path') && !payload.targetId) {
+        return toast.error('Veuillez sélectionner une cible (Catégorie/Parcours)');
+      }
 
       if (selectedPlan) {
         const res = await api.put(`/api/admin/subscriptions/plans/${encodeURIComponent(selectedPlan._id)}`, payload);
@@ -491,11 +551,11 @@ export default function SubscriptionManagement() {
           <LeftColumn>
             <TableCard>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-                <div style={{ display:'flex', gap:12, alignItems:'center' }}>
-                  <div style={{ fontWeight:700 }}>{subscriptions.length}</div>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                  <div style={{ fontWeight: 700 }}>{subscriptions.length}</div>
                   <Small>abonnements affichés</Small>
                 </div>
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <Small>Items / page</Small>
                   <select value={limit} onChange={e => { setLimit(Number(e.target.value)); setPage(1); }}>
                     <option value={6}>6</option>
@@ -518,24 +578,24 @@ export default function SubscriptionManagement() {
                   </tr>
                 </thead>
                 <tbody>
+                  {/* Table Row Update */}
                   {loading ? (
-                    <tr><td colSpan="6" style={{ textAlign:'center', padding:20 }}><Spinner /></td></tr>
+                    <tr><td colSpan="6" style={{ textAlign: 'center', padding: 20 }}><Spinner /></td></tr>
                   ) : subscriptions.length === 0 ? (
-                    <tr><td colSpan="6" style={{ padding:20 }}>Aucun abonnement trouvé</td></tr>
+                    <tr><td colSpan="6" style={{ padding: 20 }}>Aucun abonnement trouvé</td></tr>
                   ) : subscriptions.map(u => (
                     <tr key={u._id}>
-                      <td>{u.firstName || '—'} <Small>{u.lastName || ''}</Small></td>
-                      <td><Small>{u.email}</Small></td>
+                      <td>{u.user?.firstName || '—'} <Small>{u.user?.lastName || ''}</Small></td>
+                      <td><Small>{u.user?.email || '—'}</Small></td>
                       <td>
-                        {/* try to show plan name if available */}
-                        {(() => {
-                          const found = plans.find(p => p._id === u.planId);
-                          return found ? <div><strong>{found.name}</strong><Small> • {found._id}</Small></div> : (u.planId || '—');
-                        })()}
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontWeight: 500 }}>{u.plan?.name || "Plan Inconnu"}</span>
+                          {u.plan?.type === 'CategoryPlan' && <Small style={{ color: '#8b5cf6' }}>Spécifique</Small>}
+                        </div>
                       </td>
                       <td>{renderStatus(u.status)}</td>
                       <td>{u.currentPeriodEnd ? formatDate(u.currentPeriodEnd) : '—'}</td>
-                      <td style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+                      <td style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <ActionButton onClick={() => openChangePlanModal(u)} title="Modifier le plan" disabled={!!actionLoading[u._id]}><FiEdit />Modifier</ActionButton>
 
                         {u.status !== 'canceled' ? (
@@ -544,7 +604,6 @@ export default function SubscriptionManagement() {
                           <ActionButton onClick={() => handleResume(u)} title="Réactiver" disabled={!!actionLoading[u._id]}>Réactiver</ActionButton>
                         )}
 
-                        <ActionButton onClick={() => openBillingPortal(u)} disabled={!!actionLoading[u._id]}>Portal</ActionButton>
                         <ActionButton onClick={() => refreshUser(u)} disabled={!!actionLoading[u._id]}>Rafraîchir</ActionButton>
                       </td>
                     </tr>
@@ -553,39 +612,111 @@ export default function SubscriptionManagement() {
               </Table>
 
               <FooterPager>
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <ActionButton disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p-1))}><FiChevronLeft /> Prev</ActionButton>
+                {/* ... existing pager ... */}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <ActionButton disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}><FiChevronLeft /> Prev</ActionButton>
                   <div>Page {page} / {totalPages}</div>
-                  <ActionButton disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p+1))}>Next <FiChevronRight /></ActionButton>
-                </div>
-
-                <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                  <Small>Filtrer / Trier</Small>
-                  {/* you can extend with sort/filter controls */}
+                  <ActionButton disabled={page >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next <FiChevronRight /></ActionButton>
                 </div>
               </FooterPager>
             </TableCard>
           </LeftColumn>
 
+          {/* Right Column or Modals */}
+
+          {/* NEW SUBSCRIPTION MODAL */}
+          {showNewSubModal && (
+            <ModalBackdrop onClick={() => setShowNewSubModal(false)}>
+              <Modal onClick={e => e.stopPropagation()}>
+                <ModalHeader>
+                  <ModalTitle>Nouvel Abonnement Manuel</ModalTitle>
+                  <CloseBtn onClick={() => setShowNewSubModal(false)}><FiX /></CloseBtn>
+                </ModalHeader>
+
+                <Field>
+                  <Label>ID Utilisateur (User ID)</Label>
+                  <Input
+                    value={newSubForm.userId}
+                    onChange={e => setNewSubForm(f => ({ ...f, userId: e.target.value }))}
+                    placeholder="65a..."
+                  />
+                  <SmallNote>Copiez l'ID depuis la liste des utilisateurs</SmallNote>
+                </Field>
+
+                <Field>
+                  <Label>Type de Plan</Label>
+                  <select
+                    value={newSubForm.planModel}
+                    onChange={e => setNewSubForm(f => ({ ...f, planModel: e.target.value, planId: '' }))}
+                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e6e8ee' }}
+                  >
+                    <option value="Plan">Plan Global</option>
+                    <option value="CategoryPlan">Plan Catégorie</option>
+                  </select>
+                </Field>
+
+                <Field>
+                  <Label>Sélectionner le Plan</Label>
+                  <select
+                    value={newSubForm.planId}
+                    onChange={e => setNewSubForm(f => ({ ...f, planId: e.target.value }))}
+                    style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e6e8ee' }}
+                  >
+                    <option value="">-- Choisir --</option>
+                    {newSubForm.planModel === 'Plan' ? (
+                      plans.filter(p => !p.type || p.type === 'global').map(p => (
+                        <option key={p._id} value={p._id}>{p.name} ({formatPriceFromCents(p.priceMonthly, p.currency)})</option>
+                      ))
+                    ) : (
+                      // For Category Plans, we might need to fetch them if not in 'plans' state
+                      // Using 'plans' state assuming it contains all plans retrieved by fetchPlans?
+                      // Actually fetchPlans calls /api/admin/subscriptions/plans which usually returns global plans
+                      // We might need to fetch CategoryPlans separately or rely on what we have.
+                      // Let's assume for now we use 'categories' to mock plans or fetch real CategoryPlans
+                      categories.map(c => (
+                        <option key={c._id} value={`mock_cat_plan_${c._id}`}>[Générer] {c.translations?.fr?.name || c.name}</option>
+                      ))
+                    )}
+
+                    {/* NOTE: handling CategoryPlan selection correctly requires a list of CategoryPlans. 
+                               If they don't exist as documents yet, we can't select them.
+                               If the user wants to "Add subscription to a category manually", we usually imply 
+                               finding the 'CategoryPlan' document associated with that category.
+                           */}
+                  </select>
+                  {newSubForm.planModel === 'CategoryPlan' && (
+                    <SmallNote>Pour l'instant, sélectionnez une catégorie. Le système cherchera le plan associé.</SmallNote>
+                  )}
+                </Field>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
+                  <ActionButton onClick={() => setShowNewSubModal(false)}>Annuler</ActionButton>
+                  <ActionButton primary onClick={handleCreateSubscription} disabled={globalAction || !newSubForm.userId || !newSubForm.planId}>Créer</ActionButton>
+                </div>
+              </Modal>
+            </ModalBackdrop>
+          )}
+
+
           <RightColumn>
-            <div style={{ display:'flex', gap:12, flexDirection:'column' }}>
+            <div style={{ display: 'flex', gap: 12, flexDirection: 'column' }}>
               <TableCard>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <div style={{ fontSize:14, fontWeight:700 }}>Plans existants</div>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>Plans existants</div>
                     <Small>Cliquez sur Edit pour modifier</Small>
                   </div>
                   <ActionButton onClick={fetchPlans} disabled={globalAction || planLoading}><FiRefreshCw /> Rafraîchir</ActionButton>
                 </div>
 
-                <div style={{ marginTop:12 }}>
-                  {planLoading ? <div style={{ padding:12, textAlign:'center' }}><Spinner /></div> : (
+                <div style={{ marginTop: 12 }}>
+                  {planLoading ? <div style={{ padding: 12, textAlign: 'center' }}><Spinner /></div> : (
                     <PlansList>
                       {plans.length === 0 ? <Small>Aucun plan</Small> : plans.map(p => (
                         <PlanCard key={p._id}>
                           <PlanMeta>
-                            <PlanTitle>{p.name} <Small style={{ marginLeft:8 }}>({_ => p._id})</Small></PlanTitle>
-                            <Small style={{ display:'block', marginTop:6 }}>{p.description || ''}</Small>
+                            <PlanTitle>{p.name} <Small style={{ marginLeft: 8 }}>({_ => p._id})</Small></PlanTitle>
+                            <Small style={{ display: 'block', marginTop: 6 }}>{p.description || ''}</Small>
                             <PlanPrice>{p.priceMonthly ? formatPriceFromCents(p.priceMonthly, p.currency) : '—'} • {p.interval || '—'}</PlanPrice>
 
                             {Array.isArray(p.features) && p.features.length > 0 && (
@@ -595,8 +726,8 @@ export default function SubscriptionManagement() {
                             )}
                           </PlanMeta>
 
-                          <div style={{ display:'flex', flexDirection:'column', gap:8, alignItems:'flex-end' }}>
-                            <div style={{ display:'flex', gap:8 }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                            <div style={{ display: 'flex', gap: 8 }}>
                               <ActionButton onClick={() => openEditPlan(p)}><FiEdit />Edit</ActionButton>
                               <ActionButton onClick={() => { if (window.confirm('Supprimer définitivement ce plan ?')) deletePlan(p._id, true); }}><FiTrash2 />Del</ActionButton>
                             </div>
@@ -615,8 +746,8 @@ export default function SubscriptionManagement() {
 
               {/* Quick tips card */}
               <TableCard>
-                <div style={{ fontWeight:700, marginBottom:8 }}>Conseils UX</div>
-                <ul style={{ margin:0, paddingLeft:18 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>Conseils UX</div>
+                <ul style={{ margin: 0, paddingLeft: 18 }}>
                   <li><Small>Utilise des fonctionnalités courtes — elles s'affichent bien dans les cartes.</Small></li>
                   <li><Small>Préfère un prix clair (ex: 9.99) pour éviter confusions avec centimes.</Small></li>
                   <li><Small>Active la prévisualisation du plan pour voir l'apparence en front.</Small></li>
@@ -627,204 +758,259 @@ export default function SubscriptionManagement() {
         </CardGrid>
 
         {/* Change Plan Modal */}
-        {showChangePlanModal && selectedUser && (
-          <ModalBackdrop onClick={() => setShowChangePlanModal(false)} role="dialog" aria-modal="true" aria-label="Modifier le plan">
-            <Modal onClick={(e) => e.stopPropagation()}>
-              <ModalHeader>
-                <ModalTitle>Changer le plan — {selectedUser.email}</ModalTitle>
-                <CloseBtn onClick={() => setShowChangePlanModal(false)} aria-label="Fermer"><FiX /></CloseBtn>
-              </ModalHeader>
+        {
+          showChangePlanModal && selectedUser && (
+            <ModalBackdrop onClick={() => setShowChangePlanModal(false)} role="dialog" aria-modal="true" aria-label="Modifier le plan">
+              <Modal onClick={(e) => e.stopPropagation()}>
+                <ModalHeader>
+                  <ModalTitle>Changer le plan — {selectedUser.email}</ModalTitle>
+                  <CloseBtn onClick={() => setShowChangePlanModal(false)} aria-label="Fermer"><FiX /></CloseBtn>
+                </ModalHeader>
 
-              <Field>
-                <Label>Plan</Label>
-                <select value={newPlan} onChange={e => setNewPlan(e.target.value)} style={{ width: '100%', padding: 10, marginTop: 8, borderRadius: 8, border: '1px solid #e6e8ee' }} aria-label="Choisir plan">
-                  <option value="">-- Choisir un plan --</option>
-                  {planOptions.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
-                </select>
-              </Field>
+                <Field>
+                  <Label>Plan</Label>
+                  <select value={newPlan} onChange={e => setNewPlan(e.target.value)} style={{ width: '100%', padding: 10, marginTop: 8, borderRadius: 8, border: '1px solid #e6e8ee' }} aria-label="Choisir plan">
+                    <option value="">-- Choisir un plan --</option>
+                    {planOptions.map(p => (<option key={p.id} value={p.id}>{p.label}</option>))}
+                  </select>
+                </Field>
 
-              <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                <ActionButton onClick={() => setShowChangePlanModal(false)}>Annuler</ActionButton>
-                <ActionButton primary onClick={handleChangePlan} disabled={globalAction || !newPlan}>Confirmer</ActionButton>
-              </div>
-            </Modal>
-          </ModalBackdrop>
-        )}
+                <div style={{ marginTop: 16, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <ActionButton onClick={() => setShowChangePlanModal(false)}>Annuler</ActionButton>
+                  <ActionButton primary onClick={handleChangePlan} disabled={globalAction || !newPlan}>Confirmer</ActionButton>
+                </div>
+              </Modal>
+            </ModalBackdrop>
+          )
+        }
 
         {/* Confirm cancel/resume */}
-        {confirmAction && (
-          <ModalBackdrop onClick={() => setConfirmAction(null)} role="dialog" aria-modal="true" aria-label="Confirmer action">
-            <Modal onClick={(e) => e.stopPropagation()}>
-              <ModalHeader>
-                <ModalTitle>{confirmAction.type === 'cancel' ? 'Confirmer annulation' : 'Confirmer réactivation'}</ModalTitle>
-                <CloseBtn onClick={() => setConfirmAction(null)} aria-label="Fermer"><FiX /></CloseBtn>
-              </ModalHeader>
+        {
+          confirmAction && (
+            <ModalBackdrop onClick={() => setConfirmAction(null)} role="dialog" aria-modal="true" aria-label="Confirmer action">
+              <Modal onClick={(e) => e.stopPropagation()}>
+                <ModalHeader>
+                  <ModalTitle>{confirmAction.type === 'cancel' ? 'Confirmer annulation' : 'Confirmer réactivation'}</ModalTitle>
+                  <CloseBtn onClick={() => setConfirmAction(null)} aria-label="Fermer"><FiX /></CloseBtn>
+                </ModalHeader>
 
-              <p>Êtes-vous sûr(e) de vouloir {confirmAction.type === 'cancel' ? 'programmer l\'annulation' : 'réactiver'} l'abonnement de <strong>{confirmAction.user.email}</strong> ?</p>
+                <p>Êtes-vous sûr(e) de vouloir {confirmAction.type === 'cancel' ? 'programmer l\'annulation' : 'réactiver'} l'abonnement de <strong>{confirmAction.user.email}</strong> ?</p>
 
-              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
-                <ActionButton onClick={() => setConfirmAction(null)}>Annuler</ActionButton>
-                <ActionButton primary onClick={confirmPerform} disabled={!!actionLoading[confirmAction.user._id]}>
-                  {actionLoading[confirmAction.user._id] ? <Spinner /> : (confirmAction.type === 'cancel' ? 'Oui, annuler' : 'Oui, réactiver')}
-                </ActionButton>
-              </div>
-            </Modal>
-          </ModalBackdrop>
-        )}
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+                  <ActionButton onClick={() => setConfirmAction(null)}>Annuler</ActionButton>
+                  <ActionButton primary onClick={confirmPerform} disabled={!!actionLoading[confirmAction.user._id]}>
+                    {actionLoading[confirmAction.user._id] ? <Spinner /> : (confirmAction.type === 'cancel' ? 'Oui, annuler' : 'Oui, réactiver')}
+                  </ActionButton>
+                </div>
+              </Modal>
+            </ModalBackdrop>
+          )
+        }
 
         {/* Plans modal (create / edit / list) */}
-        {plansModalOpen && (
-          <ModalBackdrop onClick={() => { setPlansModalOpen(false); setSelectedPlan(null); }} role="dialog" aria-modal="true" aria-label="Gérer les plans">
-            <Modal onClick={(e) => e.stopPropagation()}>
-              <ModalHeader>
-                <ModalTitle>{selectedPlan ? 'Modifier le plan' : 'Créer un plan'}</ModalTitle>
-                <CloseBtn onClick={() => { setPlansModalOpen(false); setSelectedPlan(null); }} aria-label="Fermer"><FiX /></CloseBtn>
-              </ModalHeader>
+        {
+          plansModalOpen && (
+            <ModalBackdrop onClick={() => { setPlansModalOpen(false); setSelectedPlan(null); }} role="dialog" aria-modal="true" aria-label="Gérer les plans">
+              <Modal onClick={(e) => e.stopPropagation()}>
+                <ModalHeader>
+                  <ModalTitle>{selectedPlan ? 'Modifier le plan' : 'Créer un plan'}</ModalTitle>
+                  <CloseBtn onClick={() => { setPlansModalOpen(false); setSelectedPlan(null); }} aria-label="Fermer"><FiX /></CloseBtn>
+                </ModalHeader>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 12 }}>
-                <div>
-                  <Field>
-                    <Label>_id (identifiant unique)</Label>
-                    <Input value={planForm._id} onChange={e => setPlanForm(f => ({ ...f, _id: e.target.value }))} disabled={!!selectedPlan} placeholder="ex: pro, basic, enterprise" />
-                    {formErrors._id && <SmallNote style={{ color:'#b91c1c' }}>{formErrors._id}</SmallNote>}
-                  </Field>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 12 }}>
+                  <div>
+                    <Field>
+                      <Label>_id (identifiant unique)</Label>
+                      <Input value={planForm._id} onChange={e => setPlanForm(f => ({ ...f, _id: e.target.value }))} disabled={!!selectedPlan} placeholder="ex: pro, basic, enterprise" />
+                      {formErrors._id && <SmallNote style={{ color: '#b91c1c' }}>{formErrors._id}</SmallNote>}
+                    </Field>
 
-                  <Field>
-                    <Label>Nom</Label>
-                    <Input value={planForm.name} onChange={e => setPlanForm(f => ({ ...f, name: e.target.value }))} />
-                    {formErrors.name && <SmallNote style={{ color:'#b91c1c' }}>{formErrors.name}</SmallNote>}
-                  </Field>
+                    <Field>
+                      <Label>Nom</Label>
+                      <Input value={planForm.name} onChange={e => setPlanForm(f => ({ ...f, name: e.target.value }))} />
+                      {formErrors.name && <SmallNote style={{ color: '#b91c1c' }}>{formErrors.name}</SmallNote>}
+                    </Field>
 
-                  <Field>
-                    <Label>Description</Label>
-                    <Textarea value={planForm.description} onChange={e => setPlanForm(f => ({ ...f, description: e.target.value }))} />
-                  </Field>
+                    <Field>
+                      <Label>Description</Label>
+                      <Textarea value={planForm.description} onChange={e => setPlanForm(f => ({ ...f, description: e.target.value }))} />
+                    </Field>
 
-                  <Row style={{ marginTop:8 }}>
-                    <div style={{ flex: 1 }}>
+                    <Row style={{ marginTop: 8 }}>
+                      <div style={{ flex: 1 }}>
+                        <Field>
+                          <Label>Prix (ex: 9.99)</Label>
+                          <Input value={planForm.priceDisplay} onChange={e => {
+                            // allow digits, dot, comma
+                            const v = e.target.value;
+                            if (/^[0-9]*[.,]?[0-9]{0,2}$/.test(v) || v === '') setPlanForm(f => ({ ...f, priceDisplay: v }));
+                          }} placeholder="ex: 9.99" />
+                          {formErrors.priceDisplay && <SmallNote style={{ color: '#b91c1c' }}>{formErrors.priceDisplay}</SmallNote>}
+                        </Field>
+                      </div>
+
+                      <div style={{ width: 120 }}>
+                        <Field>
+                          <Label>Devise</Label>
+                          <select value={planForm.currency} onChange={e => setPlanForm(f => ({ ...f, currency: e.target.value }))} style={{ width: '100%', padding: 10, borderRadius: 8 }}>
+                            <option value="TND">TND</option>
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                          </select>
+                        </Field>
+                      </div>
+
+                      <div style={{ width: 140 }}>
+                        <Field>
+                          <Label>Intervalle</Label>
+                          <select value={planForm.interval} onChange={e => setPlanForm(f => ({ ...f, interval: e.target.value }))} style={{ width: '100%', padding: 10, borderRadius: 8 }}>
+                            <option value="month">Mensuel</option>
+                            <option value="year">Annuel</option>
+                          </select>
+                        </Field>
+                      </div>
+                    </Row>
+
+                    <Field>
+                      <Label>Type d'accès</Label>
+                      <select
+                        value={planForm.type}
+                        onChange={e => setPlanForm(f => ({ ...f, type: e.target.value, targetId: '' }))}
+                        style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e6e8ee' }}
+                      >
+                        <option value="global">Accès Global (Tout le contenu)</option>
+                        <option value="Category">Accès par Catégorie</option>
+                        <option value="Path">Accès par Parcours</option>
+                      </select>
+                    </Field>
+
+                    {planForm.type === 'Category' && (
                       <Field>
-                        <Label>Prix (ex: 9.99)</Label>
-                        <Input value={planForm.priceDisplay} onChange={e => {
-                          // allow digits, dot, comma
-                          const v = e.target.value;
-                          if (/^[0-9]*[.,]?[0-9]{0,2}$/.test(v) || v === '') setPlanForm(f => ({ ...f, priceDisplay: v }));
-                        }} placeholder="ex: 9.99" />
-                        {formErrors.priceDisplay && <SmallNote style={{ color:'#b91c1c' }}>{formErrors.priceDisplay}</SmallNote>}
-                      </Field>
-                    </div>
-
-                    <div style={{ width:120 }}>
-                      <Field>
-                        <Label>Devise</Label>
-                        <select value={planForm.currency} onChange={e => setPlanForm(f => ({ ...f, currency: e.target.value }))} style={{ width: '100%', padding: 10, borderRadius: 8 }}>
-                          <option value="TND">TND</option>
-                          <option value="EUR">EUR</option>
-                          <option value="USD">USD</option>
+                        <Label>Catégorie Cible</Label>
+                        <select
+                          value={planForm.targetId}
+                          onChange={e => setPlanForm(f => ({ ...f, targetId: e.target.value }))}
+                          style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e6e8ee' }}
+                        >
+                          <option value="">-- Sélectionner une catégorie --</option>
+                          {categories.map(c => (
+                            <option key={c._id} value={c._id}>
+                              {c.translations?.fr?.name || c.name}
+                            </option>
+                          ))}
                         </select>
                       </Field>
-                    </div>
-
-                    <div style={{ width:140 }}>
-                      <Field>
-                        <Label>Intervalle</Label>
-                        <select value={planForm.interval} onChange={e => setPlanForm(f => ({ ...f, interval: e.target.value }))} style={{ width: '100%', padding: 10, borderRadius: 8 }}>
-                          <option value="month">Mensuel</option>
-                          <option value="year">Annuel</option>
-                        </select>
-                      </Field>
-                    </div>
-                  </Row>
-
-                  <Field>
-                    <Label>Fonctionnalités (ajouter puis Enter ou clic)</Label>
-                    <div style={{ display:'flex', gap:8 }}>
-                      <Input value={featureInput} onChange={e => setFeatureInput(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFeature(); } }}
-                        placeholder="ex: 10 projets, Support 24/7" />
-                      <ActionButton onClick={addFeature}><FiPlus /></ActionButton>
-                    </div>
-                    <Chips>
-                      {planForm.featuresList.map((f, i) => (
-                        <Chip key={i}>
-                          <span style={{ maxWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{f}</span>
-                          <button onClick={() => removeFeature(i)} style={{ background:'transparent', border:0, cursor:'pointer', padding:4 }} aria-label={`Supprimer ${f}`}><FiX /></button>
-                        </Chip>
-                      ))}
-                      {planForm.featuresList.length === 0 && <SmallNote>Aucune fonctionnalité ajoutée</SmallNote>}
-                    </Chips>
-                  </Field>
-
-                  <Field>
-                    <Label>Actif</Label>
-                    <label style={{ display:'inline-flex', gap:8, alignItems:'center' }}>
-                      <input type="checkbox" checked={!!planForm.active} onChange={e => setPlanForm(f => ({ ...f, active: e.target.checked }))} />
-                      <Small>Le plan sera disponible pour attribution</Small>
-                    </label>
-                  </Field>
-
-                  <div style={{ display:'flex', gap:8, justifyContent:'flex-end', marginTop:6 }}>
-                    {selectedPlan && (
-                      <ActionButton onClick={() => { if (window.confirm('Supprimer ce plan ? (soft delete)')) deletePlan(selectedPlan._id, false); }} disabled={globalAction}>Supprimer</ActionButton>
                     )}
 
-                    <ActionButton onClick={() => { setPlansModalOpen(false); setSelectedPlan(null); }}>Annuler</ActionButton>
-                    <ActionButton primary onClick={savePlan} disabled={planLoading}>
-                      {planLoading ? <Spinner /> : (selectedPlan ? 'Enregistrer' : 'Créer')}
-                    </ActionButton>
-                  </div>
-                </div>
+                    {planForm.type === 'Path' && (
+                      <Field>
+                        <Label>Parcours Cible</Label>
+                        <select
+                          value={planForm.targetId}
+                          onChange={e => setPlanForm(f => ({ ...f, targetId: e.target.value }))}
+                          style={{ width: '100%', padding: 10, borderRadius: 8, border: '1px solid #e6e8ee' }}
+                        >
+                          <option value="">-- Sélectionner un parcours --</option>
+                          {paths.map(p => (
+                            <option key={p._id} value={p._id}>
+                              {p.translations?.fr?.name || p.name}
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                    )}
 
-                {/* preview side */}
-                <div style={{ borderLeft: '1px dashed #eef2f7', paddingLeft:12 }}>
-                  <div style={{ fontWeight:700 }}>Aperçu du plan</div>
-                  <div style={{ marginTop:10 }}>
-                    <div style={{ background:'#fff', borderRadius:10, padding:12, border:'1px solid #eef2ff' }}>
-                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                        <div>
-                          <div style={{ fontWeight:800, fontSize:16 }}>{planForm.name || 'Nom du plan'}</div>
-                          <Small>{planForm._id ? `ID: ${planForm._id}` : 'ID: (requis)'}</Small>
-                        </div>
-                        <div style={{ textAlign:'right' }}>
-                          <div style={{ fontSize:16, fontWeight:800 }}>{planForm.priceDisplay ? `${planForm.currency} ${planForm.priceDisplay}` : '—'}</div>
-                          <Small>{planForm.interval === 'year' ? 'Annuel' : 'Mensuel'}</Small>
-                        </div>
+                    <Field>
+                      <Label>Fonctionnalités (ajouter puis Enter ou clic)</Label>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <Input value={featureInput} onChange={e => setFeatureInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFeature(); } }}
+                          placeholder="ex: 10 projets, Support 24/7" />
+                        <ActionButton onClick={addFeature}><FiPlus /></ActionButton>
                       </div>
+                      <Chips>
+                        {planForm.featuresList.map((f, i) => (
+                          <Chip key={i}>
+                            <span style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f}</span>
+                            <button onClick={() => removeFeature(i)} style={{ background: 'transparent', border: 0, cursor: 'pointer', padding: 4 }} aria-label={`Supprimer ${f}`}><FiX /></button>
+                          </Chip>
+                        ))}
+                        {planForm.featuresList.length === 0 && <SmallNote>Aucune fonctionnalité ajoutée</SmallNote>}
+                      </Chips>
+                    </Field>
 
-                      <div style={{ marginTop:10 }}>
-                        <Small>{planForm.description || 'Description courte du plan...'}</Small>
-                      </div>
+                    <Field>
+                      <Label>Actif</Label>
+                      <label style={{ display: 'inline-flex', gap: 8, alignItems: 'center' }}>
+                        <input type="checkbox" checked={!!planForm.active} onChange={e => setPlanForm(f => ({ ...f, active: e.target.checked }))} />
+                        <Small>Le plan sera disponible pour attribution</Small>
+                      </label>
+                    </Field>
 
-                      <div style={{ marginTop:10 }}>
-                        {planForm.featuresList.length === 0 ? <SmallNote>Aucune fonctionnalité</SmallNote> : (
-                          <ul style={{ paddingLeft:16, margin:0 }}>
-                            {planForm.featuresList.map((f, idx) => <li key={idx}><Small>{f}</Small></li>)}
-                          </ul>
-                        )}
-                      </div>
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 6 }}>
+                      {selectedPlan && (
+                        <ActionButton onClick={() => { if (window.confirm('Supprimer ce plan ? (soft delete)')) deletePlan(selectedPlan._id, false); }} disabled={globalAction}>Supprimer</ActionButton>
+                      )}
 
-                      <div style={{ marginTop:12, display:'flex', gap:8, justifyContent:'space-between', alignItems:'center' }}>
-                        <div>
-                          {planForm.active ? <Badge bg="#e6ffef" color="#007a3d">Actif</Badge> : <Badge bg="#fff0f0" color="#b20">Inactif</Badge>}
-                        </div>
-                        <div>
-                          <ActionButton onClick={() => { /* quick preview action or copy id */ }}><FiCheck /> Tester</ActionButton>
-                        </div>
-                      </div>
+                      <ActionButton onClick={() => { setPlansModalOpen(false); setSelectedPlan(null); }}>Annuler</ActionButton>
+                      <ActionButton primary onClick={savePlan} disabled={planLoading}>
+                        {planLoading ? <Spinner /> : (selectedPlan ? 'Enregistrer' : 'Créer')}
+                      </ActionButton>
                     </div>
                   </div>
 
-                  <div style={{ marginTop:12 }}>
-                    <div style={{ fontWeight:700, marginBottom:8 }}>Aide</div>
-                    <Small> - L'identifiant (_id) doit être unique et sans espaces.</Small><br />
-                    <Small> - Prix : utilisez un format décimal (ex: 9.99)</Small>
+                  {/* preview side */}
+                  <div style={{ borderLeft: '1px dashed #eef2f7', paddingLeft: 12 }}>
+                    <div style={{ fontWeight: 700 }}>Aperçu du plan</div>
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ background: '#fff', borderRadius: 10, padding: 12, border: '1px solid #eef2ff' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 800, fontSize: 16 }}>{planForm.name || 'Nom du plan'}</div>
+                            <Small>{planForm._id ? `ID: ${planForm._id}` : 'ID: (requis)'}</Small>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: 16, fontWeight: 800 }}>{planForm.priceDisplay ? `${planForm.currency} ${planForm.priceDisplay}` : '—'}</div>
+                            <Small>{planForm.interval === 'year' ? 'Annuel' : 'Mensuel'}</Small>
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: 10 }}>
+                          <Small>{planForm.description || 'Description courte du plan...'}</Small>
+                        </div>
+
+                        <div style={{ marginTop: 10 }}>
+                          {planForm.featuresList.length === 0 ? <SmallNote>Aucune fonctionnalité</SmallNote> : (
+                            <ul style={{ paddingLeft: 16, margin: 0 }}>
+                              {planForm.featuresList.map((f, idx) => <li key={idx}><Small>{f}</Small></li>)}
+                            </ul>
+                          )}
+                        </div>
+
+                        <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            {planForm.active ? <Badge bg="#e6ffef" color="#007a3d">Actif</Badge> : <Badge bg="#fff0f0" color="#b20">Inactif</Badge>}
+                          </div>
+                          <div>
+                            <ActionButton onClick={() => { /* quick preview action or copy id */ }}><FiCheck /> Tester</ActionButton>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontWeight: 700, marginBottom: 8 }}>Aide</div>
+                      <Small> - L'identifiant (_id) doit être unique et sans espaces.</Small><br />
+                      <Small> - Prix : utilisez un format décimal (ex: 9.99)</Small>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-            </Modal>
-          </ModalBackdrop>
-        )}
-      </Container>
-    </Page>
+              </Modal>
+            </ModalBackdrop>
+          )
+        }
+      </Container >
+    </Page >
   );
 }

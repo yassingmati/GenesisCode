@@ -787,7 +787,12 @@ let server;
     server = app.listen(PORT, () => {
       console.log(`🚀 Serveur démarré sur le port ${PORT}`);
       console.log(`Client autorisé en iframe: ${CLIENT_ORIGIN}`);
-      if (!dbConnected) {
+
+      if (dbConnected) {
+        console.log('✅ Base de données connectée. Initialisation des tâches planifiées...');
+        // Start cron jobs for task renewal ONLY after DB is connected
+        require('./jobs/taskRenewalCron');
+      } else {
         console.warn('⚠️ ATTENTION: MongoDB non connecté - Mode dégradé actif');
       }
     });
@@ -809,9 +814,6 @@ let server;
     process.exit(1);
   }
 })();
-
-// Start cron jobs for task renewal
-require('./jobs/taskRenewalCron');
 
 // Graceful shutdown
 const shutdown = async (signal) => {

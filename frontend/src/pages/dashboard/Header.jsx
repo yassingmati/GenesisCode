@@ -121,19 +121,23 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
         <Navbar
             maxWidth="full"
             position="sticky"
-            className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-gray-200/60 dark:border-slate-800/60 h-20 transition-all duration-300 supports-[backdrop-filter]:bg-white/60"
+            className="bg-[#0f0c29]/90 backdrop-blur-md border-b border-white/10 h-20 transition-all duration-300"
+            classNames={{
+                wrapper: "px-6"
+            }}
         >
             {/* Mobile Menu Toggle */}
-            <NavbarContent className="lg:hidden" justify="start">
+            <NavbarContent className="md:hidden" justify="start">
                 <Button isIconOnly variant="light" onPress={toggleMobileMenu}>
-                    <IconMenu2 className="text-slate-700 dark:text-slate-200" />
+                    <IconMenu2 className="text-white/70" />
                 </Button>
             </NavbarContent>
 
             {/* Logo */}
             <NavbarContent justify="start" className="hidden lg:flex max-w-fit cursor-pointer" onClick={() => window.location.href = '/dashboard'}>
-                <img src={require('../../assets/images/logo-removebg-preview.png')} alt="CodeGenesis" className="h-10 w-auto" />
-                <p className="font-bold text-inherit text-xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-cyan-500">CodeGenesis</p>
+                <p className="font-bold text-inherit text-xl bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400">
+                    CodeGenesis
+                </p>
             </NavbarContent>
 
             {/* Search Bar Removed */}
@@ -163,9 +167,9 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                 <NavbarItem>
                     <Dropdown placement="bottom-end">
                         <DropdownTrigger>
-                            <Button isIconOnly radius="full" variant="light" className="relative overflow-visible">
-                                <Badge content={unreadCount > 0 ? unreadCount : null} color="danger" size="sm" shape="circle" className="border-2 border-white dark:border-slate-800">
-                                    <IconBell size={24} className="text-gray-600 dark:text-slate-300" />
+                            <Button isIconOnly radius="full" variant="light" className="relative overflow-visible text-white/70 hover:text-white hover:bg-white/5">
+                                <Badge content={unreadCount > 0 ? unreadCount : null} color="danger" size="sm" shape="circle" className="border-2 border-[#0f0c29]">
+                                    <IconBell size={24} />
                                 </Badge>
                             </Button>
                         </DropdownTrigger>

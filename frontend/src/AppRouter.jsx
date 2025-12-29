@@ -25,6 +25,7 @@ import RegisterPage from './pages/auth/Register';
 import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import CompleteProfile from './pages/CompleteProfile';
+import VerifyEmail from './pages/VerifyEmail';
 import VerifyEmailReminder from './pages/VerifyEmailReminder';
 import VerifiedSuccess from './pages/VerifiedSuccess';
 import DashboardClient from './pages/dashboard/DashboardPage';
@@ -322,6 +323,7 @@ export default function AppRouter() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/complete-profile" element={<CompleteProfile />} />
+            <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/verify-email-reminder" element={<VerifyEmailReminder />} />
             <Route path="/verified-success" element={<VerifiedSuccess />} />
 

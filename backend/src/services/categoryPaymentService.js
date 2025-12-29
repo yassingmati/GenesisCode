@@ -384,8 +384,8 @@ class CategoryPaymentService {
   static async checkLevelAccess(userId, categoryId, pathId, levelId) {
     try {
       // 1. Vérifier si l'utilisateur est Admin
-      const user = await User.findById(userId);
-      if (user && (user.roles?.includes('admin') || user.isAdmin)) {
+      const user = await User.findById(userId).select('roles role isAdmin');
+      if (user && ((user.roles && user.roles.includes('admin')) || user.role === 'admin' || user.isAdmin)) {
         return { hasAccess: true, accessType: 'admin' };
       }
 
@@ -438,8 +438,8 @@ class CategoryPaymentService {
   static async checkCategoryAccess(userId, categoryId) {
     try {
       // 1. Vérifier si l'utilisateur est Admin
-      const user = await User.findById(userId);
-      if (user && (user.roles?.includes('admin') || user.isAdmin)) {
+      const user = await User.findById(userId).select('roles role isAdmin');
+      if (user && ((user.roles && user.roles.includes('admin')) || user.role === 'admin' || user.isAdmin)) {
         return {
           hasAccess: true,
           access: {
@@ -518,27 +518,30 @@ class CategoryPaymentService {
   /**
    * Récupère l'historique des accès d'un utilisateur
    */
+  /**
+   * Récupère l'historique des accès d'un utilisateur
+   */
   static async getUserAccessHistory(userId) {
     try {
+      // 1. Get explicit purchased accesses
       const accesses = await CategoryAccess.find({ user: userId })
-        .populate('category') // 'categoryPlan' population might fail or return Plan doc
+        .populate('category')
         .sort({ purchasedAt: -1 });
 
-      // Manual fetch of Plans if needed, or rely on stored snapshot? 
-      // Actually accessing the Plan document from the ID string
       const Plan = require('../models/Plan');
-      const planIds = accesses.map(a => a.categoryPlan).filter(id => id && typeof id === 'string'); // IDs are strings
+      const Category = require('../models/Category');
+
+      // Resolve Plans for purchased accesses
+      const planIds = accesses.map(a => a.categoryPlan).filter(id => id && typeof id === 'string');
       const plans = await Plan.find({ _id: { $in: planIds } }).lean();
       const planMap = {};
       plans.forEach(p => planMap[p._id] = p);
 
-      return accesses.map(access => {
-        // Resolve Plan
+      const mappedAccesses = accesses.map(access => {
         const plan = planMap[access.categoryPlan] || { name: 'Plan inconnu' };
-
         return {
           id: access._id,
-          category: access.category,
+          category: access.category, // Population might fail if cat deleted, check frontend
           categoryPlan: {
             id: access.categoryPlan,
             name: plan.name,
@@ -549,9 +552,70 @@ class CategoryPaymentService {
           purchasedAt: access.purchasedAt,
           expiresAt: access.expiresAt,
           isActive: access.isActive(),
-          unlockedLevelsCount: access.unlockedLevels.length
+          unlockedLevelsCount: access.unlockedLevels ? access.unlockedLevels.length : 0
         };
       });
+
+      // 2. Check for Active Subscription
+      const activeSub = await Subscription.findActiveByUser(userId);
+
+      if (activeSub) {
+        // Ensure plan is populated
+        if (!activeSub.plan) await activeSub.populate('plan');
+        const subPlan = activeSub.plan;
+
+        if (subPlan) {
+          let syntheticAccesses = [];
+
+          // Case A: Global Plan -> Access to ALL Categories
+          if (!subPlan.type || subPlan.type === 'global') {
+            const allCategories = await Category.find({ active: true }).lean();
+            syntheticAccesses = allCategories.map(cat => ({
+              id: `sub_global_${cat._id}`,
+              category: cat, // Pass full category object similiar to populated field
+              categoryPlan: {
+                id: subPlan._id,
+                name: subPlan.name,
+                description: subPlan.description
+              },
+              status: 'active',
+              accessType: 'subscription_global',
+              purchasedAt: activeSub.startDate,
+              expiresAt: activeSub.currentPeriodEnd,
+              isActive: true, // Subscription is active
+              unlockedLevelsCount: 'All'
+            }));
+          }
+          // Case B: Category Plan -> Access to Target Category
+          else if (subPlan.type === 'Category' && subPlan.targetId) {
+            const cat = await Category.findById(subPlan.targetId).lean();
+            if (cat) {
+              syntheticAccesses.push({
+                id: `sub_cat_${cat._id}`,
+                category: cat,
+                categoryPlan: {
+                  id: subPlan._id,
+                  name: subPlan.name,
+                  description: subPlan.description
+                },
+                status: 'active',
+                accessType: 'subscription_category',
+                purchasedAt: activeSub.startDate,
+                expiresAt: activeSub.currentPeriodEnd,
+                isActive: true,
+                unlockedLevelsCount: 'All'
+              });
+            }
+          }
+
+          // Merge synthetic accesses
+          // Avoid duplicates if user purchased AND has sub (Sub overrides or duplicates? Frontend Map handles it)
+          // We just push them.
+          return [...mappedAccesses, ...syntheticAccesses];
+        }
+      }
+
+      return mappedAccesses;
 
     } catch (error) {
       console.error('Error getting user access history:', error);

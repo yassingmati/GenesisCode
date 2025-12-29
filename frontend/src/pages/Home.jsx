@@ -57,19 +57,17 @@ const Home = () => {
               <motion.div variants={fadeInUp} className="inline-block px-4 py-1.5 mb-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 font-medium text-sm">
                 {t('home.hero.badge')}
               </motion.div>
-              <motion.h1 variants={fadeInUp} className="text-4xl lg:text-6xl font-extrabold mb-6 leading-tight">
+              <motion.h1 variants={fadeInUp} className="text-5xl lg:text-7xl font-extrabold mb-6 leading-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 drop-shadow-sm">
                 {t('home.hero.title')}
               </motion.h1>
-              <motion.p variants={fadeInUp} className="text-lg text-slate-600 dark:text-slate-400 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0">
+              <motion.p variants={fadeInUp} className="text-xl text-slate-600 dark:text-slate-300 mb-8 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-medium">
                 {t('home.hero.subtitle')}
               </motion.p>
               <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link to="/register" className="px-8 py-4 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-lg shadow-lg shadow-blue-500/25 hover:shadow-blue-500/40 hover:scale-105 transition-all flex items-center justify-center gap-2">
-                  <FaRocket /> {t('home.hero.tryFree')}
+                <Link to="/register" className="px-10 py-5 rounded-2xl bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold text-xl shadow-xl shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center gap-3 ring-4 ring-white/10 dark:ring-white/5">
+                  <FaRocket className="animate-pulse" /> {t('home.hero.tryFree')}
                 </Link>
-                <Link to="/demo" className="px-8 py-4 rounded-xl bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-lg border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400 transition-all flex items-center justify-center gap-2">
-                  <FaLaptopCode /> {t('home.hero.viewDemo')}
-                </Link>
+
               </motion.div>
 
               <motion.div variants={fadeInUp} className="mt-12 flex flex-wrap justify-center lg:justify-start gap-6">

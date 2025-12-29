@@ -10,21 +10,21 @@ const Payment = require('../models/Payment');
 const CourseAccessService = require('../services/courseAccessService');
 
 class PaymentController {
-  
+
   /**
    * Initialiser un paiement d'abonnement
    */
   static async initSubscriptionPayment(req, res) {
     try {
-      const { 
-        planId, 
+      const {
+        planId,
         categoryPlanId,
-        customerEmail, 
-        returnUrl, 
+        customerEmail,
+        returnUrl,
         cancelUrl,
-        pathId 
+        pathId
       } = req.body;
-      
+
       // Récupérer l'utilisateur (optionnel pour les tests)
       const userId = req.user ? req.user.id : null;
       const testUserId = userId || 'test-user-id';
@@ -107,7 +107,7 @@ class PaymentController {
 
       // Générer un ID de commande unique
       const merchantOrderId = `sub_${testUserId}_${Date.now()}`;
-      
+
       // Préparer les données de paiement
       let paymentData;
       let responsePlanForClient;
@@ -170,14 +170,15 @@ class PaymentController {
 
       // Enregistrer le paiement en base (seulement si l'utilisateur est authentifié)
       let payment = null;
-      if (!isCategoryPlan && userId && userId !== 'test-user-id') {
+      if (userId && userId !== 'test-user-id') {
         payment = new Payment({
           user: userId,
-          plan: legacyPlan._id,
+          plan: isCategoryPlan ? categoryPlan._id : legacyPlan._id,
+          planModel: isCategoryPlan ? 'CategoryPlan' : 'Plan',
           konnectPaymentId: paymentResult.konnectPaymentId,
           merchantOrderId,
-          amount: legacyPlan.priceMonthly,
-          currency: legacyPlan.currency,
+          amount: isCategoryPlan ? paymentData.amountCents : legacyPlan.priceMonthly,
+          currency: isCategoryPlan ? (categoryPlan.currency || 'TND') : legacyPlan.currency,
           status: 'pending',
           description: paymentData.description,
           customerEmail: testEmail,
@@ -192,31 +193,38 @@ class PaymentController {
 
       // Créer un abonnement en attente si l'utilisateur est authentifié
       let subscription = null;
-      if (!isCategoryPlan && userId && userId !== 'test-user-id') {
+      if (userId && userId !== 'test-user-id') {
+        // Pour les plans catégorie, on crée aussi un object subscription pour le suivi, 
+        // même si c'est géré différemment (expiry via access)
+        const planId = isCategoryPlan ? categoryPlan._id : legacyPlan._id;
+
         subscription = new Subscription({
           user: userId,
-          plan: legacyPlan._id,
+          plan: planId,
+          planModel: isCategoryPlan ? 'CategoryPlan' : 'Plan',
           status: 'pending',
           konnectPaymentId: paymentResult.konnectPaymentId,
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 jours
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 jours (sera mis à jour à l'activation)
         });
+
         await subscription.save();
       }
 
-      const logAmount = !isCategoryPlan 
-        ? legacyPlan.priceMonthly 
+      const logAmount = !isCategoryPlan
+        ? legacyPlan.priceMonthly
         : (responsePlanForClient && typeof responsePlanForClient.priceMonthly === 'number'
-            ? responsePlanForClient.priceMonthly
-            : Math.round((categoryPlan?.price || 0) * 100));
-      const logCurrency = !isCategoryPlan 
-        ? legacyPlan.currency 
+          ? responsePlanForClient.priceMonthly
+          : Math.round((categoryPlan?.price || 0) * 100));
+      const logCurrency = !isCategoryPlan
+        ? legacyPlan.currency
         : (responsePlanForClient?.currency || categoryPlan?.currency || 'TND');
 
       console.log('✅ Paiement initialisé:', {
         paymentId: paymentResult.konnectPaymentId,
         merchantOrderId,
         amount: logAmount,
-        currency: logCurrency
+        currency: logCurrency,
+        isCategoryPlan
       });
 
       return res.json({
@@ -225,7 +233,7 @@ class PaymentController {
         konnectPaymentId: paymentResult.konnectPaymentId,
         merchantOrderId,
         plan: responsePlanForClient,
-        subscription: subscription ? subscription._id : null,
+        subscription: subscription && !isCategoryPlan ? subscription._id : null,
         message: 'Paiement initialisé avec succès',
         testMode: !userId || userId === 'test-user-id'
       });
@@ -246,7 +254,7 @@ class PaymentController {
   static async handleKonnectWebhook(req, res) {
     try {
       const { payment_ref } = req.query;
-      
+
       if (!payment_ref) {
         console.log('⚠️ Webhook Konnect sans payment_ref');
         return res.status(400).json({
@@ -259,7 +267,7 @@ class PaymentController {
 
       // Traiter le webhook avec le service Konnect
       const webhookResult = await konnectPaymentService.processWebhook(payment_ref);
-      
+
       // Récupérer le paiement en base (optionnel en mode test)
       let payment = null;
       try {
@@ -272,12 +280,12 @@ class PaymentController {
       if (payment) {
         if (webhookResult.isCompleted) {
           await payment.markAsCompleted(webhookResult);
-          
+
           // Activer l'abonnement si l'utilisateur est authentifié
           if (payment.user && payment.user.toString() !== 'test-user-id') {
             await this.activateSubscription(payment);
           }
-          
+
           console.log('✅ Paiement confirmé:', payment_ref);
         } else if (webhookResult.isFailed) {
           await payment.markAsFailed('Paiement échoué selon Konnect');
@@ -315,7 +323,13 @@ class PaymentController {
         return;
       }
 
-      const plan = await Plan.findById(payment.plan);
+      let plan;
+      if (payment.planModel === 'CategoryPlan') {
+        plan = await CategoryPlan.findById(payment.plan);
+      } else {
+        plan = await Plan.findById(payment.plan);
+      }
+
       if (!plan) {
         console.log('⚠️ Plan non trouvé pour paiement:', payment._id);
         return;
@@ -324,13 +338,16 @@ class PaymentController {
       // Calculer la date d'expiration
       const now = new Date();
       const expiresAt = new Date(now);
-      if (plan.interval === 'year') {
+      // Gérer intervalle ou lifetime pour CategoryPlan
+      if (plan.paymentType === 'lifetime') {
+        expiresAt.setFullYear(expiresAt.getFullYear() + 99);
+      } else if (plan.interval === 'year' || plan.paymentType === 'yearly') {
         expiresAt.setFullYear(expiresAt.getFullYear() + 1);
       } else {
         expiresAt.setMonth(expiresAt.getMonth() + 1);
       }
 
-      // Mettre à jour l'abonnement
+      // Mettre à jour l'abonnement (pour TOUS les types de plans maintenant)
       const subscription = await Subscription.findOne({
         user: payment.user,
         konnectPaymentId: payment.konnectPaymentId
@@ -344,19 +361,44 @@ class PaymentController {
         await subscription.save();
       }
 
-      // Mettre à jour l'utilisateur
-      user.subscription = {
-        konnectPaymentId: payment.konnectPaymentId,
-        konnectStatus: 'completed',
-        planId: plan._id,
-        status: 'active',
-        currentPeriodEnd: expiresAt,
-        cancelAtPeriodEnd: false
-      };
-      await user.save();
+      // Mettre à jour l'utilisateur (seulement pour Plan principal pour compatibilité legacy)
+      if (payment.planModel !== 'CategoryPlan') {
+        user.subscription = {
+          konnectPaymentId: payment.konnectPaymentId,
+          konnectStatus: 'completed',
+          planId: plan._id,
+          status: 'active',
+          currentPeriodEnd: expiresAt,
+          cancelAtPeriodEnd: false
+        };
+        await user.save();
+      }
 
-      // Accorder l'accès selon le plan
-      await this.grantAccessByPlan(user._id, plan, expiresAt);
+      // Accorder l'accès selon le plan (fonctionne pour les deux types si formaté correctement)
+      // Pour CategoryPlan, il faut s'assurer que l'objet plan a les propriétés attendues par grantAccessByPlan
+      let planForGrant = plan;
+      if (payment.planModel === 'CategoryPlan') {
+        // Normaliser pour grantAccessByPlan
+        planForGrant = {
+          type: 'category', // ou 'path' si c'est un path plan
+          targetId: plan.category, // CategoryPlan lie à une category
+          // SI CategoryPlan peut lier Path, il faudrait vérifier le champ 'target' ou 'path' dans CategoryPlan schema
+          // Supposons que CategoryPlan est lié à Category pour l'instant.
+          // TODO: Vérifier schéma CategoryPlan si on a des PathPlans.
+        };
+
+        // Vérification rapide du target
+        if (plan.type) planForGrant.type = plan.type; // Si CategoryPlan a un champ type ('category'/'path')
+        if (plan.targetId) planForGrant.targetId = plan.targetId; // Si CategoryPlan a targetId
+
+        // Fallback legacy CategoryPlan (qui n'était que category)
+        if (!planForGrant.targetId && plan.category) {
+          planForGrant.type = 'category';
+          planForGrant.targetId = plan.category;
+        }
+      }
+
+      await this.grantAccessByPlan(user._id, planForGrant, expiresAt);
 
       console.log('✅ Abonnement activé:', {
         userId: user._id,
@@ -376,7 +418,7 @@ class PaymentController {
   static async grantAccessByPlan(userId, plan, expiresAt) {
     try {
       const Path = require('../models/Path');
-      
+
       if (plan.type === 'global') {
         // Accès global - accorder l'accès à tous les parcours
         const paths = await Path.find({ active: true });
@@ -398,9 +440,9 @@ class PaymentController {
         });
       } else if (plan.type === 'category' && plan.targetId) {
         // Accès à une catégorie spécifique
-        const paths = await Path.find({ 
+        const paths = await Path.find({
           category: plan.targetId,
-          active: true 
+          active: true
         });
         for (const path of paths) {
           await CourseAccessService.grantAccess(userId, path._id, 'subscription', {

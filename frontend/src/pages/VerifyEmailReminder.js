@@ -12,8 +12,9 @@ const VerifyEmailReminder = () => {
   const [isSending, setIsSending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [message, setMessage] = useState('');
-  const [messageType, setMessageType] = useState(''); // success, error
+  const [messageType, setMessageType] = useState(''); // success, error, warning
   const [userEmail, setUserEmail] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -53,7 +54,7 @@ const VerifyEmailReminder = () => {
     setIsChecking(true);
     setMessage('');
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/profile`, {
+      const response = await axios.get(`${API_BASE_URL}/api/users/profile`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
@@ -144,8 +145,8 @@ const VerifyEmailReminder = () => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
               className={`mt-6 p-4 rounded-xl flex items-center gap-3 text-sm ${messageType === 'success' ? 'bg-green-500/10 text-green-400 border border-green-500/20' :
-                  messageType === 'warning' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
-                    'bg-red-500/10 text-red-400 border border-red-500/20'
+                messageType === 'warning' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' :
+                  'bg-red-500/10 text-red-400 border border-red-500/20'
                 }`}
             >
               {messageType === 'success' && <FaCheckCircle className="flex-shrink-0 text-lg" />}

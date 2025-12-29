@@ -1,11 +1,11 @@
 // Dashboard moderne et professionnel pour le client
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../../hooks/useTranslation';
-import { 
-  FiTrendingUp, 
-  FiBookOpen, 
-  FiPlay, 
-  FiCheckSquare, 
+import {
+  FiTrendingUp,
+  FiBookOpen,
+  FiPlay,
+  FiCheckSquare,
   FiClock,
   FiAward,
   FiUsers,
@@ -85,7 +85,7 @@ const ModernDashboard = () => {
             Prêt à continuer votre apprentissage ? Voici votre progression.
           </p>
         </div>
-        
+
         <div className="header-actions">
           <button className="action-btn primary">
             <FiPlus />
@@ -142,7 +142,7 @@ const ModernDashboard = () => {
                 Voir tout <FiArrowRight />
               </button>
             </div>
-            
+
             <div className="progress-overview">
               <div className="progress-chart">
                 <div className="chart-container">
@@ -153,7 +153,7 @@ const ModernDashboard = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="progress-details">
                 <div className="progress-item">
                   <div className="progress-info">
@@ -164,7 +164,7 @@ const ModernDashboard = () => {
                     <div className="progress-fill" style={{ width: '75%' }}></div>
                   </div>
                 </div>
-                
+
                 <div className="progress-item">
                   <div className="progress-info">
                     <span className="progress-category">Intermédiaire</span>
@@ -174,7 +174,7 @@ const ModernDashboard = () => {
                     <div className="progress-fill" style={{ width: '53%' }}></div>
                   </div>
                 </div>
-                
+
                 <div className="progress-item">
                   <div className="progress-info">
                     <span className="progress-category">Avancé</span>
@@ -196,7 +196,7 @@ const ModernDashboard = () => {
                 Voir tout <FiArrowRight />
               </button>
             </div>
-            
+
             <div className="courses-grid">
               {recommendedCourses.map((course) => (
                 <CourseCard key={course.id} course={course} />
@@ -215,7 +215,7 @@ const ModernDashboard = () => {
                 Voir tout <FiArrowRight />
               </button>
             </div>
-            
+
             <div className="activity-list">
               {recentActivity.map((activity) => (
                 <ActivityItem key={activity.id} activity={activity} />
@@ -228,7 +228,7 @@ const ModernDashboard = () => {
             <div className="section-header">
               <h2>Objectifs de la semaine</h2>
             </div>
-            
+
             <div className="goals-list">
               <GoalItem
                 title="Terminer 3 leçons"
@@ -259,7 +259,7 @@ const ModernDashboard = () => {
             <div className="section-header">
               <h2>Communauté</h2>
             </div>
-            
+
             <div className="community-stats">
               <div className="community-stat">
                 <FiUsers className="stat-icon" />
@@ -268,7 +268,7 @@ const ModernDashboard = () => {
                   <div className="stat-label">Étudiants actifs</div>
                 </div>
               </div>
-              
+
               <div className="community-stat">
                 <FiMessageSquare className="stat-icon" />
                 <div className="stat-content">
@@ -277,7 +277,7 @@ const ModernDashboard = () => {
                 </div>
               </div>
             </div>
-            
+
             <button className="community-btn">
               <FiMessageSquare />
               Rejoindre la discussion
@@ -315,8 +315,8 @@ const StatCard = ({ icon: Icon, title, value, subtitle, progress, color }) => (
     {progress !== undefined && (
       <div className="stat-progress">
         <div className="progress-bar">
-          <div 
-            className="progress-fill" 
+          <div
+            className="progress-fill"
             style={{ width: `${progress}%` }}
           ></div>
         </div>
@@ -337,20 +337,20 @@ const CourseCard = ({ course }) => (
         {course.difficulty}
       </span>
     </div>
-    
+
     <div className="course-progress">
       <div className="progress-info">
         <span>Progression</span>
         <span>{course.progress}%</span>
       </div>
       <div className="progress-bar">
-        <div 
-          className="progress-fill" 
+        <div
+          className="progress-fill"
           style={{ width: `${course.progress}%` }}
         ></div>
       </div>
     </div>
-    
+
     <button className="course-btn">
       {course.progress > 0 ? 'Continuer' : 'Commencer'}
       <FiArrowRight />
@@ -409,8 +409,8 @@ const GoalItem = ({ title, progress, total, icon: Icon, color }) => (
       </div>
     </div>
     <div className="goal-bar">
-      <div 
-        className="goal-fill" 
+      <div
+        className="goal-fill"
         style={{ width: `${(progress / total) * 100}%` }}
       ></div>
     </div>

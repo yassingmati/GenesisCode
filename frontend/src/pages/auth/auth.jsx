@@ -121,21 +121,59 @@ const Auth = ({ type }) => {
 
     } catch (error) {
       console.error('Erreur:', error);
-      let errorMessage = 'Une erreur est survenue';
+      let rawMessage = 'Une erreur est survenue';
 
       if (error.response) {
         if (error.response.data && error.response.data.message) {
-          errorMessage = error.response.data.message;
+          rawMessage = error.response.data.message;
         } else if (error.response.data && error.response.data.error) {
-          errorMessage = error.response.data.error.message || error.response.data.error;
+          rawMessage = error.response.data.error.message || error.response.data.error;
         }
       } else if (error.request) {
-        errorMessage = 'Aucune réponse du serveur';
+        rawMessage = 'Aucune réponse du serveur';
       } else {
-        errorMessage = error.message;
+        rawMessage = error.message;
       }
 
-      setErrors({ general: errorMessage });
+      let mappedError = { general: t('auth.errors.default') };
+
+      // Mapping backend messages to translations
+      switch (rawMessage) {
+        case 'This email is already in use.':
+          mappedError = { email: t('auth.errors.emailInUse') };
+          break;
+        case 'No account is associated with this email.':
+        case 'User not found.':
+        case 'EMAIL_NOT_FOUND': // Firebase
+          mappedError = { email: t('auth.errors.userNotFound') };
+          break;
+        case 'Incorrect password.':
+        case 'INVALID_PASSWORD': // Firebase
+          mappedError = { password: t('auth.errors.wrongPassword') };
+          break;
+        case 'Incorrect email or password.':
+        case 'INVALID_LOGIN_CREDENTIALS': // Firebase
+          mappedError = { general: t('auth.errors.incorrectCredentials') };
+          break;
+        case 'Email and password are required.':
+          mappedError = { general: t('auth.errors.missingFields') };
+          break;
+        case 'Password must be at least 6 characters long.':
+          mappedError = { password: t('auth.errors.weakPassword') };
+          break;
+        case 'This account has been disabled.':
+        case 'USER_DISABLED': // Firebase
+          mappedError = { general: t('auth.errors.accountDisabled') };
+          break;
+        case 'Invalid email format.':
+          mappedError = { email: t('auth.errors.invalidEmail') };
+          break;
+        default:
+          // If translation exists for the raw message, use it, otherwise show raw
+          mappedError = { general: rawMessage };
+      }
+
+      setErrors(mappedError);
     } finally {
       setIsSubmitting(false);
     }
@@ -310,11 +348,11 @@ const Auth = ({ type }) => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 lg:gap-8 bg-white dark:bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10 z-10 transition-colors duration-300"
+        className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white dark:bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10 z-10 transition-colors duration-300 max-h-[90vh]"
       >
         {/* Left Side - Form */}
-        <div className="p-8 lg:p-12 flex flex-col justify-center">
-          <div className="mb-8 text-center lg:text-left">
+        <div className="p-6 lg:p-10 flex flex-col justify-center h-full overflow-y-auto custom-scrollbar">
+          <div className="mb-6 text-center lg:text-left">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -327,7 +365,7 @@ const Auth = ({ type }) => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="text-2xl font-semibold text-slate-800 dark:text-white mb-2"
+              className="text-xl font-semibold text-slate-800 dark:text-white mb-1"
             >
               {type === 'login' ? t('auth.login.welcome') : t('auth.register.welcome')}
             </motion.h2>
@@ -335,7 +373,7 @@ const Auth = ({ type }) => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.4 }}
-              className="text-slate-500 dark:text-slate-400"
+              className="text-sm text-slate-500 dark:text-slate-400"
             >
               {type === 'login'
                 ? t('auth.login.subtitle')
@@ -343,14 +381,14 @@ const Auth = ({ type }) => {
             </motion.p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <AnimatePresence>
               {successMessage && (
                 <motion.div
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 p-3 rounded-xl flex items-center gap-2 text-sm"
+                  className="bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 p-2 rounded-lg flex items-center gap-2 text-xs"
                 >
                   <span>✓</span> {successMessage}
                 </motion.div>
@@ -361,73 +399,73 @@ const Auth = ({ type }) => {
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 p-3 rounded-xl text-sm"
+                  className="bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 p-2 rounded-lg text-xs"
                 >
                   {errors.general}
                 </motion.div>
               )}
             </AnimatePresence>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div className="relative group">
-                <FaEnvelope className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors text-sm" />
                 <input
                   type="email"
                   name="email"
                   placeholder={t('auth.email')}
                   value={formData.email}
                   onChange={handleChange}
-                  className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-xl py-3.5 pl-11 pr-4 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
+                  className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.email ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-lg py-2.5 pl-9 pr-4 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
                 />
-                {errors.email && <span className="text-xs text-red-500 dark:text-red-400 mt-1 ml-1 block">{errors.email}</span>}
+                {errors.email && <span className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 ml-1 block">{errors.email}</span>}
               </div>
 
               <div className="relative group">
-                <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors text-sm" />
                 <input
                   type={showPassword ? "text" : "password"}
                   name="password"
                   placeholder={t('auth.password')}
                   value={formData.password}
                   onChange={handleChange}
-                  className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-xl py-3.5 pl-11 pr-12 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
+                  className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.password ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-lg py-2.5 pl-9 pr-10 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
                 >
-                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                  {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
                 </button>
-                {errors.password && <span className="text-xs text-red-500 dark:text-red-400 mt-1 ml-1 block">{errors.password}</span>}
+                {errors.password && <span className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 ml-1 block">{errors.password}</span>}
               </div>
 
               {type === 'register' && (
                 <div className="relative group">
-                  <FaLock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" />
+                  <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors text-sm" />
                   <input
                     type={showConfirmPassword ? "text" : "password"}
                     name="confirmPassword"
                     placeholder={t('auth.confirmPassword')}
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.confirmPassword ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-xl py-3.5 pl-11 pr-12 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
+                    className={`w-full bg-slate-50 dark:bg-slate-900/50 border ${errors.confirmPassword ? 'border-red-500/50' : 'border-slate-200 dark:border-slate-700'} rounded-lg py-2.5 pl-9 pr-10 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors"
                   >
-                    {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    {showConfirmPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
                   </button>
-                  {errors.confirmPassword && <span className="text-xs text-red-500 dark:text-red-400 mt-1 ml-1 block">{errors.confirmPassword}</span>}
+                  {errors.confirmPassword && <span className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 ml-1 block">{errors.confirmPassword}</span>}
                 </div>
               )}
             </div>
 
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-slate-600 dark:text-slate-300 block">{t('auth.iAm')}</label>
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-slate-600 dark:text-slate-300 block">{t('auth.iAm')}</label>
+              <div className="grid grid-cols-2 gap-3">
                 <label className={`cursor-pointer relative group`}>
                   <input
                     type="radio"
@@ -437,12 +475,12 @@ const Auth = ({ type }) => {
                     onChange={handleChange}
                     className="hidden"
                   />
-                  <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col items-center gap-2 ${formData.userType === 'student'
-                    ? 'bg-blue-600/10 dark:bg-blue-600/20 border-blue-500 text-blue-600 dark:text-white shadow-[0_0_20px_rgba(59,130,246,0.1)] dark:shadow-[0_0_20px_rgba(59,130,246,0.2)]'
+                  <div className={`p-3 rounded-lg border transition-all duration-300 flex flex-col items-center gap-1.5 ${formData.userType === 'student'
+                    ? 'bg-blue-600/10 dark:bg-blue-600/20 border-blue-500 text-blue-600 dark:text-white shadow-[0_0_10px_rgba(59,130,246,0.1)] dark:shadow-[0_0_10px_rgba(59,130,246,0.2)]'
                     : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                     }`}>
-                    <FaUserGraduate className={`text-2xl ${formData.userType === 'student' ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                    <span className="font-medium text-sm">{t('auth.student')}</span>
+                    <FaUserGraduate className={`text-xl ${formData.userType === 'student' ? 'text-blue-500 dark:text-blue-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                    <span className="font-medium text-xs">{t('auth.student')}</span>
                   </div>
                 </label>
 
@@ -455,26 +493,26 @@ const Auth = ({ type }) => {
                     onChange={handleChange}
                     className="hidden"
                   />
-                  <div className={`p-4 rounded-xl border transition-all duration-300 flex flex-col items-center gap-2 ${formData.userType === 'parent'
-                    ? 'bg-purple-600/10 dark:bg-purple-600/20 border-purple-500 text-purple-600 dark:text-white shadow-[0_0_20px_rgba(168,85,247,0.1)] dark:shadow-[0_0_20px_rgba(168,85,247,0.2)]'
+                  <div className={`p-3 rounded-lg border transition-all duration-300 flex flex-col items-center gap-1.5 ${formData.userType === 'parent'
+                    ? 'bg-purple-600/10 dark:bg-purple-600/20 border-purple-500 text-purple-600 dark:text-white shadow-[0_0_10px_rgba(168,85,247,0.1)] dark:shadow-[0_0_10px_rgba(168,85,247,0.2)]'
                     : 'bg-slate-50 dark:bg-slate-900/50 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800/50'
                     }`}>
-                    <FaUserTie className={`text-2xl ${formData.userType === 'parent' ? 'text-purple-500 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                    <span className="font-medium text-sm">{t('auth.parent')}</span>
+                    <FaUserTie className={`text-xl ${formData.userType === 'parent' ? 'text-purple-500 dark:text-purple-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                    <span className="font-medium text-xs">{t('auth.parent')}</span>
                   </div>
                 </label>
               </div>
             </div>
 
             {type === 'login' && (
-              <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center justify-between text-xs">
                 <label className="flex items-center gap-2 cursor-pointer text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300 transition-colors">
                   <input
                     type="checkbox"
                     name="rememberMe"
                     checked={formData.rememberMe}
                     onChange={handleChange}
-                    className="rounded border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-blue-500 focus:ring-offset-0 focus:ring-blue-500/50"
+                    className="rounded border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 text-blue-500 focus:ring-offset-0 focus:ring-blue-500/50 w-3.5 h-3.5"
                   />
                   {t('auth.rememberMe')}
                 </label>
@@ -487,19 +525,19 @@ const Auth = ({ type }) => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-3.5 rounded-xl shadow-lg shadow-blue-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
+              className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-semibold py-2.5 rounded-lg shadow-lg shadow-blue-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center text-sm"
             >
               {isSubmitting ? (
-                <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : type === 'login' ? t('auth.login.action') : t('auth.register.action')}
             </button>
 
-            <div className="relative py-2">
+            <div className="relative py-1">
               <div className="absolute inset-0 flex items-center">
                 <div className="w-full border-t border-slate-200 dark:border-slate-700"></div>
               </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white dark:bg-[#162032] px-2 text-slate-500">{t('auth.orContinueWith')}</span>
+              <div className="relative flex justify-center text-[10px] uppercase">
+                <span className="bg-white dark:bg-[#121b2e] px-2 text-slate-500">{t('auth.orContinueWith')}</span>
               </div>
             </div>
 
@@ -507,14 +545,14 @@ const Auth = ({ type }) => {
               type="button"
               onClick={handleGoogleLogin}
               disabled={isSubmitting}
-              className="w-full bg-slate-50 dark:bg-white text-slate-700 font-semibold py-3.5 rounded-xl shadow-sm border border-slate-200 dark:border-transparent hover:bg-slate-100 dark:hover:bg-slate-50 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 disabled:opacity-70"
+              className="w-full bg-slate-50 dark:bg-white text-slate-700 font-semibold py-2.5 rounded-lg shadow-sm border border-slate-200 dark:border-transparent hover:bg-slate-100 dark:hover:bg-slate-50 transition-all transform hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-70 text-sm"
             >
-              <FcGoogle className="text-xl" />
+              <FcGoogle className="text-lg" />
               <span>{type === 'login' ? t('auth.login.google') : t('auth.register.google')}</span>
             </button>
           </form>
 
-          <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
+          <div className="mt-6 text-center text-xs text-slate-500 dark:text-slate-400">
             {type === 'login' ? (
               <p>
                 {t('auth.login.noAccount')}{' '}
@@ -530,52 +568,52 @@ const Auth = ({ type }) => {
                 </Link>
               </p>
             )}
-            <div className="mt-4 text-xs text-slate-400 dark:text-slate-500">
+            <div className="mt-2 text-[10px] text-slate-400 dark:text-slate-500">
               {t('auth.agree')}{' '}
               <Link to="/terms" className="hover:text-slate-600 dark:hover:text-slate-400 underline">{t('auth.terms')}</Link> et{' '}
               <Link to="/privacy" className="hover:text-slate-600 dark:hover:text-slate-400 underline">{t('auth.privacy')}</Link>.
             </div>
           </div>
+
         </div>
 
         {/* Right Side - Hero/Image */}
-        <div className="hidden lg:block relative overflow-hidden bg-gradient-to-br from-blue-600 to-purple-600 p-12 text-white">
-          <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 mix-blend-overlay"></div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+        <div className="hidden lg:flex relative overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e293b] p-12 text-white items-center justify-center">
+          <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:30px_30px]"></div>
+          <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]"></div>
+          <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px]"></div>
 
-          <div className="relative z-10 h-full flex flex-col justify-between">
-            <div>
-              <div className="w-12 h-12 bg-white/20 backdrop-blur-lg rounded-xl flex items-center justify-center mb-6">
-                <span className="text-2xl">🚀</span>
-              </div>
-              <h3 className="text-3xl font-bold mb-4 whitespace-pre-line">{t('auth.hero.title')}</h3>
-              <p className="text-blue-100 text-lg leading-relaxed">
-                {t('auth.hero.subtitle')}
-              </p>
-            </div>
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+              className="mb-8 relative"
+            >
+              <div className="absolute inset-0 bg-blue-500/30 blur-2xl rounded-full"></div>
+              <img src={require('../../assets/icons/logo.png')} alt="Logo" className="w-48 h-auto relative z-10 drop-shadow-2xl" />
+            </motion.div>
 
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/10">
-                <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center text-green-400">
-                  ✓
-                </div>
-                <div>
-                  <div className="font-semibold">{t('auth.hero.progress.title')}</div>
-                  <div className="text-sm text-blue-100">{t('auth.hero.progress.subtitle')}</div>
-                </div>
+            <h3 className="text-3xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-400">
+              {t('auth.hero.title')}
+            </h3>
+            <p className="text-slate-300 text-lg leading-relaxed max-w-md mx-auto mb-8">
+              {t('auth.hero.subtitle')}
+            </p>
+
+            <div className="flex gap-4 justify-center">
+              <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 w-32">
+                <div className="text-2xl">🚀</div>
+                <div className="text-xs font-medium text-slate-300">{t('auth.hero.progress.title')}</div>
               </div>
-              <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md p-4 rounded-xl border border-white/10">
-                <div className="w-10 h-10 rounded-full bg-purple-500/20 flex items-center justify-center text-purple-400">
-                  ★
-                </div>
-                <div>
-                  <div className="font-semibold">{t('auth.hero.certificates.title')}</div>
-                  <div className="text-sm text-blue-100">{t('auth.hero.certificates.subtitle')}</div>
-                </div>
+              <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 w-32">
+                <div className="text-2xl">🏆</div>
+                <div className="text-xs font-medium text-slate-300">{t('auth.hero.certificates.title')}</div>
               </div>
             </div>
           </div>
         </div>
+
       </motion.div>
     </div>
   );

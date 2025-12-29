@@ -1,11 +1,12 @@
 // src/controllers/subscriptionController.js
 const mongoose = require('mongoose');
 const Plan = require('../models/Plan');
+const CategoryPlan = require('../models/CategoryPlan');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
 const PromoCode = require('../models/PromoCode');
+const emailService = require('../utils/emailService');
 const konnectPaymentService = require('../services/konnectPaymentService');
-const { sendEmail } = require('../utils/emailService'); // Assurez-vous que cette fonction existe ou adaptez
 
 // Fonction utilitaire pour calculer la fin de période
 function computePeriodEnd(interval, fromDate = new Date()) {
@@ -121,13 +122,13 @@ exports.subscribe = async (req, res) => {
     }
 
     // 6. Cas Payant - Initialisation Konnect
-    const merchantOrderId = `sub_${targetUserId}_${Date.now()}`;
+    const merchantOrderId = `sub_${targetUserId}_${Date.now()} `;
     const paymentConfig = {
       amountCents: finalPrice,
       currency: plan.currency || 'TND',
-      returnUrl: returnUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/payments/konnect-return`,
+      returnUrl: returnUrl || `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'} /payments/konnect -return `,
       merchantOrderId,
-      description: `Abonnement ${plan.name}`,
+      description: `Abonnement ${plan.name} `,
       customerEmail: req.user.email,
       metadata: {
         planId,
@@ -368,7 +369,7 @@ exports.getPlansForPath = async (req, res) => {
     const plans = await Plan.find({
       $or: [
         { name: categoryName },
-        { name: { $regex: new RegExp(`^${categoryName}$`, 'i') } }
+        { name: { $regex: new RegExp(`^ ${categoryName} $`, 'i') } }
       ],
       active: true
     }).lean();
@@ -388,9 +389,12 @@ exports.getPlansForPath = async (req, res) => {
 /**
  * ADMIN: Récupérer tous les abonnements (avec filtres)
  */
+/**
+ * ADMIN: Récupérer tous les abonnements (avec filtres)
+ */
 exports.getAllSubscriptionsAdmin = async (req, res) => {
   try {
-    const { status, planId, search } = req.query;
+    const { status, planId, search, page = 1, limit = 10 } = req.query;
     const filter = {};
 
     if (status) filter.status = status;
@@ -408,13 +412,61 @@ exports.getAllSubscriptionsAdmin = async (req, res) => {
       filter.user = { $in: users.map(u => u._id) };
     }
 
+    const skip = (page - 1) * limit;
+    const totalDocs = await Subscription.countDocuments(filter);
+
+    console.log(`[AdminSubs] Fetching with filter:`, JSON.stringify(filter));
+    console.log(`[AdminSubs] Pagination: page=${page}, limit=${limit}, skip=${skip}`);
+
     const subscriptions = await Subscription.find(filter)
       .populate('user', 'firstName lastName email')
-      .populate('plan', 'name priceMonthly currency')
+      .populate('plan') // Polymorphic populate
       .sort({ createdAt: -1 })
-      .limit(100); // Limite pour éviter la surcharge
+      .skip(Number(skip))
+      .limit(Number(limit));
 
-    res.json({ success: true, subscriptions });
+    console.log(`[AdminSubs] Found ${subscriptions.length} subscriptions`);
+
+    // Normalize for frontend
+    const normalizedSubscriptions = subscriptions.map(sub => {
+      const subObj = sub.toObject();
+      let planName = 'Plan Inconnu';
+      let planPrice = 0;
+      let planCurrency = 'TND';
+
+      // Log pour debug
+      if (!sub.plan) console.log(`[AdminSubs] Sub ${sub._id} has NO PLAN populated (planModel: ${sub.planModel})`);
+
+      if (sub.plan) {
+        if (sub.planModel === 'CategoryPlan') {
+          planName = sub.plan.translations?.fr?.name || sub.plan.translations?.en?.name || 'Plan Catégorie';
+          planPrice = sub.plan.price;
+          planCurrency = sub.plan.currency;
+        } else {
+          planName = sub.plan.name;
+          planPrice = sub.plan.priceMonthly;
+          planCurrency = sub.plan.currency;
+        }
+      }
+
+      // Overwrite plan object with flattened info expected by frontend
+      subObj.planName = planName; // Legacy support helper
+      if (!subObj.plan) subObj.plan = {}; // Ensure plan object exists
+      subObj.plan.name = planName;
+      subObj.plan.priceMonthly = planPrice;
+      subObj.plan.currency = planCurrency;
+      subObj.plan.type = sub.planModel; // Useful for frontend badge
+
+      return subObj;
+    });
+
+    res.json({
+      success: true,
+      subscriptions: normalizedSubscriptions,
+      totalPages: Math.ceil(totalDocs / limit),
+      currentPage: Number(page),
+      totalSubscriptions: totalDocs
+    });
   } catch (err) {
     console.error('getAllSubscriptionsAdmin Error:', err);
     res.status(500).json({ success: false, error: err.message });
@@ -434,7 +486,7 @@ exports.cancelSubscriptionAdmin = async (req, res) => {
     if (immediate) {
       sub.status = 'canceled';
       sub.canceledAt = new Date();
-      sub.cancelAtPeriodEnd = false; // Annulation immédiate
+      sub.cancelAtPeriodEnd = false;
     } else {
       sub.cancelAtPeriodEnd = true;
       sub.canceledAt = new Date();
@@ -453,11 +505,32 @@ exports.cancelSubscriptionAdmin = async (req, res) => {
  */
 exports.createSubscriptionAdmin = async (req, res) => {
   try {
-    const { userId, planId, status, periodEnd } = req.body;
+    const { userId, planId, status, periodEnd, planModel } = req.body;
+
+    let resolvedPlanId = planId;
+
+    // Resolve CategoryPlan if needed
+    if (planModel === 'CategoryPlan') {
+      const CategoryPlan = require('../models/CategoryPlan');
+      // Check if planId is a direct CategoryPlan ID
+      let plan = await CategoryPlan.findById(planId);
+
+      if (!plan) {
+        // Try to find by Category ID
+        plan = await CategoryPlan.findOne({ category: planId, active: true });
+      }
+
+      if (plan) {
+        resolvedPlanId = plan._id;
+      } else {
+        return res.status(404).json({ success: false, message: 'Plan de catégorie introuvable pour cet ID' });
+      }
+    }
 
     const subscriptionData = {
       user: userId,
-      plan: planId,
+      plan: resolvedPlanId,
+      planModel: planModel || 'Plan', // Default to 'Plan' if not specified
       status: status || 'active',
       currentPeriodStart: new Date(),
       currentPeriodEnd: periodEnd ? new Date(periodEnd) : computePeriodEnd('month'),
@@ -469,7 +542,7 @@ exports.createSubscriptionAdmin = async (req, res) => {
     // Populate for return
     const populatedSub = await Subscription.findById(newSub._id)
       .populate('user', 'firstName lastName email')
-      .populate('plan', 'name');
+      .populate('plan');
 
     res.json({ success: true, message: 'Abonnement créé avec succès', subscription: populatedSub });
   } catch (err) {

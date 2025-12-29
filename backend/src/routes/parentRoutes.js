@@ -19,6 +19,7 @@ router.get('/children/:childId', catchErrors(parentController.getChildDetails));
 router.put('/children/:childId/controls', catchErrors(parentController.updateParentalControls));
 router.get('/children/:childId/activity-report', catchErrors(parentController.getActivityReport));
 router.put('/children/:childId/status', catchErrors(parentController.toggleChildStatus));
+router.delete('/children/:childId', catchErrors(parentController.removeChild));
 
 // Nouvelles routes analytics et templates
 router.get('/children/:childId/analytics', catchErrors(parentController.getChildAnalytics));
@@ -26,5 +27,6 @@ router.post('/children/:childId/apply-template', catchErrors(parentController.ap
 
 // Routes pour les enfants (accepter invitation)
 router.post('/accept-invitation', catchErrors(parentController.acceptInvitation));
+router.post('/reject-invitation', catchErrors(parentController.rejectInvitation));
 
 module.exports = router;
