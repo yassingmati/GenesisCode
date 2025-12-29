@@ -20,7 +20,7 @@ exports.register = async (req, res) => {
     await newAdmin.save();
 
     const secret = getJwtSecret();
-    const token = jwt.sign({ id: newAdmin._id }, secret, { expiresIn: '1d' });
+    const token = jwt.sign({ id: newAdmin._id }, secret, { expiresIn: '7d' });
 
     // Optionnel : envoyer cookie sécurisé
     // res.cookie('token', token, { httpOnly: true, sameSite: 'lax' });
@@ -46,7 +46,7 @@ exports.login = async (req, res) => {
     if (!isMatch) return res.status(401).json({ message: 'Mot de passe incorrect' });
 
     const secret = getJwtSecret();
-    const token = jwt.sign({ id: admin._id }, secret, { expiresIn: '1d' });
+    const token = jwt.sign({ id: admin._id }, secret, { expiresIn: '7d' });
 
     // Optionnel : envoyer cookie sécurisé
     // res.cookie('token', token, { httpOnly: true, sameSite: 'lax' });

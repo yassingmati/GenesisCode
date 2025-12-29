@@ -308,7 +308,7 @@ exports.loginWithEmail = async (req, res) => {
         const token = jwt.sign(
             { id: dbUser._id, uid },
             process.env.JWT_SECRET || 'devsecret',
-            { expiresIn: '1d' }
+            { expiresIn: '7d' }
         );
 
         // Créer une entrée UserActivity pour suivre le temps passé

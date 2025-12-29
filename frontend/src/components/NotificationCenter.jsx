@@ -1,5 +1,6 @@
 // src/components/NotificationCenter.jsx
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../utils/apiConfig';
 
@@ -12,6 +13,7 @@ const API_BASE_URL = process.env.REACT_APP_API_BASE_URL ||
  * Composant pour afficher les notifications dans le dashboard
  */
 export default function NotificationCenter({ user }) {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
@@ -291,7 +293,15 @@ export default function NotificationCenter({ user }) {
             <div
               key={notification.id}
               className={`notification-item ${!notification.read ? 'unread' : ''}`}
-              onClick={() => !notification.read && notification.type !== 'parent_invitation' && markAsRead(notification.id)}
+              onClick={() => {
+                if (notification.type === 'parent_invitation') {
+                  // Redirection vers l'onglet famille du profil
+                  navigate('/dashboard?tab=profile&section=family');
+                  if (!notification.read) markAsRead(notification.id);
+                } else if (!notification.read) {
+                  markAsRead(notification.id);
+                }
+              }}
             >
               <div className="notification-icon">
                 {getNotificationIcon(notification.type)}

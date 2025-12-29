@@ -4,7 +4,7 @@ import styled from 'styled-components';
 import { toast } from 'react-toastify';
 import { FiEdit, FiTrash2, FiPlus, FiToggleLeft, FiToggleRight, FiRefreshCw, FiCreditCard, FiUsers, FiSettings } from 'react-icons/fi';
 import axios from 'axios';
-import { fixAdminAuth, ensureValidToken } from '../../utils/refreshAdminToken';
+// // import { fixAdminAuth, ensureValidToken } from '../../utils/refreshAdminToken'; // Broken logic removed // Broken logic removed
 
 // Configuration API
 const API_BASE = process.env.REACT_APP_API_URL || getApiUrl('');
@@ -18,22 +18,22 @@ const api = axios.create({
 // Intercepteur pour l'authentification (même que CourseManagement)
 api.interceptors.request.use(config => {
   let token = localStorage.getItem('adminToken');
-  
-  // Si le token n'est pas valide, essayer de le rafraîchir
-  if (!token || token === 'undefined' || token === 'null') {
-    token = ensureValidToken();
-    if (token) {
-      localStorage.setItem('adminToken', token);
-    }
-  }
-  
+
+  // Logic removed
+  // if (!token || token === 'undefined' || token === 'null') {
+  //   token = ensureValidToken();
+  //   if (token) {
+  //     localStorage.setItem('adminToken', token);
+  //   }
+  // }
+
   if (token && token !== 'undefined' && token !== 'null') {
     config.headers.Authorization = `Bearer ${token}`;
     console.log('✅ Token admin ajouté à la requête:', config.url);
   } else {
     console.error('❌ Aucun token admin valide pour la requête:', config.url);
   }
-  
+
   return config;
 });
 
@@ -446,10 +446,10 @@ const SubscriptionManagement = () => {
     // Vérification et correction automatique du token admin
     const checkAndFixAuth = async () => {
       console.log('🔍 Vérification de l\'authentification admin...');
-      
+
       let token = ensureValidToken();
       console.log('Token vérifié:', token ? 'Valide' : 'Invalide');
-      
+
       if (!token) {
         // Si le token n'est pas valide, essayer de le rafraîchir
         token = localStorage.getItem('adminToken');
@@ -459,16 +459,16 @@ const SubscriptionManagement = () => {
           return;
         }
       }
-      
+
       // S'assurer que le token est bien dans localStorage
       if (token) {
         localStorage.setItem('adminToken', token);
         console.log('✅ Token admin stocké dans localStorage');
       }
-      
+
       // Attendre un peu pour s'assurer que le token est bien mis à jour
       await new Promise(resolve => setTimeout(resolve, 200));
-      
+
       // Vérifier une dernière fois que le token est présent
       const finalToken = localStorage.getItem('adminToken');
       if (!finalToken || finalToken === 'undefined' || finalToken === 'null') {
@@ -476,12 +476,12 @@ const SubscriptionManagement = () => {
         toast.error('Erreur d\'authentification. Veuillez vous reconnecter.');
         return;
       }
-      
+
       if (activeTab === 'category-plans') {
         fetchCategoryPlansData();
       }
     };
-    
+
     checkAndFixAuth();
   }, [activeTab]);
 
@@ -490,25 +490,25 @@ const SubscriptionManagement = () => {
     setError(null);
     try {
       console.log('🔄 Chargement des données des plans de catégories...');
-      
+
       // Récupérer les deux types de catégories (classic et specific) comme dans CourseManagement
       const [plansRes, classicRes, specificRes] = await Promise.all([
         api.get('/api/admin/category-plans'),
         api.get('/api/courses/categories?type=classic'),
         api.get('/api/courses/categories?type=specific')
       ]);
-      
+
       const classic = Array.isArray(classicRes?.data) ? classicRes.data : [];
       const specific = Array.isArray(specificRes?.data) ? specificRes.data : [];
       const allCategories = [...classic, ...specific];
-      
-      console.log('✅ Données chargées:', { 
+
+      console.log('✅ Données chargées:', {
         plans: plansRes.data?.plans?.length || 0,
         classicCategories: classic.length,
         specificCategories: specific.length,
         totalCategories: allCategories.length
       });
-      
+
       setPlans(plansRes.data?.plans || []);
       setCategories(allCategories);
       setStats({
@@ -516,13 +516,13 @@ const SubscriptionManagement = () => {
         activePlans: (plansRes.data?.plans || []).filter(p => p.active).length,
         totalUsers: (plansRes.data?.plans || []).reduce((sum, p) => sum + (p.activeUsersCount || 0), 0)
       });
-      
+
       setSuccess('Données chargées avec succès');
       setTimeout(() => setSuccess(null), 3000);
-      
+
     } catch (error) {
       console.error('❌ Erreur lors du chargement:', error);
-      
+
       if (error.response?.status === 401) {
         setError('Session expirée. Veuillez vous reconnecter en tant qu\'administrateur.');
         toast.error('Session expirée. Veuillez vous reconnecter.');
@@ -579,10 +579,10 @@ const SubscriptionManagement = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
-    
+
     try {
       console.log('💾 Sauvegarde du plan:', formData);
-      
+
       if (editingPlan) {
         await api.put(`/api/admin/category-plans/${editingPlan._id}`, formData);
         toast.success('Plan mis à jour avec succès');
@@ -590,10 +590,10 @@ const SubscriptionManagement = () => {
         await api.post('/api/admin/category-plans', formData);
         toast.success('Plan créé avec succès');
       }
-      
+
       setModalOpen(false);
       fetchCategoryPlansData();
-      
+
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde:', error);
       setError(error.response?.data?.message || 'Erreur lors de la sauvegarde');
@@ -651,7 +651,7 @@ const SubscriptionManagement = () => {
   const getCategoryName = (categoryId) => {
     const category = categories.find(cat => cat._id === categoryId);
     if (!category) return 'Catégorie inconnue';
-    
+
     const name = category.translations?.fr?.name || category.name || 'Sans nom';
     const type = category.type === 'specific' ? 'Spécifique' : 'Classique';
     return `${name} (${type})`;
@@ -712,36 +712,36 @@ const SubscriptionManagement = () => {
                     {plan.active ? 'Actif' : 'Inactif'}
                   </StatusBadge>
                 </CardHeader>
-                
+
                 <CardContent>
                   <Price>{plan.price} {plan.currency}</Price>
                   <Type>
                     {getPaymentTypeLabel(plan.paymentType)}
                     {plan.paymentType === 'one_time' && ` (${plan.accessDuration} jours)`}
                   </Type>
-                  
+
                   <Description>
                     {plan.translations?.fr?.description || 'Aucune description'}
                   </Description>
-                  
+
                   <Stats>
                     <span>👥 {plan.activeUsersCount || 0} utilisateurs</span>
                     <span>📊 Ordre: {plan.order}</span>
                   </Stats>
                 </CardContent>
-                
+
                 <CardActions>
                   <IconButton onClick={() => handleEdit(plan)} title="Modifier">
                     <FiEdit />
                   </IconButton>
-                  <IconButton 
-                    onClick={() => handleToggleStatus(plan)} 
+                  <IconButton
+                    onClick={() => handleToggleStatus(plan)}
                     title={plan.active ? 'Désactiver' : 'Activer'}
                   >
                     {plan.active ? <FiToggleRight /> : <FiToggleLeft />}
                   </IconButton>
-                  <IconButton 
-                    onClick={() => handleDelete(plan)} 
+                  <IconButton
+                    onClick={() => handleDelete(plan)}
                     className="danger"
                     title="Supprimer"
                   >
@@ -771,7 +771,7 @@ const SubscriptionManagement = () => {
       <Header>
         <Title>Gestion des Abonnements & Paiements</Title>
         <div style={{ display: 'flex', gap: '1rem' }}>
-          <Button 
+          <Button
             onClick={() => {
               console.log('🔧 Correction complète de l\'authentification...');
               const result = fixAdminAuth();
@@ -779,7 +779,7 @@ const SubscriptionManagement = () => {
             }}
             style={{ background: '#3b82f6', fontSize: '0.75rem' }}
           >
-            🔧 Fix Auth
+            🔧 Fix Auth (Deprecated)
           </Button>
           {activeTab === 'category-plans' && (
             <Button onClick={fetchCategoryPlansData}>
@@ -801,8 +801,8 @@ const SubscriptionManagement = () => {
           {error}
           {error.includes('Session expirée') && (
             <div style={{ marginTop: '1rem' }}>
-              <Button 
-                primary 
+              <Button
+                primary
                 onClick={() => {
                   localStorage.removeItem('adminToken');
                   localStorage.removeItem('adminData');
@@ -818,22 +818,22 @@ const SubscriptionManagement = () => {
       {success && <SuccessMessage>{success}</SuccessMessage>}
 
       <TabContainer>
-        <Tab 
-          active={activeTab === 'category-plans'} 
+        <Tab
+          active={activeTab === 'category-plans'}
           onClick={() => setActiveTab('category-plans')}
         >
           <FiCreditCard style={{ marginRight: '0.5rem' }} />
           Plans de Catégories
         </Tab>
-        <Tab 
-          active={activeTab === 'subscriptions'} 
+        <Tab
+          active={activeTab === 'subscriptions'}
           onClick={() => setActiveTab('subscriptions')}
         >
           <FiUsers style={{ marginRight: '0.5rem' }} />
           Abonnements
         </Tab>
-        <Tab 
-          active={activeTab === 'settings'} 
+        <Tab
+          active={activeTab === 'settings'}
           onClick={() => setActiveTab('settings')}
         >
           <FiSettings style={{ marginRight: '0.5rem' }} />
@@ -859,7 +859,7 @@ const SubscriptionManagement = () => {
               </ModalTitle>
               <CloseButton onClick={() => setModalOpen(false)}>×</CloseButton>
             </ModalHeader>
-            
+
             <Form onSubmit={handleSubmit}>
               <FormGroup>
                 <Label>Catégorie *</Label>
@@ -872,7 +872,7 @@ const SubscriptionManagement = () => {
                   <option value="">Sélectionner une catégorie</option>
                   {categories.map(category => (
                     <option key={category._id} value={category._id}>
-                      {category.translations?.fr?.name || category.name} 
+                      {category.translations?.fr?.name || category.name}
                       ({category.type === 'specific' ? 'Spécifique' : 'Classique'})
                     </option>
                   ))}
@@ -891,7 +891,7 @@ const SubscriptionManagement = () => {
                     required
                   />
                 </FormGroup>
-                
+
                 <FormGroup>
                   <Label>Devise</Label>
                   <Select
@@ -918,7 +918,7 @@ const SubscriptionManagement = () => {
                     <option value="yearly">Annuel</option>
                   </Select>
                 </FormGroup>
-                
+
                 {formData.paymentType === 'one_time' && (
                   <FormGroup>
                     <Label>Durée d'accès (jours)</Label>

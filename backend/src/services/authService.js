@@ -45,7 +45,7 @@ class AuthService {
         return jwt.sign(
             payload,
             process.env.JWT_SECRET || 'devsecret',
-            { expiresIn: '1d' }
+            { expiresIn: '7d' }
         );
     }
 

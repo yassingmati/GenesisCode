@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useTranslation } from "../../hooks/useTranslation";
 import DashboardLayout from "../../components/layout/DashboardLayout";
 import Footer from "./Footer";
@@ -25,6 +25,7 @@ import {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { t } = useTranslation();
   const [activePage, setActivePage] = useState("dashboard");
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +42,14 @@ export default function DashboardPage() {
       }
     }
   }, []);
+
+  // Check URL params for tab navigation
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['dashboard', 'pomodoro', 'tasks', 'profile'].includes(tabParam)) {
+      setActivePage(tabParam);
+    }
+  }, [searchParams]);
 
   // small transition loader when switching pages
   useEffect(() => {

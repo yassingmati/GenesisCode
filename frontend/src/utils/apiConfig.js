@@ -7,6 +7,14 @@ export const getApiBaseUrl = () => {
     return process.env.REACT_APP_API_BASE_URL;
   }
 
+  // Vérification explicite du hostname (plus fiable que NODE_ENV parfois)
+  if (typeof window !== 'undefined') {
+    const hostname = window.location.hostname;
+    if (hostname.includes('firebaseapp.com') || hostname.includes('web.app') || hostname.includes('onrender.com')) {
+      return 'https://codegenesis-backend.onrender.com';
+    }
+  }
+
   // En production, utiliser le backend Render
   if (process.env.NODE_ENV === 'production') {
     return 'https://codegenesis-backend.onrender.com';

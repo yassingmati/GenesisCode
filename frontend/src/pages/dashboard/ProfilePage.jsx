@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useSearchParams } from 'react-router-dom';
 import { getApiUrl } from '../../utils/apiConfig';
 import ParentInvitationSection from '../../components/ParentInvitationSection';
 import AvatarSelector from '../../components/profile/AvatarSelector';
@@ -27,6 +28,8 @@ export default function ProfilePage() {
   const [progressData, setProgressData] = useState([]);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState("general");
 
   // Form states
   const [formData, setFormData] = useState({ firstName: '', lastName: '', phone: '' });
@@ -35,6 +38,13 @@ export default function ProfilePage() {
   useEffect(() => {
     loadProfile();
   }, []);
+
+  useEffect(() => {
+    const section = searchParams.get('section');
+    if (section && ['general', 'security', 'progress', 'subscription', 'family'].includes(section)) {
+      setActiveTab(section);
+    }
+  }, [searchParams]);
 
   const loadProfile = async () => {
     setLoading(true);
@@ -201,6 +211,8 @@ export default function ProfilePage() {
       {/* Main Content Tabs */}
       <div className="overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0">
         <Tabs
+          selectedKey={activeTab}
+          onSelectionChange={setActiveTab}
           aria-label="Options"
           color="primary"
           variant="underlined"

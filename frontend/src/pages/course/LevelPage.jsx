@@ -112,23 +112,44 @@ export default function LevelPage() {
         // Normalize URLs logic
         const vids = {};
         const pdfs = {};
+        // Helper to sanitize URLs
+        const sanitizeUrl = (url, type) => {
+          if (!url) return null;
+          // If it's a localhost URL, replace with current API_BASE (without /api/courses suffix if needed)
+          if (url.includes('localhost:5000')) {
+            // Get base url from config, not the /api/courses one
+            const baseUrl = getApiUrl('').replace(/\/$/, '');
+            return url.replace('http://localhost:5000', baseUrl);
+          }
+          return url.startsWith('http') ? url : `${API_BASE}/levels/${levelId}/${type}?lang=${k}`;
+        };
+
         ['fr', 'en', 'ar'].forEach(k => {
           if (l.videos?.[k]) {
+            // Logic adjusted to use helper
             const videoUrl = l.videos[k];
-            vids[k] = videoUrl.startsWith('http') ? videoUrl : `${API_BASE}/levels/${levelId}/video?lang=${k}`;
+            vids[k] = videoUrl.includes('localhost:5000')
+              ? videoUrl.replace('http://localhost:5000', getApiUrl('').replace(/\/$/, ''))
+              : (videoUrl.startsWith('http') ? videoUrl : `${API_BASE}/levels/${levelId}/video?lang=${k}`);
           }
           if (l.pdfs?.[k]) {
             const pdfUrl = l.pdfs[k];
-            pdfs[k] = pdfUrl.startsWith('http') ? pdfUrl : `${API_BASE}/levels/${levelId}/pdf?lang=${k}`;
+            pdfs[k] = pdfUrl.includes('localhost:5000')
+              ? pdfUrl.replace('http://localhost:5000', getApiUrl('').replace(/\/$/, ''))
+              : (pdfUrl.startsWith('http') ? pdfUrl : `${API_BASE}/levels/${levelId}/pdf?lang=${k}`);
           }
         });
         if (l.video && !l.videos) {
           const videoUrl = l.video;
-          vids.fr = videoUrl.startsWith('http') ? videoUrl : `${API_BASE}/levels/${levelId}/video?lang=fr`;
+          vids.fr = videoUrl.includes('localhost:5000')
+            ? videoUrl.replace('http://localhost:5000', getApiUrl('').replace(/\/$/, ''))
+            : (videoUrl.startsWith('http') ? videoUrl : `${API_BASE}/levels/${levelId}/video?lang=fr`);
         }
         if (l.pdf && !l.pdfs) {
           const pdfUrl = l.pdf;
-          pdfs.fr = pdfUrl.startsWith('http') ? pdfUrl : `${API_BASE}/levels/${levelId}/pdf?lang=fr`;
+          pdfs.fr = pdfUrl.includes('localhost:5000')
+            ? pdfUrl.replace('http://localhost:5000', getApiUrl('').replace(/\/$/, ''))
+            : (pdfUrl.startsWith('http') ? pdfUrl : `${API_BASE}/levels/${levelId}/pdf?lang=fr`);
         }
 
         l.videos = vids;

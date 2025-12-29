@@ -316,7 +316,7 @@ const Auth = ({ type }) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-gradient-to-br dark:from-[#0f172a] dark:via-[#1e293b] dark:to-[#0f172a] p-4 relative overflow-hidden transition-colors duration-300">
+    <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-gradient-to-br dark:from-[#0f172a] dark:via-[#1e293b] dark:to-[#0f172a] p-4 relative overflow-y-auto transition-colors duration-300">
       {/* Theme Toggle & Language Selector */}
       <div className="absolute top-6 right-6 z-50 flex items-center gap-4">
         <LanguageSelector showLabel={false} size="small" />
@@ -348,11 +348,11 @@ const Auth = ({ type }) => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-0 bg-white dark:bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10 z-10 transition-colors duration-300 max-h-[90vh]"
+        className="w-full max-w-md md:max-w-5xl m-auto grid grid-cols-1 md:grid-cols-2 gap-0 bg-white dark:bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200 dark:border-white/10 z-10 transition-colors duration-300 h-auto"
       >
         {/* Left Side - Form */}
-        <div className="p-6 lg:p-10 flex flex-col justify-center h-full overflow-y-auto custom-scrollbar">
-          <div className="mb-6 text-center lg:text-left">
+        <div className="p-6 md:p-10 flex flex-col justify-center custom-scrollbar">
+          <div className="mb-6 text-center md:text-left">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -578,7 +578,7 @@ const Auth = ({ type }) => {
         </div>
 
         {/* Right Side - Hero/Image */}
-        <div className="hidden lg:flex relative overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e293b] p-12 text-white items-center justify-center">
+        <div className="hidden md:flex relative overflow-hidden bg-gradient-to-br from-[#0f172a] to-[#1e293b] p-12 text-white items-center justify-center">
           <div className="absolute inset-0 bg-grid-white/[0.05] bg-[size:30px_30px]"></div>
           <div className="absolute bottom-0 right-0 w-96 h-96 bg-blue-500/20 rounded-full blur-[100px]"></div>
           <div className="absolute top-0 left-0 w-96 h-96 bg-purple-500/20 rounded-full blur-[100px]"></div>

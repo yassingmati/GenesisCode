@@ -11,7 +11,8 @@ const FRESH_ADMIN_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MGY2
  * Vérifie si le token actuel est valide
  */
 export const isTokenValid = (token) => {
-  if (!token) return false;
+  // Logic disabled - prevent auto-refresh with stale tokens
+  return false;
 
   try {
     // Décoder le token JWT
@@ -42,7 +43,8 @@ export const isTokenValid = (token) => {
  * Rafraîchit le token admin
  */
 export const refreshAdminToken = () => {
-  console.log('🔄 Rafraîchissement du token admin...');
+  console.log('⚠️ refreshAdminToken is deprecated and disabled.');
+  return null;
 
   // Supprimer l'ancien token
   localStorage.removeItem('adminToken');

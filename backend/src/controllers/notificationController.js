@@ -28,7 +28,7 @@ exports.markAsRead = async (req, res) => {
         }
 
         // Check ownership
-        if (notification.recipient.toString() !== req.user.id) {
+        if (notification.recipient.toString() !== req.user.id.toString()) {
             return res.status(403).json({ message: 'Not authorized' });
         }
 

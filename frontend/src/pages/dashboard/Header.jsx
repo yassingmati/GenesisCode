@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTranslation } from '../../hooks/useTranslation';
 import LanguageSelector from '../../components/LanguageSelector';
@@ -41,6 +42,7 @@ import SubscriptionButton from '../../components/SubscriptionButton';
 
 export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, setActivePage }) {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [notifications, setNotifications] = useState([]);
@@ -58,13 +60,21 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
         }
     };
 
-    const handleMarkAsRead = async (id) => {
+    const handleNotificationClick = async (notification) => {
         try {
-            await axios.put(`${API_BASE}/notifications/${id}/read`, {}, { headers: getAuthHeader() });
-            setNotifications(prev => prev.map(n => n._id === id ? { ...n, read: true } : n));
-            setUnreadCount(prev => Math.max(0, prev - 1));
+            // Marquer comme lu
+            if (!notification.read) {
+                await axios.put(`${API_BASE}/notifications/${notification._id}/read`, {}, { headers: getAuthHeader() });
+                setNotifications(prev => prev.map(n => n._id === notification._id ? { ...n, read: true } : n));
+                setUnreadCount(prev => Math.max(0, prev - 1));
+            }
+
+            // Gérer la redirection selon le type
+            if (notification.type === 'parent_invitation') {
+                navigate('/dashboard?tab=profile&section=family');
+            }
         } catch (err) {
-            console.error('Error marking notification as read:', err);
+            console.error('Error handling notification click:', err);
         }
     };
 
@@ -193,7 +203,8 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                                         startContent={
                                             <div className={`w-2 h-2 rounded-full ${!notif.read ? 'bg-blue-500' : 'bg-gray-300'}`} />
                                         }
-                                        onPress={() => handleMarkAsRead(notif._id)}
+                                        onPress={() => handleNotificationClick(notif)}
+                                        textValue={notif.title || "Notification"}
                                     >
                                         <div className="flex flex-col gap-1">
                                             <span className="font-semibold text-small">{notif.title}</span>
