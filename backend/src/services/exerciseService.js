@@ -134,7 +134,8 @@ class ExerciseService {
       isCorrect,
       pointsEarned: Math.round(pointsEarned * 100) / 100,
       xp,
-      details: { type: 'QCM', user: userNorm, correct: correctNorm, pointsEarned, pointsMax }
+      details: { type: 'QCM', user: userNorm, correct: correctNorm, pointsEarned, pointsMax },
+      feedback: isCorrect ? 'Bravo !' : (pointsEarned > 0 ? 'Partiellement correct.' : 'Incorrect, réessayez.')
     };
   }
 
@@ -166,14 +167,66 @@ class ExerciseService {
       }
     } else if (type === 'DragDrop') {
       const solution = exercise.solutions?.[0] || {};
-      const userMap = answer || {};
+
+      // Determine user map from answer (support both map directly and { zones } format)
+      let userMap = {};
+      if (answer && answer.userMap && typeof answer.userMap === 'object') {
+        userMap = answer.userMap;
+        console.log('[DragDrop] Using explicit userMap from frontend');
+      } else if (answer && answer.zones && Array.isArray(answer.zones)) {
+        // Fallback for older frontend version
+        // Convert zones [{ id: targetId, itemId: elementId }] to map { elementId: targetId }
+        // Note: We need to handle cases where elementId/targetId might be IDs or content strings
+        // If elements/targets are strings in exercise, the IDs match the content.
+
+        // Helper to find text content if possible, else use ID
+        const getElText = (id) => {
+          if (!exercise.elements) return id;
+          const found = exercise.elements.find(e => (typeof e === 'string' ? e : e.id) === id);
+          return typeof found === 'string' ? found : (found?.text || found?.content || id);
+        };
+        const getTargText = (id) => {
+          if (!exercise.targets) return id;
+          const found = exercise.targets.find(t => (typeof t === 'string' ? t : t.id) === id);
+          return typeof found === 'string' ? found : (found?.title || found?.id || id);
+        };
+
+        answer.zones.forEach(z => {
+          if (z.itemId && z.id) {
+            const key = getElText(z.itemId);
+            const val = getTargText(z.id);
+            userMap[key] = val;
+          }
+        });
+      } else {
+        userMap = answer || {};
+      }
+
+      console.log('[DragDrop Debug] Solution:', JSON.stringify(solution));
+      console.log('[DragDrop Debug] Answer Raw:', JSON.stringify(answer));
+      console.log('[DragDrop Debug] UserMap Construit:', JSON.stringify(userMap));
+
       const keys = Object.keys(solution || {});
       const per = pointsMax / Math.max(keys.length, 1);
 
       for (const k of keys) {
-        if (userMap[k] === solution[k]) earned += per;
+        // Loose comparison for string numbers validity
+        // FIXED: Use lowerCase and Trim for robustness
+        const userVal = String(userMap[k] || '').trim().toLowerCase();
+        const solVal = String(solution[k] || '').trim().toLowerCase();
+        const match = userVal === solVal;
+
+        if (!match) {
+          console.log(`[DragDrop Mismatch] Key="${k}": User="${userVal}" vs Solution="${solVal}"`);
+        }
+
+        if (match) {
+          earned += per;
+        }
       }
+
     }
+
 
     const pointsEarned = Math.round(earned * 100) / 100;
     const isCorrect = pointsEarned >= pointsMax;
@@ -281,11 +334,29 @@ class ExerciseService {
 
     const isCorrect = pointsEarned >= pointsMax;
 
+    // Generate feedback
+    const feedback = [];
+    if (!isCorrect) {
+      if (details.tests) {
+        const failed = details.tests.filter(t => !t.passed);
+        if (failed.length > 0) {
+          feedback.push(`Tests échoués (${failed.length}):`);
+          failed.slice(0, 3).forEach(f => feedback.push(`- ${f.message || 'Condition non respectée'}`));
+          if (failed.length > 3) feedback.push(`...et ${failed.length - 3} autres.`);
+        }
+      } else if (typeof details.passedCount === 'number') {
+        feedback.push(`Vous avez passé ${details.passedCount} tests sur ${details.totalCount}.`);
+      } else {
+        feedback.push("Le code ne produit pas le résultat attendu.");
+      }
+    }
+
     return {
       isCorrect,
       pointsEarned,
       xp: Math.round(pointsEarned),
-      details
+      details,
+      feedback: feedback.join('\n')
     };
   }
 
@@ -572,21 +643,85 @@ class ExerciseService {
   /**
    * Évalue Scratch (Blockly XML)
    */
+  /**
+   * Évalue Scratch (Blockly XML)
+   */
   static evaluateScratch(exercise, answer, pointsMax) {
     const userXml = String(answer || '').trim();
     const correctXml = String(exercise.solutions?.[0] || '').trim();
+    const validationRules = exercise.validationRules || [];
 
-    // Normaliser les XML pour comparaison (enlever espaces/retours à la ligne)
-    const normalizeXml = (xml) => xml.replace(/\s+/g, ' ').trim();
+    // Helper to check if XML contains specific block type
+    const hasBlock = (xml, blockType) => {
+      const regex = new RegExp(`type="${blockType}"`, 'i');
+      return regex.test(xml);
+    };
 
-    const matched = normalizeXml(userXml) === normalizeXml(correctXml);
-    const pointsEarned = matched ? pointsMax : 0;
+    // Helper to count blocks
+    const countBlocks = (xml) => {
+      const match = xml.match(/<block/g);
+      return match ? match.length : 0;
+    };
+
+    let isCorrect = true;
+    let feedback = [];
+
+    // 1. Validation par règles (si disponibles)
+    if (validationRules.length > 0) {
+      for (const rule of validationRules) {
+        if (rule.type === 'mustUseBlock') {
+          if (!hasBlock(userXml, rule.value)) {
+            isCorrect = false;
+            feedback.push(rule.message || `Vous devez utiliser le bloc "${rule.value}".`);
+          }
+        } else if (rule.type === 'maxBlocks') {
+          const max = parseInt(rule.value, 10);
+          if (countBlocks(userXml) > max) {
+            isCorrect = false;
+            feedback.push(rule.message || `Vous avez utilisé trop de blocs (max: ${max}).`);
+          }
+        }
+        // Ajouter d'autres règles si nécessaire (whitelist, etc.)
+      }
+    } else {
+      // 2. Fallback: Comparaison XML stricte (mais normalisée)
+      // Normaliser les XML pour comparaison (enlever IDs, positions, espaces)
+      const normalizeXml = (xml) => {
+        return xml
+          .replace(/\s+/g, ' ') // Réduire espaces
+          .replace(/id="[^"]*"/g, '') // Enlever IDs
+          .replace(/[xy]="[^"]*"/g, '') // Enlever positions x,y
+          .replace(/variable="[^"]*"/g, 'variable="VAR"') // Normaliser variables
+          .replace(/>\s+</g, '><')
+          .trim();
+      };
+
+      if (!correctXml) {
+        // Pas de solution ni de règles => on valide par défaut (ou erreur ?)
+        isCorrect = true; // Ou false si strict
+        feedback.push("Aucune solution définie.");
+      } else {
+        const userNorm = normalizeXml(userXml);
+        const correctNorm = normalizeXml(correctXml);
+
+        // Comparaison moins stricte: vérifier si les blocs de la solution sont présents
+        // C'est difficile de faire une égalité parfaite sans parser le XML.
+        // On tente une égalité des chaînes normalisées pour l'instant.
+        if (userNorm !== correctNorm) {
+          isCorrect = false;
+          feedback.push('Le programme ne correspond pas exactement à la solution.');
+        }
+      }
+    }
+
+    const pointsEarned = isCorrect ? pointsMax : 0;
 
     return {
-      isCorrect: matched,
+      isCorrect,
       pointsEarned,
       xp: pointsEarned,
-      details: { userXml, correctXml, matched, pointsEarned, pointsMax }
+      details: { userXml, correctXml, validationRules, matched: isCorrect, pointsEarned, pointsMax },
+      feedback: feedback.length > 0 ? feedback.join('\n') : 'Bravo !'
     };
   }
 

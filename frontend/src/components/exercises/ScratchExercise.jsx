@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 import ScratchEditor from '../ui/ScratchEditor';
 import { Button, Card, CardBody, CardHeader, Divider } from '@nextui-org/react';
 import { IconTerminal, IconCheck, IconX } from '@tabler/icons-react';
+import { compareScratchXml } from '../../utils/scratchValidator';
 
 const ScratchExercise = ({ exercise, onAnswerChange, disabled }) => {
     const [code, setCode] = useState('');
@@ -45,59 +46,82 @@ const ScratchExercise = ({ exercise, onAnswerChange, disabled }) => {
     const runCode = () => {
         setOutput([]);
         const logs = [];
-        const customConsole = {
-            log: (...args) => {
-                logs.push({ type: 'log', content: args.join(' ') });
-            },
-            error: (...args) => {
-                logs.push({ type: 'error', content: args.join(' ') });
-            }
-        };
 
         // 1. Static Validation (Rules Check)
         const { passed: rulesPassed, errors } = validateCode(xml);
+
+        // 1.5 Semantic Solution Check (if solution exists and no rules failed yet)
+        let semanticPassed = true;
+        let semanticError = null;
+
+        if (rulesPassed && exercise.solutions && exercise.solutions[0]) {
+            // Assuming validationRules might NOT be enough if strict solution is provided
+            // We check against the first solution string
+            const comparison = compareScratchXml(xml, exercise.solutions[0]);
+            if (!comparison.passed) {
+                semanticPassed = false;
+                semanticError = comparison.message;
+                errors.push(semanticError);
+            }
+        }
+
         setValidationErrors(errors);
 
-        if (!rulesPassed) {
-            logs.push({ type: 'system-error', content: 'Validation échouée. Vérifiez les règles.' });
+        if (!rulesPassed || !semanticPassed) {
+            logs.push({ type: 'system-error', content: 'Validation échouée. Vérifiez les contraintes.' });
+            if (semanticError) {
+                logs.push({ type: 'error', content: semanticError });
+            }
             setOutput(logs);
-            // We still let onAnswerChange handle the state, but we mark it as failed
             onAnswerChange({ code, xml, output: logs, passed: false });
             return;
         }
 
+        // 2. Worker Execution
         try {
-            // 2. Runtime Execution
-            // Using a safer evaluation approach would be adding a timeout or iframe.
-            // For now, we wrap in a try-catch block and use the custom console.
-            const wrappedCode = `
-        const console = customConsole;
-        const window = { alert: customConsole.log };
-        try {
-            ${code}
-        } catch(e) {
-            console.error(e.message);
-        }
-      `;
+            const worker = new Worker('/scratch-runner.worker.js');
 
-            // eslint-disable-next-line no-new-func
-            const run = new Function('customConsole', wrappedCode);
-            run(customConsole);
+            // Timeout to kill infinite loops
+            const timeoutId = setTimeout(() => {
+                worker.terminate();
+                const timeoutLog = { type: 'error', content: 'Erreur: Temps d\'exécution dépassé (boucle infinie ?)' };
+                const newLogs = [...logs, timeoutLog];
+                setOutput(newLogs);
+                onAnswerChange({ code, xml, output: newLogs, passed: false });
+            }, 5000); // 5 seconds timeout
 
-            setOutput(logs);
+            worker.onmessage = (e) => {
+                clearTimeout(timeoutId);
+                const { success, logs: workerLogs } = e.data;
 
-            // Update answer with both code, XML, and execution status
-            const hasRuntimeError = logs.some(l => l.type === 'error');
+                // Merge logs if needed, normally workerLogs contains everything
+                setOutput(workerLogs);
 
-            onAnswerChange({
-                code: code,
-                xml: xml,
-                output: logs,
-                passed: !hasRuntimeError && rulesPassed
-            });
+                const hasRuntimeError = workerLogs.some(l => l.type === 'error');
+                const passed = success && !hasRuntimeError && rulesPassed;
+
+                onAnswerChange({
+                    code,
+                    xml,
+                    output: workerLogs,
+                    passed
+                });
+                worker.terminate();
+            };
+
+            worker.onerror = (err) => {
+                clearTimeout(timeoutId);
+                const errorLog = { type: 'error', content: `Erreur Worker: ${err.message}` };
+                const newLogs = [...logs, errorLog];
+                setOutput(newLogs);
+                onAnswerChange({ code, xml, output: newLogs, passed: false });
+                worker.terminate();
+            };
+
+            worker.postMessage({ code });
 
         } catch (err) {
-            const errorLog = { type: 'error', content: `Erreur d'exécution: ${err.message}` };
+            const errorLog = { type: 'error', content: `Erreur d'initialisation: ${err.message}` };
             setOutput(prev => [...prev, errorLog]);
             onAnswerChange({ code, xml, output: [...logs, errorLog], passed: false });
         }

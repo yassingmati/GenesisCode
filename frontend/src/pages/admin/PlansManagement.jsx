@@ -44,16 +44,28 @@ export default function PlansManagement() {
         try {
             // Need public or admin endpoints
             const [catsRes, pathsRes] = await Promise.all([
-                api.get('/categories'), // Assuming this exists or similar
-                api.get('/paths')      // Assuming this exists
-            ]).catch(() => [[], []]); // Fail gracefully if endpoints differ
+                api.get('/admin/categories'), // Use admin endpoint
+                api.get('/courses/paths')      // Use courses endpoint
+            ]).catch(() => [null, null]);
 
-            // Adjust depending on actual API structure for picking lists
-            // For now, assuming standard structure or fail safe
-            if (catsRes && catsRes.data) setCategories(catsRes.data);
-            if (pathsRes && pathsRes.data) setPaths(pathsRes.data);
+            if (catsRes && catsRes.data && Array.isArray(catsRes.data.categories)) {
+                setCategories(catsRes.data.categories);
+            } else if (catsRes && Array.isArray(catsRes.data)) {
+                // Fallback in case endpoint format changes
+                setCategories(catsRes.data);
+            } else {
+                setCategories([]);
+            }
+
+            if (pathsRes && Array.isArray(pathsRes.data)) {
+                setPaths(pathsRes.data);
+            } else {
+                setPaths([]);
+            }
         } catch (e) {
             console.log("Error loading metadata", e);
+            setCategories([]);
+            setPaths([]);
         }
     };
 
@@ -224,35 +236,33 @@ export default function PlansManagement() {
                                     {/* DYNAMIC TARGET SELECTOR */}
                                     {formData.type === 'category' && (
                                         <Select
+                                            items={categories}
                                             label="Choisir la Catégorie"
                                             placeholder="Sélectionner..."
                                             selectedKeys={formData.targetId ? [formData.targetId] : []}
                                             onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
                                         >
-                                            {/* Attempt to render categories if loaded, else allow text input fallback? 
-                                                Actually, if categories list is empty, this Select is empty.
-                                                Ideally we fetch categories. Assuming 'categories' state has objects with _id and name/title 
-                                            */}
-                                            {categories.map(cat => (
-                                                <SelectItem key={cat._id} value={cat._id}>
+                                            {(cat) => (
+                                                <SelectItem key={cat._id} textValue={cat.name || (cat.translations && cat.translations.fr && cat.translations.fr.name) || cat._id}>
                                                     {cat.name || (cat.translations && cat.translations.fr && cat.translations.fr.name) || cat._id}
                                                 </SelectItem>
-                                            ))}
+                                            )}
                                         </Select>
                                     )}
 
                                     {formData.type === 'path' && (
                                         <Select
+                                            items={paths}
                                             label="Choisir le Parcours"
                                             placeholder="Sélectionner..."
                                             selectedKeys={formData.targetId ? [formData.targetId] : []}
                                             onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
                                         >
-                                            {paths.map(p => (
-                                                <SelectItem key={p._id} value={p._id}>
+                                            {(p) => (
+                                                <SelectItem key={p._id} textValue={p.name || (p.translations && p.translations.fr && p.translations.fr.name) || p._id}>
                                                     {p.name || (p.translations && p.translations.fr && p.translations.fr.name) || p._id}
                                                 </SelectItem>
-                                            ))}
+                                            )}
                                         </Select>
                                     )}
 

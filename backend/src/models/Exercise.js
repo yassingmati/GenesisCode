@@ -114,6 +114,7 @@ const exerciseSchema = new Schema({
   dataStructureOperations: { type: [Schema.Types.Mixed], default: [] }, // DataStructure: opérations
   scratchBlocks: { type: [Schema.Types.Mixed], default: [] },     // ScratchBlocks: blocs Scratch
   initialXml: { type: String },                                   // Scratch: XML initial pour Blockly
+  validationRules: { type: [Schema.Types.Mixed], default: [] },   // Scratch: règles de validation
   scratchWorkspace: { type: Schema.Types.Mixed },                 // ScratchBlocks: configuration workspace
   visualElements: { type: [Schema.Types.Mixed], default: [] },    // VisualProgramming: éléments visuels
   concepts: { type: [matchingPairSchema], default: [] },          // ConceptMapping: concepts

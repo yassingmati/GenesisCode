@@ -30,7 +30,10 @@ export default function PaymentControlWidget({ childId }) {
                         const subs = subData.subscriptions || (Array.isArray(subData) ? subData : [subData]);
 
                         // Filter active ones
-                        const activeSubs = subs.filter(s => s.status === 'active' || s.status === 'trialing');
+                        const activeSubs = subs.filter(s => {
+                            const status = s.status ? s.status.toLowerCase() : '';
+                            return status === 'active' || status === 'trialing';
+                        });
 
                         setSubscription(activeSubs.length > 0 ? activeSubs : null);
                     } else {
@@ -43,13 +46,13 @@ export default function PaymentControlWidget({ childId }) {
 
                 // 2. Fetch History
                 try {
-                    const historyResponse = await fetch(`${API_BASE_URL}/api/payments/history/${childId}`, {
+                    const historyResponse = await fetch(`${API_BASE_URL}/api/payment/history/${childId}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
 
                     if (historyResponse.ok) {
                         const historyData = await historyResponse.json();
-                        setHistory(historyData);
+                        setHistory(historyData.payments || []);
                     } else {
                         setHistory([]);
                     }

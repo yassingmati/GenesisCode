@@ -1,408 +1,409 @@
 import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
-import logo from '../../assets/icons/logo.png'; // Make sure path is correct relative to this file
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import styled, { keyframes, css } from 'styled-components';
+import {
+  IconLayoutDashboard,
+  IconUsers,
+  IconBooks,
+  IconDiamond,
+  IconRefresh,
+  IconCreditCard,
+  IconChecklist,
+  IconSettings,
+  IconChevronLeft,
+  IconChevronRight,
+  IconLogout,
+  IconBell,
+  IconUser
+} from '@tabler/icons-react';
+import { Badge, Avatar, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem } from "@nextui-org/react";
+import { useAuth } from '../../contexts/AuthContext'; // Ensure this path is correct
 
-// Animations
+import logo from '../../assets/icons/logo.png';
+
+// --- Animations ---
 const slideIn = keyframes`
-  from { transform: translateX(-100%); opacity: 0; }
+  from { transform: translateX(-20px); opacity: 0; }
   to { transform: translateX(0); opacity: 1; }
 `;
 
-const fadeIn = keyframes`
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-`;
+// --- Styled Components ---
 
-const pulse = keyframes`
-  0% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-  100% { transform: scale(1); }
-`;
-
-// Composants stylisés
 const Container = styled.div`
   display: flex;
   min-height: 100vh;
-  background: #f0f2f5;
-  font-family: 'Plus Jakarta Sans', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8fafc;
+  font-family: 'Plus Jakarta Sans', sans-serif;
 `;
 
-const Sidebar = styled.aside`
-  width: 280px;
-  background: #111827;
+const SidebarContainer = styled.aside`
+  width: ${props => props.$collapsed ? '88px' : '280px'};
+  background: #0f172a;
   color: #fff;
-  padding: 1.5rem 1rem;
   display: flex;
   flex-direction: column;
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.05);
-  z-index: 20;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: width 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+  position: relative;
+  z-index: 50;
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  border-right: 1px solid rgba(255,255,255,0.05);
-  
-  @media (max-width: 768px) {
-    width: 80px;
-    align-items: center;
-    padding: 1rem 0.5rem;
+`;
+
+// Improved Toggle Button - Circular floating style on the border line
+const ToggleButton = styled.button`
+  position: absolute;
+  top: 38px;
+  right: -14px; /* Half outside to create that "floating on edge" look */
+  width: 28px;
+  height: 28px;
+  background: #3b82f6;
+  border: 4px solid #f8fafc; /* Matches main Background to look like a cutout */
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 60;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+
+  &:hover {
+    background: #2563eb;
+    transform: scale(1.1);
   }
 `;
 
 const SidebarHeader = styled.div`
-  padding: 0 0.5rem 2rem;
-  margin-bottom: 0.5rem;
-  animation: ${slideIn} 0.4s ease-out;
-  display: flex;
-  justify-content: center;
-  
-  @media (max-width: 768px) {
-    padding: 0 0 1rem;
-  }
-`;
-
-const Logo = styled.div`
+  height: 90px;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: #fff;
-  letter-spacing: -0.5px;
-  width: 100%;
+  padding: 0 1.5rem;
+  /* Centering when collapsed */
+  padding-left: ${props => props.$collapsed ? '1.5rem' : '2rem'}; 
+  justify-content: flex-start;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+`;
+
+const LogoWrapper = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+`;
+
+const LogoImg = styled.img`
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.5));
+`;
+
+const BrandName = styled.div`
+  display: flex;
+  flex-direction: column;
+  opacity: ${props => props.$visible ? 1 : 0};
+  transform: translateX(${props => props.$visible ? 0 : -10}px);
+  transition: all 0.3s ease;
   
-  @media (max-width: 768px) {
-    justify-content: center;
+  h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+  }
+  span {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    font-weight: 500;
+    letter-spacing: 1px;
   }
 `;
 
-const LogoImage = styled.img`
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  /* Removed background/shadow as we use png now, or keep if user wants box */
-  /* background: linear-gradient(135deg, #6366f1, #8b5cf6); */ 
-  /* border-radius: 12px; */
-  /* padding: 4px; */ 
-  animation: ${pulse} 3s infinite;
-`;
-
-const LogoText = styled.span`
-  background: linear-gradient(to right, #fff, #94a3b8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-`;
-
-const NavItems = styled.div`
+const NavList = styled.nav`
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
+  gap: 6px;
+  padding: 0 16px;
   overflow-y: auto;
-  padding-right: 4px;
-
+  overflow-x: hidden;
+  
   &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: rgba(255,255,255,0.1);
-    border-radius: 4px;
+    width: 0px;
+    background: transparent;
   }
 `;
 
-const LinkItem = styled(NavLink)`
+const NavItem = styled(NavLink)`
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.85rem 1rem;
+  gap: 14px;
+  padding: 12px 14px;
   border-radius: 12px;
-  margin: 0.1rem 0;
   color: #94a3b8;
   text-decoration: none;
-  transition: all 0.2s ease;
   font-weight: 500;
   font-size: 0.95rem;
-  border: 1px solid transparent;
-  
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  height: 50px;
+  white-space: nowrap;
+
   &:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(255, 255, 255, 0.08);
     color: #fff;
-    transform: translateX(3px);
   }
-  
+
   &.active {
-    background: linear-gradient(90deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
-    color: #fff;
-    border: 1px solid rgba(99, 102, 241, 0.2);
-    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1);
-    
-    & > div:first-child {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: white;
-      box-shadow: 0 4px 12px -2px rgba(99, 102, 241, 0.4);
-    }
-  }
-  
-  @media (max-width: 768px) {
-    padding: 0.85rem;
-    justify-content: center;
-    
-    & > span {
-      display: none;
-    }
+    background: linear-gradient(90deg, #3b82f6 0%, #2563eb 100%);
+    color: #ffffff;
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
   }
 `;
 
-const LinkIcon = styled.div`
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+const NavIcon = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
-  transition: all 0.2s ease;
-  color: inherit;
+  min-width: 24px;
+  
+  svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.5;
+  }
 `;
 
-const LinkText = styled.span`
-  font-size: 1.05rem;
-  font-weight: 500;
+const NavLabel = styled.span`
+  opacity: ${props => props.$visible ? 1 : 0};
+  transition: opacity 0.2s;
+  display: ${props => props.$visible ? 'block' : 'none'};
 `;
 
 const SidebarFooter = styled.div`
   padding: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 0.85rem;
-  text-align: center;
-  animation: ${slideIn} 0.6s ease-out;
-  
-  @media (max-width: 768px) {
-    display: none;
-  }
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: center;
 `;
 
-const Content = styled.main`
+const MainContent = styled.main`
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: auto;
-  width: 100%;
+  overflow: hidden; 
+  height: 100vh;
 `;
 
-const Header = styled.header`
+const TopHeader = styled.header`
+  height: 90px;
   background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(12px);
-  padding: 1rem 2.5rem;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 15;
-  
-  @media (max-width: 768px) {
-    padding: 1rem;
-  }
+  padding: 0 2.5rem;
+  z-index: 40;
 `;
 
-const PageTitle = styled.h1`
+const PageTitle = styled.h2`
+  font-size: 1.75rem;
+  font-weight: 800;
   color: #1e293b;
-  font-size: 1.5rem;
-  font-weight: 700;
   letter-spacing: -0.5px;
+  animation: ${slideIn} 0.4s ease-out;
 `;
 
-const UserProfile = styled.div`
+const HeaderActions = styled.div`
   display: flex;
   align-items: center;
-  gap: 1rem;
-  cursor: pointer;
-  animation: ${fadeIn} 0.5s ease-out;
-  
-  &:hover {
-    & > div:first-child {
-      transform: scale(1.05);
-    }
-  }
+  gap: 2rem;
 `;
 
-const Avatar = styled.div`
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #3b82f6, #2563eb);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 0.9rem;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.2);
-`;
-
-const UserInfo = styled.div`
-  text-align: right;
-  margin-right: 0.5rem;
-  
-  @media (max-width: 768px) {
-    display: none;
-  }
-`;
-
-const UserName = styled.div`
-  font-weight: 600;
-  color: #0f172a;
-  font-size: 0.95rem;
-`;
-
-const UserRole = styled.div`
-  font-size: 0.75rem;
-  color: #64748b;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const ContentArea = styled.div`
-  padding: 2rem;
+const ScrollableContent = styled.div`
   flex: 1;
+  overflow-y: auto;
+  padding: 2rem 2.5rem;
   
-  @media (max-width: 768px) {
-    padding: 1.5rem;
+  /* Custom Scrollbar */
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 20px;
+    border: 2px solid #f8fafc;
   }
 `;
 
-const CollapseButton = styled.button`
-  background: rgba(255, 255, 255, 0.1);
-  border: none;
-  color: white;
-  border-radius: 50%;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  margin: 1rem auto;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: rotate(180deg);
-  }
-  
-  @media (min-width: 769px) {
-    display: none;
-  }
-`;
-
-// Tableau de correspondance entre les routes et les titres
-const pageTitles = {
-  '/admin/dashboard': 'Dashboard',
-  '/admin/users': 'Utilisateurs',
-  '/admin/courses': 'Cours',
-  '/admin/payments': 'Paiements',
-  '/admin/Subscription': 'Abonnements',
-  '/admin/category-plans': 'Plans Catégories',
-  '/admin/tasks': 'Tâches',
-  '/admin/settings': 'Paramètres',
-};
+// Map routes to titles and icons
+const ROUTES = [
+  { path: '/admin/dashboard', title: 'Start', icon: IconLayoutDashboard, label: 'Dashboard' },
+  { path: '/admin/users', title: 'Utilisateurs', icon: IconUsers, label: 'Utilisateurs' },
+  { path: '/admin/courses', title: 'Cours', icon: IconBooks, label: 'Cours' },
+  { path: '/admin/plans', title: 'Plans', icon: IconDiamond, label: 'Plans Tarifs' },
+  { path: '/admin/Subscription', title: 'Abonnements', icon: IconRefresh, label: 'Abonnements' },
+  { path: '/admin/payments', title: 'Paiements', icon: IconCreditCard, label: 'Paiements' },
+  { path: '/admin/tasks', title: 'Tâches', icon: IconChecklist, label: 'Tâches' },
+  { type: 'divider' },
+  { path: '/admin/settings', title: 'Paramètres', icon: IconSettings, label: 'Paramètres' },
+];
 
 export default function AdminLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { admin, currentUser, logoutClient, loading } = useAuth(); // Retrieve real user data
+  const user = admin || currentUser; // Fallback to currentUser if admin is not set
+  const logout = logoutClient;
 
-  const toggleSidebar = () => setSidebarCollapsed(!sidebarCollapsed);
-  const getPageTitle = () => pageTitles[location.pathname] || 'Admin Panel';
+  // Redirect to login if not authenticated
+  React.useEffect(() => {
+    if (!loading && !user) {
+      navigate('/admin/login');
+    }
+  }, [user, loading, navigate]);
+
+  const getCurrentTitle = () => {
+    const route = ROUTES.find(r => r.path === location.pathname);
+    return route ? route.title : 'Admin Panel';
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/admin/login');
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
+
+  // Helper to get initials
+  const getInitials = () => {
+    if (!user) return 'AD';
+    const f = user.firstName ? user.firstName[0] : '';
+    const l = user.lastName ? user.lastName[0] : '';
+    return (f + l).toUpperCase() || 'AD';
+  };
+
+  const getFullName = () => {
+    if (!user) return 'Admin User';
+    return `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin User';
+  };
+
+  const getEmail = () => {
+    return user?.email || 'admin@genesis.com';
+  };
+
+  // Determine Role Label
+  const getRoleLabel = () => {
+    if (!user) return 'Guest';
+    if (user.roles && user.roles.includes('admin')) return 'Administrateur';
+    return 'Modérateur';
+  }
 
   return (
     <Container>
-      <Sidebar style={{ width: sidebarCollapsed ? '80px' : '280px' }}>
-        <SidebarHeader>
-          <Logo>
-            <LogoImage src={logo} alt="Genesis Logo" />
-            {!sidebarCollapsed && <LogoText>Genesis</LogoText>}
-          </Logo>
+      <SidebarContainer $collapsed={collapsed}>
+        {/* Toggle Button placed on the edge */}
+        <ToggleButton onClick={() => setCollapsed(!collapsed)}>
+          {collapsed ? <IconChevronRight size={16} /> : <IconChevronLeft size={16} />}
+        </ToggleButton>
+
+        <SidebarHeader $collapsed={collapsed}>
+          <LogoWrapper>
+            <LogoImg src={logo} alt="Logo" />
+            <BrandName $visible={!collapsed}>
+              <h1>Genesis</h1>
+              <span>ADMIN</span>
+            </BrandName>
+          </LogoWrapper>
         </SidebarHeader>
 
-        <NavItems>
-          <LinkItem to="/admin/dashboard">
-            <LinkIcon>📊</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Dashboard</LinkText>}
-          </LinkItem>
+        <NavList>
+          {ROUTES.map((route, idx) => {
+            if (route.type === 'divider') {
+              return <div key={idx} style={{ borderTop: '1px solid rgba(255,255,255,0.08)', margin: '12px 6px' }} />;
+            }
+            return (
+              <NavItem key={route.path} to={route.path} title={collapsed ? route.label : ''}>
+                <NavIcon>
+                  <route.icon />
+                </NavIcon>
+                <NavLabel $visible={!collapsed}>{route.label}</NavLabel>
+              </NavItem>
+            );
+          })}
+        </NavList>
 
-          <div className="my-2 border-t border-gray-800 mx-4 opacity-50"></div>
+        <SidebarFooter>
+          {!collapsed ? (
+            <div className="flex flex-col items-center gap-1 text-xs text-gray-500">
+              <span className="font-semibold text-gray-400">Genesis CMS v2.1</span>
+              <span>© 2024 CodeGenesis</span>
+            </div>
+          ) : (
+            <span className="text-[10px] text-gray-600 font-mono">v2.1</span>
+          )}
+        </SidebarFooter>
 
-          <LinkItem to="/admin/users">
-            <LinkIcon>👥</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Utilisateurs</LinkText>}
-          </LinkItem>
+      </SidebarContainer>
 
-          <LinkItem to="/admin/courses">
-            <LinkIcon>📚</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Cours</LinkText>}
-          </LinkItem>
+      <MainContent>
+        <TopHeader>
+          <PageTitle>{getCurrentTitle()}</PageTitle>
+          <HeaderActions>
+            <div className="relative cursor-pointer hover:bg-slate-100 p-2.5 rounded-full transition-colors group">
+              <Badge content="" color="danger" shape="circle" size="sm" className="border-2 border-white">
+                <IconBell size={24} className="text-slate-600 group-hover:text-blue-600 transition-colors" />
+              </Badge>
+            </div>
 
-          <LinkItem to="/admin/plans">
-            <LinkIcon>💎</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Plans</LinkText>}
-          </LinkItem>
+            <Dropdown placement="bottom-end">
+              <DropdownTrigger>
+                <div className="flex items-center gap-3 cursor-pointer p-1 pr-2 rounded-full hover:bg-slate-50 transition-colors border border-transparent hover:border-slate-100">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-sm font-bold text-slate-800 leading-tight">{getFullName()}</p>
+                    <p className="text-xs text-slate-500 font-medium">{getRoleLabel()}</p>
+                  </div>
+                  <Avatar
+                    isBordered
+                    color="primary"
+                    name={getInitials()}
+                    src={user?.avatar} // Assuming user object might have an avatar URL
+                    className="transition-transform"
+                    size="sm"
+                  />
+                </div>
+              </DropdownTrigger>
+              <DropdownMenu aria-label="Profile Actions" variant="flat">
+                <DropdownItem key="profile" className="h-14 gap-2" textValue="Profil">
+                  <p className="font-semibold">Connecté en tant que</p>
+                  <p className="font-semibold text-blue-600">{getEmail()}</p>
+                </DropdownItem>
+                <DropdownItem key="settings" startContent={<IconSettings size={18} />} onPress={() => navigate('/admin/settings')}>
+                  Mes Paramètres
+                </DropdownItem>
+                <DropdownItem key="dashboard" startContent={<IconLayoutDashboard size={18} />} onPress={() => navigate('/admin/dashboard')}>
+                  Tableau de Bord
+                </DropdownItem>
+                <DropdownItem key="logout" color="danger" startContent={<IconLogout size={18} />} onPress={handleLogout}>
+                  Se déconnecter
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+          </HeaderActions>
+        </TopHeader>
 
-          <LinkItem to="/admin/Subscription">
-            <LinkIcon>🔄</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Abonnements</LinkText>}
-          </LinkItem>
-
-          <LinkItem to="/admin/payments">
-            <LinkIcon>💳</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Paiements</LinkText>}
-          </LinkItem>
-
-          <div className="my-2 border-t border-gray-800 mx-4 opacity-50"></div>
-
-          <LinkItem to="/admin/tasks">
-            <LinkIcon>✅</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Tâches</LinkText>}
-          </LinkItem>
-
-          <LinkItem to="/admin/settings">
-            <LinkIcon>⚙️</LinkIcon>
-            {!sidebarCollapsed && <LinkText>Paramètres</LinkText>}
-          </LinkItem>
-        </NavItems>
-
-
-        {!sidebarCollapsed && (
-          <SidebarFooter>
-            Admin Panel v2.0<br />
-            © 2023 - Tous droits réservés
-          </SidebarFooter>
-        )}
-
-        <CollapseButton onClick={toggleSidebar}>
-          {sidebarCollapsed ? '➡️' : '⬅️'}
-        </CollapseButton>
-      </Sidebar>
-
-      <Content>
-        <Header>
-          <PageTitle>{getPageTitle()}</PageTitle>
-          <UserProfile>
-            <UserInfo>
-              <UserName>Alexandre Martin</UserName>
-              <UserRole>Administrateur</UserRole>
-            </UserInfo>
-            <Avatar>AM</Avatar>
-          </UserProfile>
-        </Header>
-
-        <ContentArea>
-          {/* Le contenu spécifique à chaque page sera injecté ici */}
+        <ScrollableContent>
           <Outlet />
-        </ContentArea>
-      </Content>
+        </ScrollableContent>
+      </MainContent>
     </Container>
   );
 }

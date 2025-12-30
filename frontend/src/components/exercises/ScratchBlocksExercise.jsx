@@ -30,8 +30,30 @@ const ScratchBlocksExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     };
   };
 
+  // Shuffle logic using strict state to prevent re-ordering
+  const [shuffledBlocks, setShuffledBlocks] = useState([]);
+
+  React.useEffect(() => {
+    // Only proceed if we have blocks
+    if (!exercise?.scratchBlocks) return;
+
+    // Create new array with random sort key
+    const raw = (exercise.scratchBlocks || []).map((b, i) => normalizeBlock(b, i));
+
+    // Sort by random value (map-sort-map pattern)
+    // Using a simple Map allows correct shuffling of the *values* without relying on index
+    const shuffled = raw
+      .map(value => ({ value, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ value }) => value);
+
+    console.log('[Scratch] Blocks randomized for exercise ' + (exercise._id || exercise.id));
+    setShuffledBlocks(shuffled);
+  }, [exercise._id, exercise.id, exercise.scratchBlocks?.length]); // Strict dependency on ID and length
+
   const getBlocks = () => {
-    return (exercise.scratchBlocks || []).map((b, i) => normalizeBlock(b, i));
+    // Return empty until shuffled to prevent flash of ordered content
+    return shuffledBlocks.length > 0 ? shuffledBlocks : [];
   };
 
   const getExpectedBlocks = () => {

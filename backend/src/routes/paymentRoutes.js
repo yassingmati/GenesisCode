@@ -23,6 +23,9 @@ router.get('/status/:paymentId', catchErrors(PaymentController.checkPaymentStatu
 // Historique des paiements
 router.get('/history', catchErrors(PaymentController.getPaymentHistory));
 
+// Historique des paiements d'un utilisateur spécifique (Parent/Admin)
+router.get('/history/:userId', catchErrors(PaymentController.getUserPaymentHistory));
+
 module.exports = router;
 
 

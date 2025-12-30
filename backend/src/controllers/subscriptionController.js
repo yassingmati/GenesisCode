@@ -276,29 +276,133 @@ exports.getUserSubscriptions = async (req, res) => {
       // ok
     }
     // 3. Est-ce un parent de ce user ?
+    // 3. Est-ce un parent de ce user ?
     else {
-      // On vérifie le lien parent/enfant
+      // On vérifie le lien parent/enfant via le champ direct (Optimisation)
       const child = await User.findOne({ _id: userId, parentAccount: requesterId });
-      // Ou peut-être via la collection ParentChild ?
-      // Le modèle User a souvent parentAccount directement s'il a été invité.
-      // Vérifions aussi via ParentChild si nécessaire, mais commençons par User.parentAccount
+
       if (!child) {
-        // Essayons la collection ParentChild si le modèle User ne suffit pas
-        // const relation = await require('../models/ParentChild').findOne({ parent: requesterId, child: userId, status: 'active' });
-        // if (!relation) return res.status(403).json({ success: false, message: 'Non autorisé' });
-        // Pour l'instant, supposons que parentAccount est peuplé ou qu'on est admin.
-        // Si le fetchUser echoue, on bloque.
-        return res.status(403).json({ success: false, message: 'Non autorisé' });
+        // Fallback: Vérifier via la collection de relation ParentChild
+        try {
+          const ParentChild = require('../models/ParentChild');
+          // Check for 'accepted' or 'active' status depending on your schema. Assuming 'accepted'.
+          const relation = await ParentChild.findOne({
+            parent: requesterId,
+            child: userId,
+            status: { $in: ['accepted', 'active'] }
+          });
+
+          if (!relation) {
+            console.warn(`[Auth] ⛔ Access denied. User ${requesterId} is not parent of ${userId}`);
+            return res.status(403).json({ success: false, message: 'Non autorisé: Lien parent inexistant' });
+          }
+        } catch (e) {
+          console.error(`[Auth] Error checking ParentChild:`, e);
+          return res.status(403).json({ success: false, message: 'Non autorisé' });
+        }
       }
     }
 
+    // 1. Get standard Subscriptions
     const subscriptions = await Subscription.find({ user: userId })
       .populate('plan')
       .sort({ createdAt: -1 });
 
+    // 2. Get CategoryAccesses
+    const CategoryAccess = require('../models/CategoryAccess');
+    const categoryAccesses = await CategoryAccess.find({ user: userId })
+      .populate('category') // Populate the category details
+      .populate('categoryPlan') // Populate plan details if referenced
+      .sort({ createdAt: -1 });
+
+
+    // Normalize for frontend
+    const normalizedSubscriptions = subscriptions.map(sub => {
+      const subObj = sub.toObject();
+      let planName = 'Plan Inconnu';
+      let planPrice = 0;
+      let planCurrency = 'TND';
+
+      if (sub.plan) {
+        if (sub.planModel === 'CategoryPlan') {
+          // Gérer le cas où translations peut être manquant ou vide
+          planName = sub.plan.translations?.fr?.name ||
+            sub.plan.translations?.en?.name ||
+            (sub.plan.name) || // Si le nom est direct
+            'Plan Catégorie';
+          planPrice = sub.plan.price;
+          planCurrency = sub.plan.currency;
+        } else {
+          planName = sub.plan.name;
+          planPrice = sub.plan.priceMonthly;
+          planCurrency = sub.plan.currency;
+        }
+      }
+
+      // Overwrite plan object with flattened info expected by frontend
+      subObj.planName = planName; // Legacy support helper
+      if (!subObj.plan) subObj.plan = {};
+
+      // Inject normalized values back into sub.plan so frontend sub.plan.name works
+      subObj.plan.name = planName;
+      subObj.plan.priceMonthly = planPrice;
+      subObj.plan.currency = planCurrency;
+      subObj.plan.type = sub.planModel;
+
+      return subObj;
+    });
+
+    // Normalize CategoryAccesses
+    const normalizedAccesses = categoryAccesses.map(access => {
+      const accessObj = access.toObject();
+      let planName = 'Accès Catégorie';
+      let planPrice = access.payment ? access.payment.amount : 0;
+      let planCurrency = access.payment ? access.payment.currency : 'TND';
+
+      if (access.category && access.category.translations) {
+        planName = access.category.translations.fr?.name || access.category.translations.en?.name || 'Catégorie';
+      }
+
+      // If categoryPlan is populated and has a name, use it, otherwise stick to category name or generic
+      if (access.categoryPlan && typeof access.categoryPlan === 'object' && access.categoryPlan.translations) {
+        planName = access.categoryPlan.translations.fr?.name || access.categoryPlan.name || planName;
+        if (access.categoryPlan.price) planPrice = access.categoryPlan.price;
+      }
+
+      // Construct a compatible plan object
+      accessObj.plan = {
+        name: planName,
+        priceMonthly: planPrice,
+        currency: planCurrency,
+        type: 'CategoryAccess'
+      };
+
+      accessObj.planName = planName; // Legacy support
+
+      // Map fields to match Subscription interface
+      // CategoryAccess has 'expiresAt', Subscription has 'currentPeriodEnd'
+      accessObj.currentPeriodEnd = access.expiresAt;
+      accessObj.currentPeriodStart = access.purchasedAt;
+
+      // Ensure _id matches unique key expectation
+      // it already has _id
+
+      return accessObj;
+    });
+
+    // Merge both lists
+    const allSubscriptions = [...normalizedSubscriptions, ...normalizedAccesses];
+
+    // Sort by most recent (approximated by created/purchased date)
+    allSubscriptions.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.purchasedAt);
+      const dateB = new Date(b.createdAt || b.purchasedAt);
+      return dateB - dateA;
+    });
+
     res.json({
       success: true,
-      subscriptions
+      subscriptions: allSubscriptions
     });
   } catch (err) {
     console.error('getUserSubscriptions Error:', err);

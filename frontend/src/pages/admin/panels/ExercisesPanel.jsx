@@ -4,7 +4,7 @@ import {
   Card, CardHeader, CardBody, CardFooter,
   Button, Input, Skeleton,
   Chip, Select, SelectItem, Textarea,
-  Checkbox, Divider
+  Checkbox, Divider, Tabs, Tab
 } from "@nextui-org/react";
 import { IconEdit, IconTrash, IconPlus, IconX } from '@tabler/icons-react';
 import { api, pickTitle } from '../components/common';
@@ -40,8 +40,12 @@ export default function ExercisesPanel({ onOpenCreate }) {
     testCases: [],
     initialXml: '',
     scratchBlocks: [],
-    validationRules: []
+    validationRules: [],
+    language: 'javascript', // Code
+    codeSnippet: '', // Code
+    solutionXml: '' // Scratch Solution
   });
+  const [scratchTab, setScratchTab] = useState('initial'); // 'initial' or 'solution'
   const [confirm, setConfirm] = useState({ open: false, id: null });
 
   useEffect(() => {
@@ -120,6 +124,7 @@ export default function ExercisesPanel({ onOpenCreate }) {
     setForm({
       level: selectedLevel || '',
       type: 'QCM',
+      fr_name: '', en_name: '', ar_name: '',
       fr_question: '', en_question: '', ar_question: '',
       fr_explanation: '', en_explanation: '', ar_explanation: '',
       options: ['', ''],
@@ -128,8 +133,14 @@ export default function ExercisesPanel({ onOpenCreate }) {
       targets: [],
       testCases: [],
       initialXml: '',
-      scratchBlocks: []
+      scratchBlocks: [],
+      validationRules: [],
+      language: 'javascript',
+      codeSnippet: '',
+      solutionXml: '',
+      dragDropSolutions: {} // DragDrop solutions map
     });
+    setScratchTab('initial');
     setModalOpen(true);
   };
 
@@ -140,6 +151,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
       setForm({
         level: data.level,
         type: data.type,
+        fr_name: data.translations?.fr?.name || '',
+        en_name: data.translations?.en?.name || '',
+        ar_name: data.translations?.ar?.name || '',
         fr_question: data.translations?.fr?.question || '',
         en_question: data.translations?.en?.question || '',
         ar_question: data.translations?.ar?.question || '',
@@ -152,10 +166,14 @@ export default function ExercisesPanel({ onOpenCreate }) {
         targets: data.targets || [],
         testCases: data.testCases || [],
         initialXml: data.initialXml || '',
-        initialXml: data.initialXml || '',
         scratchBlocks: data.scratchBlocks || [],
-        validationRules: data.validationRules || []
+        validationRules: data.validationRules || [],
+        language: data.language || 'javascript',
+        codeSnippet: data.codeSnippet || '',
+        solutionXml: data.solutions?.[0] && typeof data.solutions[0] === 'string' ? data.solutions[0] : '',
+        dragDropSolutions: data.solutions?.[0] || {} // Extract DragDrop map
       });
+      setScratchTab('initial');
       setModalOpen(true);
     } catch (err) {
       console.error(err);
@@ -176,31 +194,55 @@ export default function ExercisesPanel({ onOpenCreate }) {
       level: form.level,
       type: form.type,
       translations: {
-        fr: { question: form.fr_question, explanation: form.fr_explanation },
-        en: { question: form.en_question, explanation: form.en_explanation },
-        ar: { question: form.ar_question, explanation: form.ar_explanation }
+        fr: { name: form.fr_name, question: form.fr_question, explanation: form.fr_explanation },
+        en: { name: form.en_name, question: form.en_question, explanation: form.en_explanation },
+        ar: { name: form.ar_name, question: form.ar_question, explanation: form.ar_explanation }
       }
     };
 
     if (form.type === 'QCM') {
-      payload.options = form.options.filter(opt => opt.trim() !== '');
+      // Fix: Ensure options are objects with id and text
+      payload.options = form.options
+        .filter(opt => opt.trim() !== '')
+        .map((opt, idx) => ({
+          id: String(idx),
+          text: opt
+        }));
       payload.solutions = form.solutions;
     } else if (form.type === 'DragDrop') {
+      if (!form.elements.length || !form.targets.length) {
+        toast.error('DragDrop nécessite au moins 1 élément et 1 cible');
+        return;
+      }
+
+      const missingSolutions = form.elements.filter(el => !form.dragDropSolutions?.[el]);
+      if (missingSolutions.length > 0) {
+        toast.error(`Solution manquante pour: ${missingSolutions.join(', ')}`);
+        return;
+      }
+
       payload.elements = form.elements;
       payload.targets = form.targets;
-      payload.solutions = form.solutions;
+      // Convert map { elem: target } to solutions array [{ elem: target }]
+      payload.solutions = [form.dragDropSolutions || {}];
     } else if (form.type === 'Code') {
       payload.testCases = form.testCases;
+      payload.language = form.language;
+      payload.codeSnippet = form.codeSnippet;
     } else if (form.type === 'TextInput') {
       payload.solutions = form.solutions;
     } else if (form.type === 'Scratch') {
       payload.initialXml = form.initialXml;
-      payload.initialXml = form.initialXml;
-      payload.scratchBlocks = form.scratchBlocks; // Optional: expected blocks
+      payload.scratchBlocks = form.scratchBlocks;
       payload.validationRules = form.validationRules;
+      // If we have a solution XML (passed via scratchBlocks or separate field), include it
+      if (form.solutionXml) {
+        payload.solutions = [form.solutionXml];
+      }
     } else if (form.type === 'ScratchBlocks') {
       payload.scratchBlocks = form.scratchBlocks;
-      payload.solutions = form.solutions; // Optional: if order matters
+      // Par défaut, l'ordre de création définit la solution pour ScratchBlocks
+      payload.solutions = form.scratchBlocks;
     }
 
     try {
@@ -432,269 +474,426 @@ export default function ExercisesPanel({ onOpenCreate }) {
           </div>
         }
       >
-        <div className="grid grid-cols-2 gap-4">
-          <Select
-            label="Niveau"
-            placeholder="Sélectionner"
-            selectedKeys={form.level ? [form.level] : []}
-            onChange={e => setForm(f => ({ ...f, level: e.target.value }))}
-          >
-            {levels.map(level => (
-              <SelectItem key={level._id} value={level._id}>
-                {pickTitle(level) || `Niveau ${level.order}`}
-              </SelectItem>
-            ))}
-          </Select>
+        <div className="h-[600px] flex flex-col">
+          <Tabs aria-label="Exercise Options" className="mb-4">
+            <Tab key="general" title="Général">
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Niveau"
+                  placeholder="Sélectionner"
+                  selectedKeys={form.level ? [form.level] : []}
+                  onChange={e => setForm(f => ({ ...f, level: e.target.value }))}
+                >
+                  {levels.map(level => (
+                    <SelectItem key={level._id} value={level._id}>
+                      {pickTitle(level) || `Niveau ${level.order}`}
+                    </SelectItem>
+                  ))}
+                </Select>
 
-          <Select
-            label="Type"
-            selectedKeys={form.type ? [form.type] : []}
-            onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-          >
-            <SelectItem key="QCM" value="QCM">QCM</SelectItem>
-            <SelectItem key="TextInput" value="TextInput">Réponse texte</SelectItem>
-            <SelectItem key="DragDrop" value="DragDrop">Glisser-déposer</SelectItem>
-            <SelectItem key="Code" value="Code">Code</SelectItem>
-            <SelectItem key="Scratch" value="Scratch">Scratch</SelectItem>
-            <SelectItem key="ScratchBlocks" value="ScratchBlocks">Scratch Blocks</SelectItem>
-          </Select>
+                <Select
+                  label="Type"
+                  selectedKeys={form.type ? [form.type] : []}
+                  onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+                >
+                  <SelectItem key="QCM" value="QCM">QCM</SelectItem>
+                  <SelectItem key="TextInput" value="TextInput">Réponse texte</SelectItem>
+                  <SelectItem key="DragDrop" value="DragDrop">Glisser-déposer</SelectItem>
+                  <SelectItem key="Code" value="Code">Code</SelectItem>
+                  <SelectItem key="Scratch" value="Scratch">Scratch</SelectItem>
+                  <SelectItem key="ScratchBlocks" value="ScratchBlocks">Scratch Blocks</SelectItem>
+                </Select>
 
-          <div className="col-span-2">
-            <Textarea
-              label="Question (Français)"
-              value={form.fr_question}
-              onValueChange={v => setForm(f => ({ ...f, fr_question: v }))}
-            />
-          </div>
-          <div className="col-span-2">
-            <Textarea
-              label="Question (Anglais)"
-              value={form.en_question}
-              onValueChange={v => setForm(f => ({ ...f, en_question: v }))}
-            />
-          </div>
-          <div className="col-span-2">
-            <Textarea
-              label="Question (Arabe)"
-              value={form.ar_question}
-              onValueChange={v => setForm(f => ({ ...f, ar_question: v }))}
-            />
-          </div>
-
-          {/* Type-specific fields */}
-          {form.type === 'QCM' && (
-            <div className="col-span-2 border p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-small font-bold">Options (QCM)</span>
-                <Button size="sm" variant="flat" onPress={addOption}>Ajouter option</Button>
-              </div>
-              {form.options.map((option, idx) => (
-                <div key={idx} className="flex gap-2 items-center mb-2">
+                <div className="col-span-2">
                   <Input
-                    value={option}
-                    onValueChange={v => updateOption(idx, v)}
-                    placeholder={`Option ${idx + 1}`}
-                    size="sm"
+                    label="Titre (Français)"
+                    value={form.fr_name}
+                    onValueChange={v => setForm(f => ({ ...f, fr_name: v }))}
+                    isRequired
                   />
-                  <Checkbox
-                    isSelected={form.solutions.includes(idx)}
-                    onValueChange={() => toggleSolution(idx)}
-                  >
-                    Solution
-                  </Checkbox>
-                  {form.options.length > 2 && (
-                    <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeOption(idx)}>
-                      <IconX size={16} />
-                    </Button>
-                  )}
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="col-span-2">
+                  <Input
+                    label="Title (English)"
+                    value={form.en_name}
+                    onValueChange={v => setForm(f => ({ ...f, en_name: v }))}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Input
+                    label="Titre (Arabe)"
+                    value={form.ar_name}
+                    onValueChange={v => setForm(f => ({ ...f, ar_name: v }))}
+                  />
+                </div>
 
-          {form.type === 'DragDrop' && (
-            <div className="col-span-2 border p-4 rounded-lg grid grid-cols-2 gap-4">
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-small font-bold">Éléments</span>
-                  <Button size="sm" variant="flat" onPress={addElement}>Ajouter</Button>
+                <div className="col-span-2">
+                  <Textarea
+                    label="Question (Français)"
+                    value={form.fr_question}
+                    onValueChange={v => setForm(f => ({ ...f, fr_question: v }))}
+                  />
                 </div>
-                {form.elements.map((element, idx) => (
-                  <div key={idx} className="mb-2">
-                    <Input
-                      value={element}
-                      onValueChange={v => updateElement(idx, v)}
-                      placeholder={`Élément ${idx + 1}`}
-                      size="sm"
-                    />
+                <div className="col-span-2">
+                  <Textarea
+                    label="Question (Anglais)"
+                    value={form.en_question}
+                    onValueChange={v => setForm(f => ({ ...f, en_question: v }))}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Textarea
+                    label="Question (Arabe)"
+                    value={form.ar_question}
+                    onValueChange={v => setForm(f => ({ ...f, ar_question: v }))}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Textarea
+                    label="Explication (Français)"
+                    value={form.fr_explanation}
+                    onValueChange={v => setForm(f => ({ ...f, fr_explanation: v }))}
+                  />
+                </div>
+              </div>
+            </Tab>
+
+            <Tab key="config" title="Configuration">
+              {/* Type-specific fields */}
+              {form.type === 'QCM' && (
+                <div className="col-span-2 border p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-small font-bold">Options (QCM)</span>
+                    <Button size="sm" variant="flat" onPress={addOption}>Ajouter option</Button>
                   </div>
-                ))}
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-small font-bold">Cibles</span>
-                  <Button size="sm" variant="flat" onPress={addTarget}>Ajouter</Button>
+                  {form.options.map((option, idx) => (
+                    <div key={idx} className="flex gap-2 items-center mb-2">
+                      <Input
+                        value={option}
+                        onValueChange={v => updateOption(idx, v)}
+                        placeholder={`Option ${idx + 1}`}
+                        size="sm"
+                      />
+                      <Checkbox
+                        isSelected={form.solutions.includes(idx)}
+                        onValueChange={() => toggleSolution(idx)}
+                      >
+                        Solution
+                      </Checkbox>
+                      {form.options.length > 2 && (
+                        <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeOption(idx)}>
+                          <IconX size={16} />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                {form.targets.map((target, idx) => (
-                  <div key={idx} className="mb-2">
-                    <Input
-                      value={target}
-                      onValueChange={v => updateTarget(idx, v)}
-                      placeholder={`Cible ${idx + 1}`}
-                      size="sm"
-                    />
+              )}
+
+              {form.type === 'DragDrop' && (
+                <div className="col-span-2 flex flex-col gap-4">
+                  <div className="border p-4 rounded-lg grid grid-cols-2 gap-4">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-small font-bold">Éléments (à glisser)</span>
+                        <Button size="sm" variant="flat" onPress={addElement}>Ajouter</Button>
+                      </div>
+                      {form.elements.map((element, idx) => (
+                        <div key={idx} className="mb-2 flex gap-2">
+                          <Input
+                            value={element}
+                            onValueChange={v => updateElement(idx, v)}
+                            placeholder={`Élément ${idx + 1}`}
+                            size="sm"
+                          />
+                          <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => setForm(f => ({ ...f, elements: f.elements.filter((_, i) => i !== idx) }))}>
+                            <IconX size={16} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-small font-bold">Cibles (zones de dépôt)</span>
+                        <Button size="sm" variant="flat" onPress={addTarget}>Ajouter</Button>
+                      </div>
+                      {form.targets.map((target, idx) => (
+                        <div key={idx} className="mb-2 flex gap-2">
+                          <Input
+                            value={target}
+                            onValueChange={v => updateTarget(idx, v)}
+                            placeholder={`Cible ${idx + 1}`}
+                            size="sm"
+                          />
+                          <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => setForm(f => ({ ...f, targets: f.targets.filter((_, i) => i !== idx) }))}>
+                            <IconX size={16} />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {form.type === 'Code' && (
-            <div className="col-span-2 border p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-small font-bold">Tests</span>
-                <Button size="sm" variant="flat" onPress={addTestCase}>Ajouter test</Button>
-              </div>
-              {form.testCases.map((testCase, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_1fr_80px_auto] gap-2 items-center mb-2">
-                  <Input
-                    value={testCase.input}
-                    onValueChange={v => updateTestCase(idx, 'input', v)}
-                    placeholder="Input"
-                    size="sm"
-                  />
-                  <Input
-                    value={testCase.expected}
-                    onValueChange={v => updateTestCase(idx, 'expected', v)}
-                    placeholder="Expected"
-                    size="sm"
-                  />
-                  <Input
-                    type="number"
-                    value={testCase.points}
-                    onValueChange={v => updateTestCase(idx, 'points', +v)}
-                    placeholder="Pts"
-                    size="sm"
-                  />
-                  <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeTestCase(idx)}>
-                    <IconX size={16} />
-                  </Button>
+                  <div className="border p-4 rounded-lg">
+                    <span className="text-small font-bold block mb-2">Solutions (Associations)</span>
+                    <p className="text-xs text-default-500 mb-2">Associez chaque élément à sa cible correcte.</p>
+                    {form.elements.map((element, idx) => (
+                      <div key={idx} className="flex gap-4 items-center mb-2">
+                        <span className="w-1/3 text-sm font-medium truncate" title={element}>{element || `Élément ${idx + 1}`}</span>
+                        <span className="text-default-400">➜</span>
+                        <Select
+                          className="flex-1"
+                          size="sm"
+                          placeholder="Sélectionner une cible"
+                          selectedKeys={form.dragDropSolutions?.[element] ? [form.dragDropSolutions[element]] : []}
+                          onChange={(e) => setForm(f => ({
+                            ...f,
+                            dragDropSolutions: { ...f.dragDropSolutions, [element]: e.target.value }
+                          }))}
+                        >
+                          {form.targets.map((target, tIdx) => (
+                            <SelectItem key={target} value={target}>
+                              {target}
+                            </SelectItem>
+                          ))}
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {form.type === 'Scratch' && (
-            <div className="col-span-2 border p-4 rounded-lg flex flex-col gap-4">
-              <span className="text-small font-bold">Éditeur Visuel (Initial XML)</span>
-              <div style={{ height: '400px' }}>
-                <ScratchEditor
-                  initialXml={form.initialXml}
-                  onXmlChange={(xml) => setForm(f => ({ ...f, initialXml: xml }))}
-                />
-              </div>
-
-              <Divider className="my-2" />
-
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-small font-bold">Règles de validation</span>
-                <Button size="sm" variant="flat" onPress={addValidationRule}>Ajouter règle</Button>
-              </div>
-
-              {form.validationRules && form.validationRules.map((rule, idx) => (
-                <div key={idx} className="grid grid-cols-[150px_1fr_1fr_auto] gap-2 items-center mb-2 border p-2 rounded bg-gray-50">
-                  <Select
-                    size="sm"
-                    selectedKeys={[rule.type]}
-                    onChange={(e) => updateValidationRule(idx, 'type', e.target.value)}
-                  >
-                    <SelectItem key="mustUseBlock" value="mustUseBlock">Doit utiliser un bloc</SelectItem>
-                    <SelectItem key="maxBlocks" value="maxBlocks">Nb max blocs</SelectItem>
-                    <SelectItem key="whitelist" value="whitelist">Liste blanche</SelectItem>
-                  </Select>
-
-                  <Input
-                    size="sm"
-                    placeholder={rule.type === 'maxBlocks' ? 'Ex: 10' : 'Type de bloc (ex: controls_repeat)'}
-                    value={rule.value}
-                    onValueChange={(v) => updateValidationRule(idx, 'value', v)}
-                  />
-
-                  <Input
-                    size="sm"
-                    placeholder="Message d'erreur personnalisé"
-                    value={rule.message}
-                    onValueChange={(v) => updateValidationRule(idx, 'message', v)}
-                  />
-
-                  <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeValidationRule(idx)}>
-                    <IconX size={16} />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {form.type === 'ScratchBlocks' && (
-            <div className="col-span-2 border p-4 rounded-lg">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-small font-bold">Blocs disponibles</span>
-                <Button size="sm" variant="flat" onPress={addScratchBlock}>Ajouter bloc</Button>
-              </div>
-              {form.scratchBlocks.map((block, idx) => {
-                const b = getBlockObject(block);
-                return (
-                  <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center mb-2">
-                    <Input
-                      value={b.text}
-                      onValueChange={v => updateScratchBlock(idx, 'text', v)}
-                      placeholder="Texte (ex: avancer de 10)"
-                      size="sm"
-                    />
-                    <Select
-                      selectedKeys={b.category ? [b.category] : ['motion']}
-                      onChange={e => updateScratchBlock(idx, 'category', e.target.value)}
-                      size="sm"
-                      placeholder="Catégorie"
-                    >
-                      <SelectItem key="motion" value="motion">Mouvement</SelectItem>
-                      <SelectItem key="looks" value="looks">Apparence</SelectItem>
-                      <SelectItem key="sound" value="sound">Son</SelectItem>
-                      <SelectItem key="events" value="events">Événements</SelectItem>
-                      <SelectItem key="control" value="control">Contrôle</SelectItem>
-                      <SelectItem key="sensing" value="sensing">Capteurs</SelectItem>
-                      <SelectItem key="operators" value="operators">Opérateurs</SelectItem>
-                      <SelectItem key="variables" value="variables">Variables</SelectItem>
-                    </Select>
-                    <Select
-                      selectedKeys={b.type ? [b.type] : ['command']}
-                      onChange={e => updateScratchBlock(idx, 'type', e.target.value)}
-                      size="sm"
-                      placeholder="Type"
-                    >
-                      <SelectItem key="command" value="command">Commande</SelectItem>
-                      <SelectItem key="reporter" value="reporter">Valeur</SelectItem>
-                      <SelectItem key="boolean" value="boolean">Condition</SelectItem>
-                      <SelectItem key="hat" value="hat">Début</SelectItem>
-                      <SelectItem key="c-block" value="c-block">Boucle (C)</SelectItem>
-                    </Select>
-
-                    <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeScratchBlock(idx)}>
-                      <IconX size={16} />
+              {form.type === 'TextInput' && (
+                <div className="col-span-2 border p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-small font-bold">Réponses acceptées</span>
+                    <Button size="sm" variant="flat" onPress={() => setForm(f => ({ ...f, solutions: [...f.solutions, ''] }))}>
+                      Ajouter réponse
                     </Button>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <p className="text-xs text-default-500 mb-4">
+                    Ajoutez toutes les variantes acceptées (ex: "Paris", "paris", "PARIS"). La casse est généralement ignorée, mais c'est bien d'être explicite.
+                  </p>
+                  {form.solutions.map((sol, idx) => (
+                    <div key={idx} className="flex gap-2 items-center mb-2">
+                      <Input
+                        value={sol}
+                        onValueChange={v => setForm(f => ({
+                          ...f,
+                          solutions: f.solutions.map((s, i) => i === idx ? v : s)
+                        }))}
+                        placeholder={`Réponse ${idx + 1}`}
+                        size="sm"
+                      />
+                      <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => setForm(f => ({ ...f, solutions: f.solutions.filter((_, i) => i !== idx) }))}>
+                        <IconX size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-          <div className="col-span-2">
-            <Textarea
-              label="Explication (Français)"
-              value={form.fr_explanation}
-              onValueChange={v => setForm(f => ({ ...f, fr_explanation: v }))}
-            />
-          </div>
+              {form.type === 'Code' && (
+                <div className="col-span-2 border p-4 rounded-lg">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <Select
+                      label="Langage"
+                      selectedKeys={[form.language]}
+                      onChange={e => setForm(f => ({ ...f, language: e.target.value }))}
+                    >
+                      <SelectItem key="javascript" value="javascript">JavaScript</SelectItem>
+                      <SelectItem key="python" value="python">Python</SelectItem>
+                      <SelectItem key="java" value="java">Java</SelectItem>
+                      <SelectItem key="csharp" value="csharp">C#</SelectItem>
+                      <SelectItem key="cpp" value="cpp">C++</SelectItem>
+                    </Select>
+                    <div className="col-span-2">
+                      <Textarea
+                        label="Code Initial (Snippet)"
+                        placeholder="// Code de départ pour l'étudiant"
+                        value={form.codeSnippet}
+                        onValueChange={v => setForm(f => ({ ...f, codeSnippet: v }))}
+                        minRows={5}
+                        className="font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-small font-bold">Tests</span>
+                    <Button size="sm" variant="flat" onPress={addTestCase}>Ajouter test</Button>
+                  </div>
+                  {form.testCases.map((testCase, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_1fr_80px_auto] gap-2 items-center mb-2">
+                      <Input
+                        value={testCase.input}
+                        onValueChange={v => updateTestCase(idx, 'input', v)}
+                        placeholder="Input"
+                        size="sm"
+                      />
+                      <Input
+                        value={testCase.expected}
+                        onValueChange={v => updateTestCase(idx, 'expected', v)}
+                        placeholder="Expected"
+                        size="sm"
+                      />
+                      <Input
+                        type="number"
+                        value={testCase.points}
+                        onValueChange={v => updateTestCase(idx, 'points', +v)}
+                        placeholder="Pts"
+                        size="sm"
+                      />
+                      <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeTestCase(idx)}>
+                        <IconX size={16} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {form.type === 'Scratch' && (
+                <div className="col-span-2 flex flex-col gap-4 h-full">
+                  <div className="flex gap-2 border-b pb-2">
+                    <Button
+                      size="sm"
+                      color={scratchTab === 'initial' ? 'primary' : 'default'}
+                      variant={scratchTab === 'initial' ? 'solid' : 'light'}
+                      onPress={() => setScratchTab('initial')}
+                    >
+                      État Initial (Élève)
+                    </Button>
+                    <Button
+                      size="sm"
+                      color={scratchTab === 'solution' ? 'success' : 'default'}
+                      variant={scratchTab === 'solution' ? 'solid' : 'light'}
+                      onPress={() => setScratchTab('solution')}
+                    >
+                      Solution Attendue (Correction)
+                    </Button>
+                  </div>
+
+                  <div className="flex-1 border rounded-lg overflow-hidden flex flex-col" style={{ minHeight: '400px' }}>
+                    <div className="bg-default-100 p-2 border-b">
+                      <span className="text-small font-bold">
+                        {scratchTab === 'initial' ? 'Éditeur Visuel (Initial XML)' : 'Éditeur Solution (Solution XML)'}
+                      </span>
+                      <p className="text-xs text-default-500">
+                        {scratchTab === 'initial'
+                          ? "Construisez ici l'état initial des blocs pour l'élève."
+                          : "Construisez ici la solution complète. Elle sera utilisée pour vérifier la réponse exacte (si pas de règles)."}
+                      </p>
+                    </div>
+                    <div className="flex-1 relative">
+                      {scratchTab === 'initial' ? (
+                        <ScratchEditor
+                          initialXml={form.initialXml}
+                          onXmlChange={(xml) => setForm(f => ({ ...f, initialXml: xml }))}
+                        />
+                      ) : (
+                        <ScratchEditor
+                          key="solution-editor"
+                          initialXml={form.solutionXml}
+                          onXmlChange={(xml) => setForm(f => ({ ...f, solutionXml: xml }))}
+                        />
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border p-4 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-small font-bold">Règles de validation</span>
+                      <Button size="sm" variant="flat" onPress={addValidationRule}>Ajouter règle</Button>
+                    </div>
+
+                    {form.validationRules && form.validationRules.map((rule, idx) => (
+                      <div key={idx} className="grid grid-cols-[150px_1fr_1fr_auto] gap-2 items-center mb-2 border p-2 rounded bg-gray-50">
+                        <Select
+                          size="sm"
+                          selectedKeys={[rule.type]}
+                          onChange={(e) => updateValidationRule(idx, 'type', e.target.value)}
+                        >
+                          <SelectItem key="mustUseBlock" value="mustUseBlock">Doit utiliser un bloc</SelectItem>
+                          <SelectItem key="maxBlocks" value="maxBlocks">Nb max blocs</SelectItem>
+                          <SelectItem key="whitelist" value="whitelist">Liste blanche</SelectItem>
+                        </Select>
+
+                        <Input
+                          size="sm"
+                          placeholder={rule.type === 'maxBlocks' ? 'Ex: 10' : 'Type de bloc (ex: controls_repeat)'}
+                          value={rule.value}
+                          onValueChange={(v) => updateValidationRule(idx, 'value', v)}
+                        />
+
+                        <Input
+                          size="sm"
+                          placeholder="Message d'erreur personnalisé"
+                          value={rule.message}
+                          onValueChange={(v) => updateValidationRule(idx, 'message', v)}
+                        />
+
+                        <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeValidationRule(idx)}>
+                          <IconX size={16} />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {form.type === 'ScratchBlocks' && (
+                <div className="col-span-2 border p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-small font-bold">Blocs disponibles</span>
+                    <Button size="sm" variant="flat" onPress={addScratchBlock}>Ajouter bloc</Button>
+                  </div>
+                  {form.scratchBlocks.map((block, idx) => {
+                    const b = getBlockObject(block);
+                    return (
+                      <div key={idx} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center mb-2">
+                        <Input
+                          value={b.text}
+                          onValueChange={v => updateScratchBlock(idx, 'text', v)}
+                          placeholder="Texte (ex: avancer de 10)"
+                          size="sm"
+                        />
+                        <Select
+                          selectedKeys={b.category ? [b.category] : ['motion']}
+                          onChange={e => updateScratchBlock(idx, 'category', e.target.value)}
+                          size="sm"
+                          placeholder="Catégorie"
+                        >
+                          <SelectItem key="motion" value="motion">Mouvement</SelectItem>
+                          <SelectItem key="looks" value="looks">Apparence</SelectItem>
+                          <SelectItem key="sound" value="sound">Son</SelectItem>
+                          <SelectItem key="events" value="events">Événements</SelectItem>
+                          <SelectItem key="control" value="control">Contrôle</SelectItem>
+                          <SelectItem key="sensing" value="sensing">Capteurs</SelectItem>
+                          <SelectItem key="operators" value="operators">Opérateurs</SelectItem>
+                          <SelectItem key="variables" value="variables">Variables</SelectItem>
+                        </Select>
+                        <Select
+                          selectedKeys={b.type ? [b.type] : ['command']}
+                          onChange={e => updateScratchBlock(idx, 'type', e.target.value)}
+                          size="sm"
+                          placeholder="Type"
+                        >
+                          <SelectItem key="command" value="command">Commande</SelectItem>
+                          <SelectItem key="reporter" value="reporter">Valeur</SelectItem>
+                          <SelectItem key="boolean" value="boolean">Condition</SelectItem>
+                          <SelectItem key="hat" value="hat">Début</SelectItem>
+                          <SelectItem key="c-block" value="c-block">Boucle (C)</SelectItem>
+                        </Select>
+
+                        <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => removeScratchBlock(idx)}>
+                          <IconX size={16} />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Tab>
+          </Tabs>
         </div>
       </FormModal>
 

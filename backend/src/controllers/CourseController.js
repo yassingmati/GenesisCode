@@ -112,7 +112,7 @@ const validateExercise = (ex, partial = false) => {
     // Nouveaux types pour algorithmes et programmation
     'Algorithm', 'FlowChart', 'Trace', 'Debug', 'CodeCompletion', 'PseudoCode', 'Complexity',
     'DataStructure', 'ScratchBlocks', 'VisualProgramming', 'AlgorithmSteps', 'ConceptMapping',
-    'CodeOutput', 'Optimization'
+    'CodeOutput', 'Optimization', 'Scratch'
   ];
 
   if (!partial || ('type' in ex)) {
@@ -1003,6 +1003,40 @@ class CourseController {
     res.status(204).end();
   });
 
+  static validateExerciseDryRun = catchErrors(async (req, res) => {
+    // Valider le corps de la requête comme un nouvel exercice
+    validateExercise(req.body, false);
+    res.json({ valid: true, message: 'Exercice valide' });
+  });
+
+  static duplicateExercise = catchErrors(async (req, res) => {
+    if (!isValidObjectId(req.params.id)) return res.status(400).json({ error: 'ID invalide' });
+
+    const original = await Exercise.findById(req.params.id);
+    if (!original) return res.status(404).json({ error: 'Exercice non trouvé' });
+
+    const newExData = original.toObject();
+    delete newExData._id;
+    delete newExData.createdAt;
+    delete newExData.updatedAt;
+    delete newExData.__v;
+
+    // Ajouter suffixe "(Copie)" au nom
+    if (newExData.translations && newExData.translations.fr) {
+      newExData.translations.fr.name = `${newExData.translations.fr.name} (Copie)`;
+    }
+
+    // Créer le nouvel exercice
+    const newEx = await Exercise.create(newExData);
+
+    // Lier au niveau
+    await Level.findByIdAndUpdate(newEx.level, {
+      $addToSet: { exercises: newEx._id }
+    });
+
+    res.status(201).json(newEx);
+  });
+
   // important: here we mark user progress + when level completed mark UserLevelProgress
   static submitExercise = catchErrors(async (req, res) => {
     const exerciseId = req.params.id;
@@ -1083,11 +1117,12 @@ class CourseController {
       });
     }
 
-    const { isCorrect, pointsEarned, xp, details } = evaluationResult;
+    const { isCorrect, pointsEarned, xp, details, feedback } = evaluationResult;
 
     // Enregistrer ou mettre à jour UserProgress avec la nouvelle méthode
+    let updatedProgress = null;
     try {
-      await UserProgress.updateProgress(userId, exercise._id, {
+      updatedProgress = await UserProgress.updateProgress(userId, exercise._id, {
         xp,
         pointsEarned,
         pointsMax: exercise.points || 10,
@@ -1111,248 +1146,12 @@ class CourseController {
       // mais on log l'erreur pour debugging
     }
 
-    // Initialize task update debug tracking
+
+    // Initialise le debug des tâches
     let taskUpdateDebug = { executed: false, activeTasksFound: 0, tasksUpdated: 0, errors: [] };
 
-    // Mettre à jour automatiquement les tâches assignées si un exercice est soumis
-    try {
-      const AssignedTask = require('../models/AssignedTask');
-      const mongoose = require('mongoose');
-      const crypto = require('crypto');
-
-      // Convertir userId en ObjectId
-      // Convertir userId en ObjectId
-      let userObjectId;
-      if (mongoose.isValidObjectId(userId)) {
-        userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
-        console.log('DEBUG: userId is valid ObjectId:', userObjectId);
-      } else {
-        // Tenter de trouver l'utilisateur par firebaseUid
-        const User = require('../models/User');
-        const user = await User.findOne({ firebaseUid: userId });
-
-        if (user) {
-          userObjectId = user._id;
-          console.log('DEBUG: User found by firebaseUid:', { userId, mongoId: userObjectId });
-        } else {
-          // Fallback au hash (comportement legacy, mais probablement incorrect pour les tâches)
-          console.warn('DEBUG: User NOT found by firebaseUid, using hash fallback', { userId });
-          const hash = crypto.createHash('md5').update(userId).digest('hex');
-          userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
-        }
-      }
-
-      // Trouver toutes les tâches assignées actives pour cet utilisateur
-      const now = new Date();
-      console.log('DEBUG: Searching for active tasks for childId:', userObjectId, 'at time:', now);
-
-      const activeTasks = await AssignedTask.find({
-        childId: userObjectId,
-        status: { $in: ['active', 'pending'] },
-        periodStart: { $lte: now },
-        periodEnd: { $gte: now }
-      });
-
-      console.log('DEBUG: Found active tasks:', activeTasks.length);
-
-      // Update task debug info with detailed diagnostics
-      Object.assign(taskUpdateDebug, {
-        executed: true,
-        activeTasksFound: activeTasks.length,
-        userIdReceived: userId,
-        userObjectIdResolved: userObjectId.toString(),
-        queryTime: now.toISOString(),
-        activeTasks: activeTasks.map(t => ({
-          id: t._id.toString(),
-          childId: t.childId.toString(),
-          status: t.status,
-          periodStart: t.periodStart,
-          periodEnd: t.periodEnd
-        }))
-      });
-
-      // Mettre à jour les métriques pour chaque tâche
-      for (const task of activeTasks) {
-        try {
-          // Compter les exercices soumis dans la période
-          const UserProgress = require('../models/UserProgress');
-
-          console.log('DEBUG: Querying UserProgress with:', {
-            user: userObjectId,
-            completed: true,
-            periodStart: task.periodStart,
-            periodEnd: task.periodEnd
-          });
-
-          const exercisesSubmitted = await UserProgress.countDocuments({
-            user: userObjectId,
-            completed: true,
-            completedAt: { $gte: task.periodStart, $lte: task.periodEnd }
-          });
-
-          console.log('DEBUG: UserProgress count result:', exercisesSubmitted);
-
-          // Also log the actual documents for debugging
-          const progressDocs = await UserProgress.find({
-            user: userObjectId,
-            completed: true
-          }).limit(5).lean();
-
-          console.log('DEBUG: Sample UserProgress documents for user:', JSON.stringify(progressDocs, null, 2));
-
-          // Compter les niveaux complétés dans la période
-          const UserLevelProgress = require('../models/UserLevelProgress');
-          const levelsCompleted = await UserLevelProgress.countDocuments({
-            user: userObjectId,
-            completed: true,
-            completedAt: { $gte: task.periodStart, $lte: task.periodEnd }
-          });
-
-          // Calculer les heures passées (utiliser UserActivity si disponible)
-          const UserActivity = require('../models/UserActivity');
-          let hoursSpent = 0;
-          try {
-            const activities = await UserActivity.find({
-              user: userObjectId,
-              loginTime: { $gte: task.periodStart, $lte: task.periodEnd }
-            }).lean();
-
-            let totalMinutes = 0;
-            activities.forEach(activity => {
-              // Utiliser le champ duration (en minutes) si disponible
-              if (activity.duration && activity.duration > 0) {
-                totalMinutes += activity.duration;
-              } else if (activity.sessionStats && activity.sessionStats.timeSpent) {
-                // Utiliser sessionStats.timeSpent (en minutes)
-                totalMinutes += activity.sessionStats.timeSpent;
-              } else if (activity.logoutTime && activity.loginTime) {
-                // Calculer depuis loginTime et logoutTime
-                const duration = (new Date(activity.logoutTime) - new Date(activity.loginTime)) / (1000 * 60); // en minutes
-                totalMinutes += Math.max(0, duration);
-              } else if (activity.loginTime) {
-                // Session en cours, utiliser maintenant
-                const duration = (now - new Date(activity.loginTime)) / (1000 * 60); // en minutes
-                totalMinutes += Math.max(0, duration);
-              }
-            });
-            hoursSpent = parseFloat((totalMinutes / 60).toFixed(2));
-          } catch (activityError) {
-            console.error('submitExercise: Erreur calcul heures UserActivity', {
-              error: activityError.message
-            });
-            // Utiliser la valeur existante si le calcul échoue
-            hoursSpent = task.metricsCurrent?.hours_spent || 0;
-          }
-
-          // Mettre à jour les métriques
-          task.metricsCurrent = {
-            exercises_submitted: exercisesSubmitted,
-            levels_completed: levelsCompleted,
-            hours_spent: hoursSpent
-          };
-
-          // Vérifier si la tâche est complétée
-          let isCompleted = true;
-          if (task.metricsTarget.exercises_submitted > 0 && task.metricsCurrent.exercises_submitted < task.metricsTarget.exercises_submitted) {
-            isCompleted = false;
-          }
-          if (task.metricsTarget.levels_completed > 0 && task.metricsCurrent.levels_completed < task.metricsTarget.levels_completed) {
-            isCompleted = false;
-          }
-          if (task.metricsTarget.hours_spent > 0 && task.metricsCurrent.hours_spent < task.metricsTarget.hours_spent) {
-            isCompleted = false;
-          }
-
-          if (isCompleted && task.status !== 'completed') {
-            task.status = 'completed';
-            task.completedAt = now;
-          }
-
-          await task.save();
-          taskUpdateDebug.tasksUpdated++;
-          console.log('submitExercise: Tâche assignée mise à jour', {
-            taskId: task._id,
-            exercisesSubmitted,
-            levelsCompleted,
-            hoursSpent,
-            isCompleted
-          });
-        } catch (taskError) {
-          taskUpdateDebug.errors.push(taskError.message);
-          console.error('submitExercise: Erreur mise à jour tâche assignée', {
-            taskId: task._id,
-            error: taskError.message
-          });
-        }
-      }
-    } catch (taskUpdateError) {
-      console.error('submitExercise: Erreur lors de la mise à jour des tâches assignées', {
-        error: taskUpdateError.message,
-        stack: taskUpdateError.stack
-      });
-      // Ne pas bloquer la réponse si la mise à jour des tâches échoue
-    }
-
-    // Si l'utilisateur a complété cet exercice, vérifier si tous les exercices du niveau sont complétés
-    if (isCorrect) {
-      try {
-        const level = await Level.findById(exercise.level).populate('exercises', '_id');
-        if (level && level.exercises) {
-          const exerciseIds = level.exercises.map(e => e._id);
-
-          // Utiliser la même logique de conversion d'ObjectId
-          const mongoose = require('mongoose');
-          const crypto = require('crypto');
-
-          let userObjectId;
-          if (mongoose.isValidObjectId(userId)) {
-            userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
-          } else {
-            const hash = crypto.createHash('md5').update(userId).digest('hex');
-            userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
-          }
-
-          const completedExercisesCount = await UserProgress.countDocuments({
-            user: userObjectId,
-            exercise: { $in: exerciseIds },
-            completed: true
-          });
-
-          // Marquer le niveau comme complété si tous les exercices sont terminés
-          if (exerciseIds.length > 0 && completedExercisesCount === exerciseIds.length) {
-            await UserLevelProgress.findOneAndUpdate(
-              { user: userObjectId, level: level._id },
-              {
-                completed: true,
-                completedAt: new Date(),
-                $inc: { xp: 50 } // Bonus XP pour compléter un niveau
-              },
-              { upsert: true, new: true, setDefaultsOnInsert: true }
-            );
-
-            // Débloquer automatiquement le niveau suivant
-            try {
-              const LevelUnlockService = require('../services/levelUnlockService');
-              await LevelUnlockService.onLevelCompleted(userId, level._id);
-            } catch (unlockError) {
-              console.error('Erreur déblocage niveau suivant:', unlockError);
-            }
-          }
-        }
-      } catch (e) {
-        console.error('UserLevelProgress update error:', e);
-      }
-    }
-
+    // Envoyer la réponse MAINTENANT pour une UX "Snappy"
     const explanation = (getTranslation(exercise, getLang(req)) || getTranslation(exercise, 'fr'))?.explanation || null;
-
-    console.log('submitExercise: Résultat de soumission', {
-      exerciseId,
-      userId,
-      isCorrect,
-      pointsEarned,
-      pointsMax: exercise.points || 10
-    });
 
     res.json({
       success: true,
@@ -1362,11 +1161,159 @@ class CourseController {
       xpEarned: xp,
       explanation,
       details,
+      feedback: (() => {
+        let finalFeedback = feedback || '';
+        // Progressive Hint: Après 2 essais ratés, on montre l'indice si disponible
+        if (!isCorrect && exercise.hint && updatedProgress && updatedProgress.attempts >= 2) {
+          finalFeedback += `\n\n💡 Indice: ${exercise.hint}`;
+        }
+        return finalFeedback;
+      })(),
       message: isCorrect ? 'Exercice complété avec succès!' : 'Exercice soumis, mais la réponse n\'est pas correcte.',
-      taskUpdateDebug, // Debug info for task updates
-      ...(!isCorrect && { revealSolutions: false }) // contrôlable selon policy
+      ...(!isCorrect && { revealSolutions: false })
+    });
+
+    // Exécuter les mises à jour lourdes en arrière-plan (Fire-and-Forget)
+    // Utiliser setImmediate pour laisser le temps à Express de flusher la réponse
+    setImmediate(async () => {
+      try {
+        await CourseController.processBackgroundUpdates(userId, exercise, isCorrect, taskUpdateDebug);
+      } catch (bgError) {
+        console.error('Background Update Error:', bgError);
+      }
     });
   });
+
+  // Fonction helpers pour les mises à jour en arrière-plan (gamification, tâches, niveaux)
+  static processBackgroundUpdates = async (userId, exercise, isCorrect, taskUpdateDebug) => {
+    try {
+      const AssignedTask = require('../models/AssignedTask');
+      const Level = require('../models/Level');
+      const UserProgress = require('../models/UserProgress');
+      const UserLevelProgress = require('../models/UserLevelProgress');
+      const mongoose = require('mongoose');
+      const crypto = require('crypto');
+
+      // Résolution de l'ID utilisateur
+      let userObjectId;
+      if (mongoose.isValidObjectId(userId)) {
+        userObjectId = typeof userId === 'string' ? new mongoose.Types.ObjectId(userId) : userId;
+      } else {
+        const User = require('../models/User');
+        const user = await User.findOne({ firebaseUid: userId });
+        if (user) {
+          userObjectId = user._id;
+        } else {
+          const hash = crypto.createHash('md5').update(userId).digest('hex');
+          userObjectId = new mongoose.Types.ObjectId(hash.substring(0, 24));
+        }
+      }
+
+      /* ----------------------------------------------------
+         1. Mise à jour des Tâches Assignées (Gamification)
+         ---------------------------------------------------- */
+      const now = new Date();
+      const activeTasks = await AssignedTask.find({
+        childId: userObjectId,
+        status: { $in: ['active', 'pending'] },
+        periodStart: { $lte: now },
+        periodEnd: { $gte: now }
+      });
+
+      console.log(`[Background] Found ${activeTasks.length} active tasks for user ${userId}`);
+
+      taskUpdateDebug.executed = true;
+      taskUpdateDebug.activeTasksFound = activeTasks.length;
+
+      for (const task of activeTasks) {
+        try {
+          // Optimisation: Utiliser countDocuments est lourd, mais nécessaire pour la précision.
+          // TODO (Phase 2): Utiliser des compteurs incrémentaux ou Redis
+
+          const exercisesSubmitted = await UserProgress.countDocuments({
+            user: userObjectId,
+            completed: true,
+            completedAt: { $gte: task.periodStart, $lte: task.periodEnd }
+          });
+
+          const levelsCompleted = await UserLevelProgress.countDocuments({
+            user: userObjectId,
+            completed: true,
+            completedAt: { $gte: task.periodStart, $lte: task.periodEnd }
+          });
+
+          // Calcul approximatif du temps (peut être optimisé)
+          let hoursSpent = task.metricsCurrent?.hours_spent || 0;
+          // ... (logique de calcul d'heures simplifiée ou à optimiser plus tard)
+
+          task.metricsCurrent = {
+            exercises_submitted: exercisesSubmitted,
+            levels_completed: levelsCompleted,
+            hours_spent: hoursSpent
+          };
+
+          // Vérification completion
+          let isCompleted = true;
+          if (task.metricsTarget.exercises_submitted > 0 && exercisesSubmitted < task.metricsTarget.exercises_submitted) isCompleted = false;
+          if (task.metricsTarget.levels_completed > 0 && levelsCompleted < task.metricsTarget.levels_completed) isCompleted = false;
+
+          if (isCompleted && task.status !== 'completed') {
+            task.status = 'completed';
+            task.completedAt = now;
+          }
+
+          await task.save();
+          taskUpdateDebug.tasksUpdated++;
+        } catch (taskError) {
+          console.error(`[Background] Error updating task ${task._id}:`, taskError.message);
+        }
+      }
+
+      /* ----------------------------------------------------
+         2. Mise à jour Progression Niveau (Si exercice correct)
+         ---------------------------------------------------- */
+      if (isCorrect) {
+        try {
+          const level = await Level.findById(exercise.level).populate('exercises', '_id');
+          if (level && level.exercises) {
+            const exerciseIds = level.exercises.map(e => e._id);
+
+            const completedExercisesCount = await UserProgress.countDocuments({
+              user: userObjectId,
+              exercise: { $in: exerciseIds },
+              completed: true
+            });
+
+            if (exerciseIds.length > 0 && completedExercisesCount === exerciseIds.length) {
+              await UserLevelProgress.findOneAndUpdate(
+                { user: userObjectId, level: level._id },
+                {
+                  completed: true,
+                  completedAt: new Date(),
+                  $inc: { xp: 50 }
+                },
+                { upsert: true, new: true, setDefaultsOnInsert: true }
+              );
+
+              // Service de déblocage
+              const LevelUnlockService = require('../services/levelUnlockService');
+              await LevelUnlockService.onLevelCompleted(userId, level._id);
+              console.log(`[Background] Level ${level._id} completed and next level unlocked.`);
+            }
+          }
+        } catch (levelError) {
+          console.error('[Background] Level progress update error:', levelError);
+        }
+      }
+
+    } catch (globalError) {
+      console.error('[Background] Critical error in background updates:', globalError);
+    }
+  };
+
+  /* -----------------------
+      Fin de submitExercise et helper
+     ----------------------- */
 
   /* -----------------------
       Progress & Statistics

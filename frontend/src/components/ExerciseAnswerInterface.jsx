@@ -153,6 +153,22 @@ export default function ExerciseAnswerInterface({
             <p className="text-sm">{testResult.message}</p>
           </motion.div>
         )}
+        {submissionResult && submissionResult.feedback && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`mt-4 p-4 rounded-lg border ${submissionResult.isCorrect ? 'bg-success-50 border-success-200 text-success-900' : 'bg-warning-50 border-warning-200 text-warning-900'}`}
+          >
+            <div className="flex items-start gap-3">
+              {submissionResult.isCorrect ? <IconCheck className="text-success" /> : <IconBulb className="text-warning" />}
+              <div className="flex-1">
+                <p className="font-bold text-sm mb-1">{submissionResult.isCorrect ? 'Excellent travail !' : 'Conseil'}</p>
+                <p className="text-sm whitespace-pre-wrap">{submissionResult.feedback}</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
@@ -210,7 +226,7 @@ function TextInputInterface({ exercise, answer, onAnswer }) {
 function CodeInterface({ exercise, answer, onAnswer }) {
   // CodeEditor expects 'value' and 'onChange', not 'userAnswer' and 'setUserAnswer'
   const codeValue = typeof answer === 'string' ? answer : (answer?.code || '');
-  
+
   const handleCodeChange = (newValue) => {
     // Update the answer with the new code string
     onAnswer(newValue);

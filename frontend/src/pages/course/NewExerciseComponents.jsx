@@ -26,12 +26,12 @@ export function AlgorithmExercise({ exercise, userAnswer, setUserAnswer }) {
       <div className="instruction">
         <p>Ordonnez les étapes de l'algorithme dans le bon ordre :</p>
       </div>
-      
+
       <div className="algorithm-steps">
         {currentOrder.map((stepIndex, position) => (
           <div key={steps[stepIndex]?.id} className="algorithm-step">
             <div className="step-controls">
-              <button 
+              <button
                 onClick={() => position > 0 && moveStep(position, position - 1)}
                 disabled={position === 0}
                 className="btn-move up"
@@ -39,7 +39,7 @@ export function AlgorithmExercise({ exercise, userAnswer, setUserAnswer }) {
                 ↑
               </button>
               <span className="step-number">{position + 1}</span>
-              <button 
+              <button
                 onClick={() => position < steps.length - 1 && moveStep(position, position + 1)}
                 disabled={position === steps.length - 1}
                 className="btn-move down"
@@ -70,7 +70,7 @@ export function FlowChartExercise({ exercise, userAnswer, setUserAnswer }) {
       <div className="instruction">
         <p>Créez l'organigramme en plaçant et connectant les éléments :</p>
       </div>
-      
+
       <div className="flowchart-workspace">
         <div className="flowchart-info">
           <p>💡 Cet exercice nécessite une interface de création d'organigramme interactive.</p>
@@ -131,7 +131,7 @@ export function TraceExercise({ exercise, userAnswer, setUserAnswer, attempts = 
       <div className="instruction">
         <p>Tracez l'exécution du code en indiquant les valeurs des variables à chaque étape :</p>
       </div>
-      
+
       {/* Éditeur de code */}
       <CodeEditor
         exercise={exercise}
@@ -144,7 +144,7 @@ export function TraceExercise({ exercise, userAnswer, setUserAnswer, attempts = 
         solution={exercise.solution}
         language={exercise.language || 'javascript'}
       />
-      
+
       <div className="trace-table">
         <table>
           <thead>
@@ -173,7 +173,7 @@ export function TraceExercise({ exercise, userAnswer, setUserAnswer, attempts = 
             ))}
           </tbody>
         </table>
-        
+
         <button className="btn-add-step" onClick={addTraceStep}>
           + Ajouter une étape
         </button>
@@ -217,7 +217,7 @@ export function DebugExercise({ exercise, userAnswer, setUserAnswer, attempts = 
       <div className="instruction">
         <p>Identifiez les erreurs dans le code suivant :</p>
       </div>
-      
+
       {/* Éditeur de code */}
       <CodeEditor
         exercise={exercise}
@@ -230,7 +230,7 @@ export function DebugExercise({ exercise, userAnswer, setUserAnswer, attempts = 
         solution={exercise.solution}
         language={exercise.language || 'javascript'}
       />
-      
+
       <div className="errors-found">
         <h4>Erreurs identifiées :</h4>
         {foundErrors.map((error, index) => (
@@ -239,7 +239,7 @@ export function DebugExercise({ exercise, userAnswer, setUserAnswer, attempts = 
             <button onClick={() => removeError(index)}>✕</button>
           </div>
         ))}
-        
+
         <div className="add-error-form">
           <input type="number" placeholder="Ligne" id="error-line" />
           <select id="error-type">
@@ -298,7 +298,7 @@ export function CodeCompletionExercise({ exercise, userAnswer, setUserAnswer, at
       <div className="instruction">
         <p>Complétez le code en remplissant les parties manquantes :</p>
       </div>
-      
+
       {/* Éditeur de code */}
       <CodeEditor
         exercise={exercise}
@@ -311,10 +311,10 @@ export function CodeCompletionExercise({ exercise, userAnswer, setUserAnswer, at
         solution={exercise.solution}
         language={exercise.language || 'javascript'}
       />
-      
+
       <div className="code-template">
         <pre>
-          {exercise.codeTemplate ? 
+          {exercise.codeTemplate ?
             exercise.codeTemplate.split(/(\{GAP_\d+\})/).map((part, index) => {
               if (part.match(/\{GAP_(\d+)\}/)) {
                 const gapId = part.match(/\{GAP_(\d+)\}/)[1];
@@ -335,7 +335,7 @@ export function CodeCompletionExercise({ exercise, userAnswer, setUserAnswer, at
           }
         </pre>
       </div>
-      
+
       {exercise.codeGaps && exercise.codeGaps.length > 0 && (
         <div className="gap-hints">
           <h4>Indices :</h4>
@@ -365,7 +365,7 @@ export function PseudoCodeExercise({ exercise, userAnswer, setUserAnswer, attemp
       message: 'Pseudo-code analysé avec succès',
       details: {
         lines: userCode.split('\n').length,
-        keywords: ['DÉBUT', 'FIN', 'SI', 'ALORS', 'SINON', 'POUR', 'TANT QUE'].filter(keyword => 
+        keywords: ['DÉBUT', 'FIN', 'SI', 'ALORS', 'SINON', 'POUR', 'TANT QUE'].filter(keyword =>
           userCode.toUpperCase().includes(keyword)
         )
       }
@@ -377,7 +377,7 @@ export function PseudoCodeExercise({ exercise, userAnswer, setUserAnswer, attemp
       <div className="instruction">
         <p>Écrivez le pseudo-code pour résoudre le problème suivant :</p>
       </div>
-      
+
       {/* Éditeur de code pour pseudo-code */}
       <CodeEditor
         exercise={exercise}
@@ -390,7 +390,7 @@ export function PseudoCodeExercise({ exercise, userAnswer, setUserAnswer, attemp
         solution={exercise.solution}
         language="pseudocode"
       />
-      
+
       <div className="pseudo-code-tips">
         <h4>💡 Conseils pour le pseudo-code :</h4>
         <ul>
@@ -432,7 +432,7 @@ export function ComplexityExercise({ exercise, userAnswer, setUserAnswer, attemp
       <div className="instruction">
         <p>Analysez la complexité algorithmique du code suivant :</p>
       </div>
-      
+
       {/* Éditeur de code */}
       <CodeEditor
         exercise={exercise}
@@ -445,7 +445,7 @@ export function ComplexityExercise({ exercise, userAnswer, setUserAnswer, attemp
         solution={exercise.solution}
         language={exercise.language || 'javascript'}
       />
-      
+
       <div className="complexity-analysis">
         <div className="complexity-input">
           <label>Complexité temporelle :</label>
@@ -459,7 +459,7 @@ export function ComplexityExercise({ exercise, userAnswer, setUserAnswer, attemp
             <option value="O(2^n)">O(2^n) - Exponentielle</option>
           </select>
         </div>
-        
+
         <div className="justification-input">
           <label>Justification :</label>
           <textarea
@@ -491,7 +491,7 @@ export function DataStructureExercise({ exercise, userAnswer, setUserAnswer }) {
       <div className="instruction">
         <p>Effectuez les opérations suivantes sur la structure de données {exercise.dataStructureType} :</p>
       </div>
-      
+
       <div className="data-structure-operations">
         <div className="operation-buttons">
           {exercise.dataStructureOperations?.map((op, index) => (
@@ -511,7 +511,7 @@ export function DataStructureExercise({ exercise, userAnswer, setUserAnswer }) {
             </button>
           ))}
         </div>
-        
+
         <div className="operations-sequence">
           <h4>Séquence d'opérations :</h4>
           {operations.map((op, index) => (
@@ -529,9 +529,26 @@ export function ScratchBlocksExercise({ exercise, userAnswer, setUserAnswer, att
   const [selectedBlocks, setSelectedBlocks] = useState(userAnswer?.blocks || []);
   const [showSolution, setShowSolution] = useState(attempts >= maxAttempts);
 
+  // NUCLEAR OPTION: Lazy State Initialization for Shuffle
+  // This guarantees the shuffle happens SYNCHRONOUSLY on the FIRST render.
+  // We rely on the parent (ExerciseRenderer) to remount us (key={exercise._id}) when exercise changes.
+  const [shuffledBlocks] = useState(() => {
+    if (!exercise?.scratchBlocks) return [];
+
+    console.log('[Scratch Nuclear] Shuffling synchronously on mount for:', exercise._id);
+    const raw = [...exercise.scratchBlocks]; // Copy
+
+    return raw
+      .map(value => ({ value, sort: Math.random() }))
+      .sort((a, b) => a.sort - b.sort)
+      .map(({ value }) => value);
+  });
+
   useEffect(() => {
     setUserAnswer({ blocks: selectedBlocks });
   }, [selectedBlocks, setUserAnswer]);
+
+  // No need for useEffect shuffle anymore
 
   const addBlock = (block) => {
     setSelectedBlocks([...selectedBlocks, { ...block, id: Date.now() }]);
@@ -548,6 +565,8 @@ export function ScratchBlocksExercise({ exercise, userAnswer, setUserAnswer, att
     setSelectedBlocks(newBlocks);
   };
 
+  const displayBlocks = shuffledBlocks;
+
   return (
     <div className="exercise-scratch-blocks">
       <div className="instruction">
@@ -558,12 +577,12 @@ export function ScratchBlocksExercise({ exercise, userAnswer, setUserAnswer, att
           </div>
         )}
       </div>
-      
+
       <div className="scratch-workspace">
         <div className="available-blocks">
-          <h4>Blocs disponibles :</h4>
+          <h4>Blocs aléatoires :</h4>
           <div className="blocks-grid">
-            {exercise.scratchBlocks?.map((block, index) => (
+            {displayBlocks.map((block, index) => (
               <div
                 key={index}
                 className={`scratch-block ${block.category}`}
@@ -576,7 +595,7 @@ export function ScratchBlocksExercise({ exercise, userAnswer, setUserAnswer, att
             ))}
           </div>
         </div>
-        
+
         <div className="program-area">
           <h4>Votre programme :</h4>
           <div className="selected-blocks">
@@ -588,7 +607,7 @@ export function ScratchBlocksExercise({ exercise, userAnswer, setUserAnswer, att
               selectedBlocks.map((block, index) => (
                 <div key={block.id} className={`scratch-block ${block.category} selected`}>
                   <div className="block-controls">
-                    <button 
+                    <button
                       onClick={() => index > 0 && moveBlock(index, index - 1)}
                       disabled={index === 0}
                       className="btn-move up"
@@ -596,7 +615,7 @@ export function ScratchBlocksExercise({ exercise, userAnswer, setUserAnswer, att
                       ↑
                     </button>
                     <span className="position">{index + 1}</span>
-                    <button 
+                    <button
                       onClick={() => index < selectedBlocks.length - 1 && moveBlock(index, index + 1)}
                       disabled={index === selectedBlocks.length - 1}
                       className="btn-move down"
@@ -645,7 +664,7 @@ export function VisualProgrammingExercise({ exercise, userAnswer, setUserAnswer 
       <div className="instruction">
         <p>Créez le programme en utilisant les éléments visuels :</p>
       </div>
-      
+
       <div className="visual-programming-info">
         <p>💡 Interface de programmation visuelle à implémenter</p>
         <p>Fonctionnalité avancée nécessitant une bibliothèque de programmation visuelle</p>
@@ -671,7 +690,7 @@ export function ConceptMappingExercise({ exercise, userAnswer, setUserAnswer }) 
       <div className="instruction">
         <p>Associez chaque concept à sa définition correspondante :</p>
       </div>
-      
+
       <div className="concept-mapping-container">
         <div className="concepts-section">
           <h4>Concepts</h4>
@@ -681,7 +700,7 @@ export function ConceptMappingExercise({ exercise, userAnswer, setUserAnswer }) 
             </div>
           ))}
         </div>
-        
+
         <div className="definitions-section">
           <h4>Définitions</h4>
           {exercise.definitions?.map((definition, index) => (
@@ -691,14 +710,14 @@ export function ConceptMappingExercise({ exercise, userAnswer, setUserAnswer }) 
           ))}
         </div>
       </div>
-      
+
       <div className="mappings-section">
         <h4>Vos associations :</h4>
         {exercise.concepts?.map((concept, index) => (
           <div key={concept.id || index} className="mapping-row">
             <span className="concept-label">{concept.content}</span>
             <span className="arrow">→</span>
-            <select 
+            <select
               value={mappings.find(m => m.conceptId === (concept.id || index))?.definitionId || ''}
               onChange={(e) => addMapping(concept.id || index, e.target.value)}
             >
@@ -742,7 +761,7 @@ export function CodeOutputExercise({ exercise, userAnswer, setUserAnswer, attemp
       <div className="instruction">
         <p>Prédisez la sortie de ce code :</p>
       </div>
-      
+
       {/* Éditeur de code */}
       <CodeEditor
         exercise={exercise}
@@ -755,7 +774,7 @@ export function CodeOutputExercise({ exercise, userAnswer, setUserAnswer, attemp
         solution={exercise.solution}
         language={exercise.language || 'javascript'}
       />
-      
+
       <div className="output-prediction">
         <label>Sortie prédite :</label>
         <textarea
@@ -765,7 +784,7 @@ export function CodeOutputExercise({ exercise, userAnswer, setUserAnswer, attemp
           rows={4}
         />
       </div>
-      
+
       <div className="output-tips">
         <p>💡 Attention aux espaces, retours à la ligne et à la casse !</p>
       </div>
@@ -807,7 +826,7 @@ export function OptimizationExercise({ exercise, userAnswer, setUserAnswer, atte
       <div className="instruction">
         <p>Optimisez le code suivant selon les critères demandés :</p>
       </div>
-      
+
       {/* Éditeur de code */}
       <CodeEditor
         exercise={exercise}
@@ -820,7 +839,7 @@ export function OptimizationExercise({ exercise, userAnswer, setUserAnswer, atte
         solution={exercise.solution}
         language={exercise.language || 'javascript'}
       />
-      
+
       <div className="optimization-section">
         <label>Code optimisé :</label>
         <textarea
@@ -830,7 +849,7 @@ export function OptimizationExercise({ exercise, userAnswer, setUserAnswer, atte
           rows={8}
         />
       </div>
-      
+
       {exercise.optimizationCriteria && (
         <div className="optimization-criteria">
           <h4>Améliorations apportées :</h4>

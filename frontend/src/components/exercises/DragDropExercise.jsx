@@ -8,11 +8,44 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
   const [validationResult, setValidationResult] = useState(null);
 
   const getElements = () => {
-    return exercise.elements || [];
+    // Normalize strings to objects
+    return (exercise.elements || []).map(e =>
+      typeof e === 'string' ? { id: e, text: e, content: e, type: 'unknown' } : e
+    );
   };
 
   const getTargets = () => {
-    return exercise.targets || [];
+    // Normalize strings to objects
+    return (exercise.targets || []).map(t =>
+      typeof t === 'string' ? { id: t, title: t, type: 'zone' } : t
+    );
+  };
+
+  // Helper to normalize answer format for backend { element: target }
+  // Helper to normalize answer format checks
+  const formatAnswer = (zones) => {
+    const map = {};
+    const elems = getElements();
+    const targs = getTargets();
+
+    zones.forEach(z => {
+      const elem = elems.find(e => e.id === z.itemId);
+      const targ = targs.find(t => t.id === z.id);
+      if (elem && targ) {
+        // Use text/content for the KEY (to match solution keys)
+        const key = elem.text || elem.content || elem.id;
+        // Use title/id for the VALUE (to match solution values)
+        const val = targ.title || targ.id;
+        map[key] = val;
+      }
+    });
+
+    // Return combined payload: UI state + Validation Map
+    return {
+      items: dragItems,
+      zones: zones,
+      userMap: map
+    };
   };
 
   const getExpectedDropZones = () => {
@@ -37,23 +70,25 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
   const handleDrop = (e, zoneId) => {
     e.preventDefault();
     const itemId = e.dataTransfer.getData('text/plain');
-    
+
     // Mettre à jour les zones de dépôt
     const newZones = [...dropZones];
     const zoneIndex = newZones.findIndex(z => z.id === zoneId);
-    
+
     if (zoneIndex !== -1) {
       newZones[zoneIndex].itemId = itemId;
     } else {
       newZones.push({ id: zoneId, itemId });
     }
-    
+
+    setDropZones(newZones);
     setDropZones(newZones);
     onAnswerChange({ items: dragItems, zones: newZones });
   };
 
   const handleRemoveFromZone = (zoneId) => {
     const newZones = dropZones.filter(z => z.id !== zoneId);
+    setDropZones(newZones);
     setDropZones(newZones);
     onAnswerChange({ items: dragItems, zones: newZones });
   };
@@ -78,17 +113,17 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
 
   const handleValidate = async () => {
     setIsValidating(true);
-    
+
     try {
       // Simulation de validation
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       const expectedDropZones = getExpectedDropZones();
       const userZoneIds = dropZones.map(z => z.id);
       const expectedZoneIds = expectedDropZones.map(z => z.id);
-      
+
       const isCorrect = JSON.stringify(userZoneIds.sort()) === JSON.stringify(expectedZoneIds.sort());
-      
+
       const result = {
         isCorrect,
         score: isCorrect ? 100 : 0,
@@ -99,7 +134,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
           differences: isCorrect ? [] : ['Des différences ont été détectées']
         }
       };
-      
+
       setValidationResult(result);
       return result;
     } finally {
@@ -111,7 +146,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     const totalZones = getTargets().length;
     const filledZones = dropZones.length;
     const completionRate = totalZones > 0 ? (filledZones / totalZones) * 100 : 0;
-    
+
     return {
       totalZones,
       filledZones,
@@ -175,10 +210,10 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     const elements = getElements();
     const targets = getTargets();
     const dropZones = this.dropZones;
-    
+
     let qualityScore = 0;
     let feedback = [];
-    
+
     // Vérification de la complétude
     if (stats.completionRate >= 100) {
       qualityScore += 40;
@@ -186,21 +221,21 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     } else {
       feedback.push('⚠️ Zones manquantes');
     }
-    
+
     // Vérification de la cohérence
     const hasConsistentZones = dropZones.every(zone => {
       const element = getElementById(zone.itemId);
       const target = getTargetById(zone.id);
       return element && target;
     });
-    
+
     if (hasConsistentZones) {
       qualityScore += 30;
       feedback.push('✅ Zones cohérentes');
     } else {
       feedback.push('⚠️ Zones incohérentes');
     }
-    
+
     // Vérification de la logique
     if (dropZones.length > 0) {
       qualityScore += 30;
@@ -208,7 +243,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     } else {
       feedback.push('❌ Aucune logique');
     }
-    
+
     return {
       score: qualityScore,
       feedback,
@@ -221,7 +256,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
     const targets = getTargets();
     const dropZones = this.dropZones;
     const analysis = 'Analyse du glisser-déposer...';
-    
+
     return {
       elements,
       targets,
@@ -254,7 +289,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
             </span>
           </div>
         </div>
-        
+
         <div className="header-actions">
           <button onClick={handleReset} className="reset-btn">
             🔄 Réinitialiser
@@ -276,7 +311,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               </span>
             </div>
           </div>
-          
+
           <div className="elements-content">
             {elements.length === 0 ? (
               <div className="empty-elements">
@@ -286,7 +321,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               <div className="elements-grid">
                 {elements.map((element, index) => {
                   const isUsed = dropZones.some(z => z.itemId === element.id);
-                  
+
                   return (
                     <div
                       key={element.id}
@@ -301,17 +336,17 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                         <span className="item-type">{getElementType(element)}</span>
                         <span className="item-number">{index + 1}</span>
                       </div>
-                      
+
                       <div className="item-content">
                         <div className="item-text">
                           {element.text || element.content}
                         </div>
-                        
+
                         <div className="item-description">
                           {getElementDescription(element)}
                         </div>
                       </div>
-                      
+
                       <div className="item-status">
                         {isUsed ? (
                           <span className="used-badge">✅ Utilisé</span>
@@ -337,7 +372,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               </span>
             </div>
           </div>
-          
+
           <div className="targets-content">
             {targets.length === 0 ? (
               <div className="empty-targets">
@@ -347,7 +382,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               <div className="targets-grid">
                 {targets.map((target, index) => {
                   const itemInZone = getItemInZone(target.id);
-                  
+
                   return (
                     <div
                       key={target.id}
@@ -368,7 +403,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                           </button>
                         )}
                       </div>
-                      
+
                       <div className="zone-content">
                         {itemInZone ? (
                           <div className="dropped-item">
@@ -376,7 +411,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                               <span className="item-icon">{getElementIcon(getElementType(itemInZone))}</span>
                               <span className="item-type">{getElementType(itemInZone)}</span>
                             </div>
-                            
+
                             <div className="item-text">
                               {itemInZone.text || itemInZone.content}
                             </div>
@@ -387,7 +422,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                           </div>
                         )}
                       </div>
-                      
+
                       {target.description && (
                         <div className="zone-description">
                           {target.description}
@@ -410,13 +445,13 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                 <span className="item-type">{getElementType(currentItem)}</span>
               </div>
             </div>
-            
+
             <div className="item-content">
               <div className="item-details">
                 <h6>{currentItem.name || 'Élément sans nom'}</h6>
                 <p>{getElementDescription(currentItem)}</p>
               </div>
-              
+
               <div className="item-actions">
                 <button
                   onClick={() => setCurrentItem(null)}
@@ -439,7 +474,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               </span>
             </div>
           </div>
-          
+
           <div className="state-content">
             <div className="state-stats">
               <div className="stat-item">
@@ -451,7 +486,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                 <span className="stat-value">{stats.completionRate}%</span>
               </div>
             </div>
-            
+
             {dropZones.length > 0 && (
               <div className="current-matches">
                 <h6>Correspondances actuelles :</h6>
@@ -459,7 +494,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                   {dropZones.map((zone, index) => {
                     const target = getTargetById(zone.id);
                     const item = getElementById(zone.itemId);
-                    
+
                     return (
                       <div key={index} className="match-item">
                         <span className="match-zone">{target?.title || 'Zone inconnue'}</span>
@@ -484,7 +519,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               </span>
             </div>
           </div>
-          
+
           <div className="quality-content">
             <div className="quality-feedback">
               {dragDropQuality.feedback.map((feedback, index) => (
@@ -504,7 +539,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               <span className="analysis-status">En cours...</span>
             </div>
           </div>
-          
+
           <div className="analysis-content">
             <div className="analysis-output">
               <pre className="analysis-text">{dragDropAnalysis.analysis}</pre>
@@ -525,10 +560,10 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
               </span>
             </div>
           </div>
-          
+
           <div className="controls-content">
-            <button 
-              onClick={handleValidate} 
+            <button
+              onClick={handleValidate}
               className="validate-btn"
               disabled={isValidating}
             >
@@ -548,12 +583,12 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                 </span>
               </div>
             </div>
-            
+
             <div className="result-content">
               <div className="result-message">
                 {validationResult.message}
               </div>
-              
+
               {validationResult.details && (
                 <div className="result-details">
                   <div className="details-section">
@@ -573,7 +608,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                       })}
                     </div>
                   </div>
-                  
+
                   <div className="details-section">
                     <h6>Zones attendues :</h6>
                     <div className="zones-comparison">
@@ -608,7 +643,7 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                 </span>
               </div>
             </div>
-            
+
             <div className="test-cases-content">
               <div className="test-cases-list">
                 {testCases.map((testCase, index) => (
@@ -619,13 +654,13 @@ const DragDropExercise = ({ exercise, userAnswer, onAnswerChange }) => {
                         {testCase.points || 0} point{(testCase.points || 0) > 1 ? 's' : ''}
                       </span>
                     </div>
-                    
+
                     <div className="test-case-content">
                       <div className="test-input">
                         <span className="input-label">Entrée :</span>
                         <span className="input-value">{JSON.stringify(testCase.input)}</span>
                       </div>
-                      
+
                       <div className="test-expected">
                         <span className="expected-label">Sortie attendue :</span>
                         <span className="expected-value">{JSON.stringify(testCase.expected)}</span>

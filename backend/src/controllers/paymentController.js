@@ -539,6 +539,62 @@ class PaymentController {
       });
     }
   }
+
+  /**
+   * Obtenir l'historique des paiements d'un utilisateur spécifique (Admin/Parent)
+   */
+  static async getUserPaymentHistory(req, res) {
+    try {
+      const requesterId = req.user.id;
+      const { userId } = req.params;
+      const { limit = 10 } = req.query;
+
+      // Vérification des droits
+      if (requesterId !== userId && req.user.role !== 'admin') {
+        const child = await User.findOne({ _id: userId, parentAccount: requesterId });
+        if (!child) {
+          return res.status(403).json({ success: false, message: 'Non autorisé' });
+        }
+      }
+
+      // Utiliser find car findCompletedPayments est une méthode statique du modèle
+      // Si elle n'est pas dispo, on fait une query manuelle
+      let payments;
+      if (Payment.findCompletedPayments) {
+        payments = await Payment.findCompletedPayments(userId, parseInt(limit));
+      } else {
+        payments = await Payment.find({
+          user: userId,
+          status: { $in: ['completed', 'paid'] }
+        })
+          .sort({ completedAt: -1 })
+          .limit(parseInt(limit))
+          .populate('plan');
+      }
+
+      return res.json({
+        success: true,
+        payments: payments.map(payment => ({
+          id: payment._id,
+          amount: payment.amount,
+          currency: payment.currency,
+          status: payment.status,
+          plan: payment.plan,
+          completedAt: payment.completedAt,
+          periodStart: payment.periodStart,
+          periodEnd: payment.periodEnd,
+          description: payment.description // Adding description as frontend uses it
+        }))
+      });
+
+    } catch (error) {
+      console.error('❌ Erreur historique paiements user:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Erreur lors de la récupération de l\'historique'
+      });
+    }
+  }
 }
 
 module.exports = PaymentController;

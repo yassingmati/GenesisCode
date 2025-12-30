@@ -29,15 +29,16 @@ import FillInTheBlankExercise from './exercises/FillInTheBlankExercise';
 import MatchingExercise from './exercises/MatchingExercise';
 import OrderBlocksExercise from './exercises/OrderBlocksExercise';
 import SpotTheErrorExercise from './exercises/SpotTheErrorExercise';
+import ScratchExercise from './exercises/ScratchExercise';
 
 /**
  * Composant ExerciseRenderer - Rendu conditionnel des exercices
  * Affiche le composant approprié selon le type d'exercice
  */
-const ExerciseRenderer = ({ 
-  exercise, 
-  userAnswer, 
-  onAnswerChange, 
+const ExerciseRenderer = ({
+  exercise,
+  userAnswer,
+  onAnswerChange,
   onCodeChange,
   onTest,
   attempts = 0,
@@ -81,69 +82,72 @@ const ExerciseRenderer = ({
       // Exercices classiques
       case 'QCM':
         return <QCMExercise {...commonProps} />;
-      
+
       case 'Code':
         return <CodeExercise {...codeProps} />;
-      
+
       case 'DragDrop':
         return <DragDropExercise {...commonProps} />;
-      
+
       case 'TextInput':
         return <TextInputExercise {...commonProps} />;
-      
+
       case 'FillInTheBlank':
         return <FillInTheBlankExercise {...commonProps} />;
-      
+
       case 'Matching':
         return <MatchingExercise {...commonProps} />;
-      
+
       case 'OrderBlocks':
         return <OrderBlocksExercise {...commonProps} />;
-      
+
       case 'SpotTheError':
         return <SpotTheErrorExercise {...codeProps} />;
-      
+
       // Nouveaux exercices d'algorithmes et programmation
       case 'Algorithm':
       case 'AlgorithmSteps':
         return <AlgorithmExercise {...commonProps} />;
-      
+
       case 'FlowChart':
         return <FlowChartExercise {...commonProps} />;
-      
+
       case 'Trace':
         return <TraceExercise {...codeProps} />;
-      
+
       case 'Debug':
         return <DebugExercise {...codeProps} />;
-      
+
       case 'CodeCompletion':
         return <CodeCompletionExercise {...codeProps} />;
-      
+
       case 'PseudoCode':
         return <PseudoCodeExercise {...codeProps} />;
-      
+
       case 'Complexity':
         return <ComplexityExercise {...codeProps} />;
-      
+
       case 'DataStructure':
         return <DataStructureExercise {...commonProps} />;
-      
+
       case 'ScratchBlocks':
-        return <ScratchBlocksExercise {...commonProps} />;
-      
+        return <ScratchBlocksExercise key={exercise._id} {...commonProps} />;
+
       case 'VisualProgramming':
         return <VisualProgrammingExercise {...commonProps} />;
-      
+
       case 'ConceptMapping':
         return <ConceptMappingExercise {...commonProps} />;
-      
+
       case 'CodeOutput':
         return <CodeOutputExercise {...codeProps} />;
-      
+
       case 'Optimization':
         return <OptimizationExercise {...codeProps} />;
-      
+
+      case 'Scratch':
+        return <ScratchExercise {...commonProps} />;
+
       default:
         return (
           <div className="unsupported-exercise">

@@ -22,9 +22,9 @@ const { protect } = require('../middlewares/authMiddleware');
 const { protectUserOrAdmin } = require('../middlewares/flexibleAuthMiddleware');
 
 // Import des middlewares de contrôle parental
-const { 
-  checkParentalControls, 
-  trackActivity, 
+const {
+  checkParentalControls,
+  trackActivity,
   checkContentRestrictions,
   startSession,
   endSession,
@@ -41,25 +41,25 @@ const corsOptions = {
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // En développement, permettre toutes les origines
     if (process.env.NODE_ENV !== 'production') {
       return callback(null, true);
     }
-    
+
     // Vérifier si l'origine est autorisée (priorité au frontend déployé)
-    if (origin.includes('codegenesis-platform.web.app') || 
-        origin.includes('codegenesis-platform.firebaseapp.com')) {
+    if (origin.includes('codegenesis-platform.web.app') ||
+      origin.includes('codegenesis-platform.firebaseapp.com')) {
       return callback(null, origin);
     }
-    
+
     // Autres origines autorisées
     const allowedOrigins = [
       'https://codegenesis-platform.web.app',
       'https://codegenesis-platform.firebaseapp.com',
       'http://localhost:3000' // Pour le développement local
     ];
-    
+
     if (allowedOrigins.includes(origin)) {
       callback(null, origin);
     } else {
@@ -196,6 +196,9 @@ router.get('/levels/:levelId/pdf',
 /* ===========================
    Exercises (CRUD & submit)
    =========================== */
+router.post('/exercises/validate', protectUserOrAdmin, catchErrors(CourseController.validateExerciseDryRun));
+router.post('/exercises/:id/duplicate', protectUserOrAdmin, validateId('id'), catchErrors(CourseController.duplicateExercise));
+
 router.post('/exercises', protectUserOrAdmin, catchErrors(CourseController.createExercise));
 router.get('/exercises/:id', protectUserOrAdmin, validateId('id'), requireExerciseAccess(), catchErrors(CourseController.getExercise));
 router.put('/exercises/:id', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.updateExercise));
@@ -220,31 +223,34 @@ router.put('/exercises/:id', validateId('id'), protectUserOrAdmin, catchErrors(C
  *   revealSolutions?: boolean
  * }
  */
+// router.post('/exercises/:id/submit', protectUserOrAdmin, validateId('id'), requireExerciseAccess(), catchErrors(CourseController.submitExercise));
 router.post('/exercises/:id/submit', protectUserOrAdmin, validateId('id'), requireExerciseAccess(), catchErrors(CourseController.submitExercise));
+// router.post('/exercises/:id/submit', validateId('id'), catchErrors(CourseController.submitExercise));
+router.delete('/exercises/:id', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.deleteExercise));
 router.delete('/exercises/:id', validateId('id'), protectUserOrAdmin, catchErrors(CourseController.deleteExercise));
 
 /* ===========================
    Progress & Statistics Routes
    =========================== */
 // Progrès d'un utilisateur pour un exercice spécifique
-router.get('/users/:userId/exercises/:exerciseId/progress', 
-  validateUserId('userId'), 
-  validateId('exerciseId'), 
+router.get('/users/:userId/exercises/:exerciseId/progress',
+  validateUserId('userId'),
+  validateId('exerciseId'),
   protectUserOrAdmin,
   catchErrors(CourseController.getUserExerciseProgress)
 );
 
 // Statistiques globales d'un utilisateur
-router.get('/users/:userId/stats', 
-  validateUserId('userId'), 
+router.get('/users/:userId/stats',
+  validateUserId('userId'),
   protectUserOrAdmin,
   catchErrors(CourseController.getUserStats)
 );
 
 // Progrès d'un utilisateur pour un niveau complet
-router.get('/users/:userId/levels/:levelId/progress', 
-  validateUserId('userId'), 
-  validateId('levelId'), 
+router.get('/users/:userId/levels/:levelId/progress',
+  validateUserId('userId'),
+  validateId('levelId'),
   protectUserOrAdmin,
   catchErrors(CourseController.getUserLevelProgress)
 );
