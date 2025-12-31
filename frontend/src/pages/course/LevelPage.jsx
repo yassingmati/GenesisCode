@@ -14,6 +14,7 @@ import {
   IconFileText, IconPrinter, IconLink, IconList
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
+import Logo from '../../assets/images/logo-removebg-preview.png';
 
 const API_BASE = getApiUrl('/api/courses');
 const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇹🇳' }];
@@ -357,9 +358,25 @@ export default function LevelPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-4">
-                      <IconFileText size={80} className="mb-2 opacity-20" />
-                      <p className="text-lg font-medium">Aucun document</p>
+                    <div className="flex flex-col items-center justify-center h-full text-center p-6">
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5 }}
+                        className="flex flex-col items-center"
+                      >
+                        <img
+                          src={Logo}
+                          alt="Genesis Code"
+                          className="w-32 h-auto mb-6 opacity-30 invert dark:invert-0"
+                        />
+                        <h3 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary mb-2">
+                          Soon
+                        </h3>
+                        <p className="text-gray-400 font-medium">
+                          Ce document sera bientôt disponible
+                        </p>
+                      </motion.div>
                     </div>
                   )}
                 </CardBody>
@@ -395,13 +412,28 @@ export default function LevelPage() {
                         ref={videoRef}
                         src={videoEffectiveUrl}
                         className="w-full h-full object-contain"
-                        controls
                         poster={level?.thumbnail}
                       />
                     ) : (
-                      <div className="flex flex-col items-center justify-center h-full text-zinc-500 bg-zinc-900/50">
-                        <IconPlayerPlay size={48} className="opacity-20 mb-2" />
-                        <p className="font-medium text-sm">Vidéo non disponible</p>
+                      <div className="flex flex-col items-center justify-center h-full bg-zinc-900/50 text-center p-6">
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.8 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          transition={{ duration: 0.5 }}
+                          className="flex flex-col items-center"
+                        >
+                          <img
+                            src={Logo}
+                            alt="Genesis Code"
+                            className="w-24 h-auto mb-4 opacity-40 grayscale"
+                          />
+                          <h3 className="text-xl font-bold text-white mb-1">
+                            Soon
+                          </h3>
+                          <p className="text-zinc-500 text-sm font-medium">
+                            Vidéo en cours de production
+                          </p>
+                        </motion.div>
                       </div>
                     )}
                   </CardBody>
@@ -470,10 +502,11 @@ export default function LevelPage() {
 
           </motion.div>
 
-        </div>
+        </div >
 
         {/* Video Viewer Modal (Optional for expanding) */}
-        <Modal isOpen={isVideoOpen} onOpenChange={onVideoOpenChange} size="full" backdrop="blur" classNames={{ base: "bg-black" }}>
+        < Modal isOpen={isVideoOpen} onOpenChange={onVideoOpenChange} size="full" backdrop="blur" classNames={{ base: "bg-black" }
+        }>
           <ModalContent>
             {(onClose) => (
               <>
@@ -491,7 +524,7 @@ export default function LevelPage() {
               </>
             )}
           </ModalContent>
-        </Modal>
+        </Modal >
       </ClientPageLayout >
     </CourseAccessGuard >
   );
