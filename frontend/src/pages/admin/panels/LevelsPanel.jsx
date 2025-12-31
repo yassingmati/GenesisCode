@@ -580,6 +580,20 @@ export default function LevelsPanel({ onOpenCreate }) {
               onValueChange={v => setForm(f => ({ ...f, fr_content: v }))}
             />
           </div>
+          <div className="col-span-2">
+            <Textarea
+              label="Contenu (Anglais)"
+              value={form.en_content}
+              onValueChange={v => setForm(f => ({ ...f, en_content: v }))}
+            />
+          </div>
+          <div className="col-span-2">
+            <Textarea
+              label="Contenu (Arabe)"
+              value={form.ar_content}
+              onValueChange={v => setForm(f => ({ ...f, ar_content: v }))}
+            />
+          </div>
 
           <div className="col-span-2 grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
             {['fr', 'en', 'ar'].map(lang => (

@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Spinner, Button } from "@nextui-org/react";
-import { IconInfoCircle, IconAlertTriangle, IconRefresh, IconArrowLeft, IconShieldCheck, IconRocket, IconBooks } from '@tabler/icons-react';
+import { IconInfoCircle, IconAlertTriangle, IconRefresh, IconArrowLeft, IconArrowRight, IconShieldCheck, IconRocket, IconBooks } from '@tabler/icons-react';
 
 import CategoryPaymentService from '../services/categoryPaymentService';
 import CategoryPaymentCard from '../components/CategoryPaymentCard';
@@ -37,17 +37,18 @@ const CategoryPlans = () => {
 
       // Normaliser les plans pour gérer les différents formats
       const plansData = response?.plans || response || [];
-      const normalizedPlans = plansData.map(plan => ({
-        ...plan,
-        id: plan.id || plan._id,
-        _id: plan._id || plan.id,
-        // S'assurer que les traductions sont disponibles
-        translations: plan.translations || {
-          fr: { name: plan.name || 'Plan', description: plan.description || '' },
-          en: { name: plan.name || 'Plan', description: plan.description || '' },
-          ar: { name: plan.name || 'Plan', description: plan.description || '' }
-        }
-      }));
+      const normalizedPlans = plansData.map(plan => {
+        const trans = plan.translations?.[language] || plan.translations?.fr || {};
+
+        return {
+          ...plan,
+          id: plan.id || plan._id,
+          _id: plan._id || plan.id,
+          name: trans.name || plan.name || 'Plan',
+          description: trans.description || plan.description || '',
+          features: plan.features || []
+        };
+      });
 
       setPlans(normalizedPlans.filter(p => !categoryIdParam || p.category === categoryIdParam || p.categoryId === categoryIdParam));
 
@@ -109,8 +110,10 @@ const CategoryPlans = () => {
   // Dummy functions for Header functionality outside of dashboard layout
   const noop = () => { };
 
+  const isRTL = language === 'ar';
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0F19] text-gray-900 dark:text-white overflow-hidden relative selection:bg-cyan-500/30 transition-colors duration-300">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0F19] text-gray-900 dark:text-white overflow-hidden relative selection:bg-cyan-500/30 transition-colors duration-300" dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* Background Ambience - Dark Mode */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 opacity-0 dark:opacity-100 transition-opacity duration-300">
@@ -155,11 +158,11 @@ const CategoryPlans = () => {
         <div className="mb-8">
           <Button
             variant="light"
-            startContent={<IconArrowLeft />}
+            startContent={isRTL ? <IconArrowRight /> : <IconArrowLeft />}
             onPress={() => navigate('/dashboard')}
             className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white"
           >
-            {t('categoryPlans.backToDashboard')}
+            {isRTL ? 'عودة إلى لوحة التحكم' : t('categoryPlans.backToDashboard')}
           </Button>
         </div>
 

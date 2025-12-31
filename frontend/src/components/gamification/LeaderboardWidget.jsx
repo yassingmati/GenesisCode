@@ -3,11 +3,46 @@ import { getApiUrl } from '../../utils/apiConfig';
 import api from '../../utils/api';
 import { Card, CardHeader, CardBody, Tab, Tabs, Avatar, Chip, CircularProgress } from '@nextui-org/react';
 import { TrophyIcon, FireIcon, CalendarIcon, StarIcon } from '@heroicons/react/24/solid';
+import { useTranslation } from '../../hooks/useTranslation';
 
 const LeaderboardWidget = () => {
+    const { language } = useTranslation();
     const [period, setPeriod] = useState("alltime"); // alltime, daily, monthly
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    const translations = {
+        fr: {
+            title: "Classement",
+            global: "Global",
+            month: "Mois",
+            day: "Jour",
+            rank: "Rang",
+            xp: "XP",
+            empty: "Aucun classement disponible"
+        },
+        en: {
+            title: "Leaderboard",
+            global: "All Time",
+            month: "Month",
+            day: "Day",
+            rank: "Rank",
+            xp: "XP",
+            empty: "No leaderboard available"
+        },
+        ar: {
+            title: "الترتيب",
+            global: "الكل",
+            month: "شهر",
+            day: "يوم",
+            rank: "رتبة",
+            xp: "نقاط",
+            empty: "لا يوجد ترتيب متاح"
+        }
+    };
+
+    const t = translations[language] || translations.fr;
+    const isRTL = language === 'ar';
 
     useEffect(() => {
         fetchLeaderboard();
@@ -39,14 +74,14 @@ const LeaderboardWidget = () => {
     };
 
     return (
-        <Card className="h-full flex flex-col bg-[#1a1b26]/60 backdrop-blur-xl border border-white/5 shadow-2xl overflow-hidden">
+        <Card className="h-full flex flex-col bg-white/60 dark:bg-[#1a1b26]/60 backdrop-blur-xl border border-gray-200 dark:border-white/5 shadow-2xl overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
             <CardHeader className="flex-none flex flex-col gap-3 pb-2 pt-6 px-6">
                 <div className="flex justify-between w-full items-center">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-gradient-to-br from-amber-500/20 to-yellow-600/20 rounded-xl border border-amber-500/30">
-                            <TrophyIcon className="w-6 h-6 text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+                            <TrophyIcon className="w-6 h-6 text-amber-500 dark:text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
                         </div>
-                        <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400">Classement</h3>
+                        <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">{t.title}</h3>
                     </div>
                 </div>
                 <Tabs
@@ -54,10 +89,10 @@ const LeaderboardWidget = () => {
                     color="warning"
                     variant="underlined"
                     classNames={{
-                        tabList: "gap-6 w-full relative rounded-none p-0 border-b border-white/10",
+                        tabList: "gap-6 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-white/10",
                         cursor: "w-full bg-gradient-to-r from-amber-400 to-yellow-500 h-0.5",
                         tab: "max-w-fit px-0 h-12",
-                        tabContent: "group-data-[selected=true]:text-amber-400 text-gray-400 font-medium transition-colors"
+                        tabContent: "group-data-[selected=true]:text-amber-500 dark:group-data-[selected=true]:text-amber-400 text-gray-500 dark:text-gray-400 font-medium transition-colors"
                     }}
                     selectedKey={period}
                     onSelectionChange={setPeriod}
@@ -66,7 +101,7 @@ const LeaderboardWidget = () => {
                         key="alltime"
                         title={
                             <div className="flex items-center space-x-2">
-                                <span>Global</span>
+                                <span>{t.global}</span>
                             </div>
                         }
                     />
@@ -75,7 +110,7 @@ const LeaderboardWidget = () => {
                         title={
                             <div className="flex items-center space-x-2">
                                 <CalendarIcon className="w-4 h-4" />
-                                <span>Mois</span>
+                                <span>{t.month}</span>
                             </div>
                         }
                     />
@@ -84,7 +119,7 @@ const LeaderboardWidget = () => {
                         title={
                             <div className="flex items-center space-x-2">
                                 <FireIcon className="w-4 h-4" />
-                                <span>Jour</span>
+                                <span>{t.day}</span>
                             </div>
                         }
                     />
@@ -98,9 +133,9 @@ const LeaderboardWidget = () => {
                 ) : (
                     <div className="flex flex-col gap-3">
                         {users.map((user, index) => {
-                            let rankStyle = "bg-white/5 border border-white/5";
+                            let rankStyle = "bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/5";
                             let rankGlow = "";
-                            let avatarRing = "border-white/10";
+                            let avatarRing = "border-gray-200 dark:border-white/10";
 
                             if (index === 0) { // Gold
                                 rankStyle = "bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-amber-500/30";
@@ -115,9 +150,9 @@ const LeaderboardWidget = () => {
                             }
 
                             return (
-                                <div key={user._id || index} className={`flex items-center justify-between p-3 rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:bg-white/10 ${rankStyle} ${rankGlow}`}>
-                                    <div className="flex items-center gap-4">
-                                        <div className="flex justify-center items-center w-8 font-black text-lg text-white/80">
+                                <div key={user._id || index} className={`flex items-center justify-between p-3 rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:bg-gray-100 dark:hover:bg-white/10 ${rankStyle} ${rankGlow} ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                        <div className="flex justify-center items-center w-8 font-black text-lg text-gray-700 dark:text-white/80">
                                             {getRankIcon(index + 1)}
                                         </div>
                                         <div className={`relative rounded-full p-[2px] border-2 ${avatarRing}`}>
@@ -132,12 +167,12 @@ const LeaderboardWidget = () => {
                                                 <span className={`relative inline-flex rounded-full h-4 w-4 ${index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-gray-400' : 'bg-orange-600'}`}></span>
                                             </div>}
                                         </div>
-                                        <div className="flex flex-col">
-                                            <span className={`text-sm font-bold truncate max-w-[120px] ${index === 0 ? 'text-amber-300' : 'text-gray-200'}`}>
+                                        <div className={`flex flex-col ${isRTL ? 'items-end' : ''}`}>
+                                            <span className={`text-sm font-bold truncate max-w-[120px] ${index === 0 ? 'text-amber-600 dark:text-amber-300' : 'text-gray-700 dark:text-gray-200'}`}>
                                                 {user.firstName} {user.lastName}
                                             </span>
                                             {user.rank > 0 && (
-                                                <span className="text-[10px] uppercase font-bold text-white/40 tracking-wider">Rang {user.rank}</span>
+                                                <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-white/40 tracking-wider">{t.rank} {user.rank}</span>
                                             )}
                                         </div>
                                     </div>
@@ -152,14 +187,14 @@ const LeaderboardWidget = () => {
                                     >
                                         {period === 'daily' ? (user.xpStats?.daily || 0) :
                                             period === 'monthly' ? (user.xpStats?.monthly || 0) :
-                                                user.totalXP} XP
+                                                user.totalXP} {t.xp}
                                     </Chip>
                                 </div>
                             );
                         })}
                         {users.length === 0 && (
                             <div className="text-center text-gray-500 py-10 italic">
-                                Aucun classement disponible
+                                {t.empty}
                             </div>
                         )}
                     </div>

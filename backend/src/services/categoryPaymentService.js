@@ -18,9 +18,9 @@ class CategoryPaymentService {
       const Plan = require('../models/Plan');
       const Category = require('../models/Category');
 
-      console.log('🔍 Fetching plans from "plans" collection (type=category)...');
-      // Retrieve plans with type 'category' (or compatible)
-      const plans = await Plan.find({ type: 'category', active: true }).lean();
+      console.log('🔍 Fetching plans from "plans" collection (type=Category)...');
+      // Retrieve plans with type 'Category' (must match schema enum)
+      const plans = await Plan.find({ type: 'Category', active: true }).lean();
 
       console.log(`✅ Found ${plans.length} plans in "plans" collection.`);
 
@@ -110,7 +110,7 @@ class CategoryPaymentService {
       // Note: On cherche le plan 'category' lié à cette categoryId
       console.log(`🔍 InitPayment: Searching for active plan for category ${categoryId}`);
       const categoryPlan = await Plan.findOne({
-        type: 'category',
+        type: 'Category',
         targetId: categoryId,
         active: true
       });

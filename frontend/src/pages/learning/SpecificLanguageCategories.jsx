@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '../../contexts/LanguageContext';
 import { getCategories } from '../../services/courseService';
 import CategoryPaymentService from '../../services/categoryPaymentService';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
@@ -107,6 +108,8 @@ export default function SpecificLanguageCategories() {
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
+  const { language } = useLanguage();
+
   useEffect(() => {
     (async () => {
       try {
@@ -136,7 +139,7 @@ export default function SpecificLanguageCategories() {
 
   const filteredCategories = categories
     .filter(cat => {
-      const name = cat?.translations?.fr?.name || '';
+      const name = cat?.translations?.[language]?.name || cat?.translations?.fr?.name || '';
       return name.toLowerCase().includes(searchTerm.toLowerCase()) && !name.includes('Isolation');
     });
 
@@ -150,28 +153,64 @@ export default function SpecificLanguageCategories() {
     show: { opacity: 1, y: 0, scale: 1, transition: { type: "spring", stiffness: 50, damping: 15 } }
   };
 
+  const translations = {
+    fr: {
+      titlePrefix: 'Explorateur',
+      titleSuffix: 'Tech',
+      subtitle: 'Sélectionnez une technologie pour débloquer votre potentiel.',
+      searchPlaceholder: 'Rechercher un langage...',
+      noResults: 'Aucun résultat trouvé pour cette recherche.',
+      discover: 'Découvrir',
+      continue: 'Continuer le cours',
+      acquired: 'Acquis'
+    },
+    en: {
+      titlePrefix: 'Tech',
+      titleSuffix: 'Explorer',
+      subtitle: 'Select a technology to unlock your potential.',
+      searchPlaceholder: 'Search for a language...',
+      noResults: 'No results found for this search.',
+      discover: 'Discover',
+      continue: 'Continue course',
+      acquired: 'Acquired'
+    },
+    ar: {
+      titlePrefix: 'مستكشف',
+      titleSuffix: 'التكنولوجيا',
+      subtitle: 'اختر تقنية لإطلاق العنان لإمكاناتك.',
+      searchPlaceholder: 'البحث عن لغة...',
+      noResults: 'لم يتم العثور على نتائج لهذا البحث.',
+      discover: 'اكتشف',
+      continue: 'متابعة الدورة',
+      acquired: 'مكتسب'
+    }
+  };
+
+  const t = translations[language] || translations.fr;
+  const isRTL = language === 'ar';
+
   return (
     <ClientPageLayout
       isLite={true}
-      breadcrumbs={[{ label: 'Langages' }]}
+      breadcrumbs={[{ label: isRTL ? 'اللوغات' : 'Langages' }]} // Simple fallback for breadcrumb
       loading={loading}
       error={error}
       onRetry={() => window.location.reload()}
       showBackButton={true}
       backPath="/dashboard"
-      backLabel="Retour"
+      backLabel={isRTL ? 'عودة' : 'Retour'}
     >
-      <div className="min-h-[80vh] flex flex-col gap-12 py-8">
+      <div className="min-h-[80vh] flex flex-col gap-12 py-8" dir={isRTL ? 'rtl' : 'ltr'}>
 
         {/* Sleek Modern Header */}
         <div className="flex flex-col md:flex-row justify-between items-end gap-6 pb-6 border-b border-gray-200 dark:border-white/5 relative">
-          <div className="absolute top-0 left-0 w-32 h-32 bg-purple-500/10 dark:bg-purple-500/20 blur-[80px] -z-10 rounded-full" />
+          <div className={`absolute top-0 ${isRTL ? 'right-0' : 'left-0'} w-32 h-32 bg-purple-500/10 dark:bg-purple-500/20 blur-[80px] -z-10 rounded-full`} />
           <div className="relative">
             <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight mb-3">
-              Explorateur <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-400">Tech</span>
+              {t.titlePrefix} <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-500 to-purple-500 dark:from-blue-400 dark:to-purple-400">{t.titleSuffix}</span>
             </h1>
             <p className="text-gray-600 dark:text-gray-400 font-light text-lg max-w-lg leading-relaxed">
-              Sélectionnez une technologie pour débloquer votre potentiel.
+              {t.subtitle}
             </p>
           </div>
 
@@ -179,11 +218,12 @@ export default function SpecificLanguageCategories() {
             classNames={{
               base: "w-full md:w-[350px]",
               mainWrapper: "h-14",
-              input: "text-base pl-2 text-gray-900 dark:text-white placeholder:text-gray-500",
+              input: `text-base ${isRTL ? 'pr-2 text-right' : 'pl-2'} text-gray-900 dark:text-white placeholder:text-gray-500`,
               inputWrapper: "h-14 bg-white dark:bg-[#1a1b26]/80 backdrop-blur-xl border border-gray-200 dark:border-white/10 group-data-[focus=true]:border-purple-500/50 rounded-2xl transition-all shadow-sm dark:shadow-none hover:bg-gray-50 dark:hover:bg-white/10",
             }}
-            placeholder="Rechercher un langage..."
-            startContent={<IconSearch className="text-gray-400 group-data-[focus=true]:text-purple-500" size={20} />}
+            placeholder={t.searchPlaceholder}
+            startContent={!isRTL && <IconSearch className="text-gray-400 group-data-[focus=true]:text-purple-500" size={20} />}
+            endContent={isRTL && <IconSearch className="text-gray-400 group-data-[focus=true]:text-purple-500" size={20} />}
             value={searchTerm}
             onValueChange={setSearchTerm}
             isClearable
@@ -197,7 +237,7 @@ export default function SpecificLanguageCategories() {
             <div className="w-20 h-20 bg-gray-100 dark:bg-white/5 rounded-full flex items-center justify-center mb-6">
               <IconSearch size={32} className="text-gray-500" />
             </div>
-            <p className="text-gray-500 dark:text-gray-400">Aucun résultat trouvé pour cette recherche.</p>
+            <p className="text-gray-500 dark:text-gray-400">{t.noResults}</p>
           </div>
         ) : (
           <motion.div
@@ -207,10 +247,16 @@ export default function SpecificLanguageCategories() {
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 pb-20"
           >
             {filteredCategories.map(cat => {
-              const name = cat?.translations?.fr?.name || 'Langage';
+              const name = cat?.translations?.[language]?.name || cat?.translations?.fr?.name || 'Langage';
               const theme = generateTheme(cat._id, name);
               const isUnlocked = accessMap[cat._id];
               const Icon = getIcon(name);
+
+              const description = {
+                fr: `Maîtrisez ${name} avec des projets concrets et des exercices interactifs.`,
+                en: `Master ${name} with concrete projects and interactive exercises.`,
+                ar: `أتقن ${name} مع مشاريع عملية وتمارين تفاعلية.`
+              }[language] || `Maîtrisez ${name} avec des projets concrets et des exercices interactifs.`;
 
               return (
                 <motion.div key={cat._id} variants={item} className="h-full">
@@ -220,7 +266,7 @@ export default function SpecificLanguageCategories() {
                   >
                     {/* Background & Noise */}
                     <div className="absolute inset-0 bg-[url('https://grain-ui.vercel.app/noise.svg')] opacity-10 dark:opacity-20 pointer-events-none mix-blend-multiply dark:mix-blend-normal" />
-                    <div className={`absolute -top-24 -right-24 w-64 h-64 bg-gradient-to-br ${theme.from} ${theme.to} opacity-5 dark:opacity-10 blur-[60px] group-hover:opacity-10 dark:group-hover:opacity-20 group-hover:blur-[80px] transition-all duration-700`} />
+                    <div className={`absolute -top-24 ${isRTL ? '-left-24' : '-right-24'} w-64 h-64 bg-gradient-to-br ${theme.from} ${theme.to} opacity-5 dark:opacity-10 blur-[60px] group-hover:opacity-10 dark:group-hover:opacity-20 group-hover:blur-[80px] transition-all duration-700`} />
 
                     {/* Content */}
                     <div className="absolute inset-0 flex flex-col p-6 z-10">
@@ -231,7 +277,7 @@ export default function SpecificLanguageCategories() {
                         </div>
                         {isUnlocked ? (
                           <div className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1">
-                            <IconCheck size={12} stroke={3} /> Acquis
+                            <IconCheck size={12} stroke={3} /> {t.acquired}
                           </div>
                         ) : (
                           <div className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/5 flex items-center justify-center text-gray-400 dark:text-gray-500 group-hover:text-gray-600 dark:group-hover:text-white transition-colors">
@@ -242,23 +288,23 @@ export default function SpecificLanguageCategories() {
 
                       {/* Main Text */}
                       <div>
-                        <h2 className={`text-3xl font-bold text-gray-900 dark:text-white mb-2 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r ${theme.from} ${theme.to} transition-all`}>
+                        <h2 className={`text-3xl font-bold text-gray-900 dark:text-white mb-2 leading-tight group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r ${theme.from} ${theme.to} transition-all ${isRTL ? 'text-right' : ''}`}>
                           {name}
                         </h2>
-                        <p className="text-gray-600 dark:text-gray-500 text-sm font-medium line-clamp-2 leading-relaxed group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors">
-                          Maîtrisez {name} avec des projets concrets et des exercices interactifs.
+                        <p className={`text-gray-600 dark:text-gray-500 text-sm font-medium line-clamp-2 leading-relaxed group-hover:text-gray-500 dark:group-hover:text-gray-400 transition-colors ${isRTL ? 'text-right' : ''}`}>
+                          {description}
                         </p>
                       </div>
 
                       {/* Bottom Action */}
                       <div className="mt-auto pt-6 flex items-center justify-between border-t border-gray-100 dark:border-white/5">
                         {isUnlocked ? (
-                          <span className="text-sm font-semibold text-green-600 dark:text-green-400 group-hover:translate-x-1 transition-transform inline-flex items-center gap-2">
-                            Continuer le cours <IconChevronRight size={16} />
+                          <span className={`text-sm font-semibold text-green-600 dark:text-green-400 group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform inline-flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            {t.continue} <IconChevronRight size={16} className={isRTL ? 'rotate-180' : ''} />
                           </span>
                         ) : (
-                          <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-1 transition-all inline-flex items-center gap-2">
-                            Découvrir <IconChevronRight size={16} />
+                          <span className={`text-sm font-semibold text-gray-500 dark:text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-all inline-flex items-center gap-2 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                            {t.discover} <IconChevronRight size={16} className={isRTL ? 'rotate-180' : ''} />
                           </span>
                         )}
 
@@ -269,7 +315,7 @@ export default function SpecificLanguageCategories() {
                     </div>
 
                     {/* Bottom Gradient Bar */}
-                    <div className={`absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r ${theme.from} ${theme.to} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`} />
+                    <div className={`absolute bottom-0 ${isRTL ? 'right-0 origin-right' : 'left-0 origin-left'} h-1 w-full bg-gradient-to-r ${theme.from} ${theme.to} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500`} />
                   </div>
                 </motion.div>
               );

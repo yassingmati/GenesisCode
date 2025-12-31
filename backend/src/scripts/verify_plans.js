@@ -1,6 +1,6 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
-const Category = require('../models/Category');
+const Plan = require('../models/Plan');
 
 const connectDB = async () => {
     try {
@@ -12,14 +12,13 @@ const connectDB = async () => {
     }
 };
 
-const listCategories = async () => {
+const listPlans = async () => {
     await connectDB();
     try {
-        const categories = await Category.find({});
-        console.log('Categories found:');
-        categories.forEach(c => {
-            const name = c.translations?.fr?.name || 'No Name';
-            console.log(`- ${name} (Type: ${c.type || 'N/A'}) - ID: ${c._id}`);
+        const plans = await Plan.find({});
+        console.log(`Found ${plans.length} plans.`);
+        plans.forEach(p => {
+            console.log(`- ${p._id}: Name='${p.name}', Type='${p.type}'`);
         });
     } catch (err) {
         console.error(err);
@@ -28,4 +27,4 @@ const listCategories = async () => {
     }
 };
 
-listCategories();
+listPlans();

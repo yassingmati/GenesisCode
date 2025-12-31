@@ -143,6 +143,28 @@ export default function ProfilePage() {
     }
   };
 
+  const handleDeleteAccount = async () => {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer définitivement votre compte ? Cette action est irréversible.")) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await axios.delete(`${API_BASE}/users/${user._id}`, { headers: getAuthHeader() });
+      toast.success("Compte supprimé avec succès");
+
+      // Cleanup and redirect
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      localStorage.removeItem('role');
+      window.location.href = '/login';
+    } catch (err) {
+      console.error('Delete account error:', err);
+      toast.error(err.response?.data?.message || "Erreur lors de la suppression du compte");
+      setSaving(false);
+    }
+  };
+
   if (loading) return (
     <div className="flex justify-center items-center h-[60vh]">
       <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin" />
@@ -327,7 +349,13 @@ export default function ProfilePage() {
                   <h4 className="font-semibold text-danger-600">Supprimer le compte</h4>
                   <p className="text-sm text-gray-500">Une fois supprimé, votre compte ne peut plus être récupéré.</p>
                 </div>
-                <Button color="danger" variant="flat" startContent={<IconAlertTriangle />}>
+                <Button
+                  color="danger"
+                  variant="flat"
+                  startContent={<IconAlertTriangle />}
+                  onPress={handleDeleteAccount}
+                  isLoading={saving}
+                >
                   Supprimer
                 </Button>
               </CardBody>

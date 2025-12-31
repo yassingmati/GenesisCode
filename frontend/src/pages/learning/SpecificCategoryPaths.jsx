@@ -67,12 +67,13 @@ export default function SpecificCategoryPaths() {
   };
 
   const categoryName = getTranslatedContent(category, 'name') || 'Langage';
+  const isRTL = language === 'ar';
 
   // Dummy functions for Header
   const noop = () => { };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0F19] text-gray-900 dark:text-white transition-colors duration-300 relative overflow-x-hidden">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#0B0F19] text-gray-900 dark:text-white transition-colors duration-300 relative overflow-x-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
 
       {/* Background Ambience */}
       <div className="fixed top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
@@ -104,11 +105,11 @@ export default function SpecificCategoryPaths() {
           <div>
             <Button
               variant="light"
-              startContent={<IconArrowLeft size={18} />}
+              startContent={isRTL ? <IconChevronRight size={18} className="rotate-180" /> : <IconArrowLeft size={18} />}
               onPress={() => navigate('/learning/choose-language')}
               className="text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white mb-2 p-0 min-w-0 h-auto data-[hover=true]:bg-transparent"
             >
-              {t('specificPaths.backToLanguages')}
+              {isRTL ? 'عودة' : t('specificPaths.backToLanguages')}
             </Button>
             <h1 className="text-3xl md:text-5xl font-bold mt-2">
               {t('specificPaths.roadmap')} <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-500 to-indigo-500">{categoryName}</span>
@@ -158,7 +159,11 @@ export default function SpecificCategoryPaths() {
               {paths.map((path, index) => {
                 const isEven = index % 2 === 0;
                 const pathName = getTranslatedContent(path, 'name') || 'Parcours';
-                const pathDesc = getTranslatedContent(path, 'description') || `Maîtrisez les concepts clés de ${categoryName} à travers ce parcours structuré.`;
+                const pathDesc = getTranslatedContent(path, 'description') || {
+                  fr: `Maîtrisez les concepts clés de ${categoryName} à travers ce parcours structuré.`,
+                  en: `Master key concepts of ${categoryName} through this structured path.`,
+                  ar: `أتقن المفاهيم الأساسية لـ ${categoryName} من خلال هذا المسار المنظم.`
+                }[language] || `Maîtrisez les concepts clés de ${categoryName} à travers ce parcours structuré.`;
 
                 return (
                   <div key={path._id} className={`flex flex-col md:flex-row items-center gap-8 ${isEven ? 'md:flex-row-reverse' : ''}`}>
