@@ -4,6 +4,12 @@ const nodemailer = require('nodemailer');
 let transporter = null;
 try {
   if (process.env.SMTP_HOST && process.env.SMTP_PORT && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    console.log('📧 Initializing SMTP Transport with Custom Config:');
+    console.log(`   Host: ${process.env.SMTP_HOST}`);
+    console.log(`   Port: ${process.env.SMTP_PORT}`);
+    console.log(`   Secure: ${process.env.SMTP_SECURE}`);
+    console.log(`   User: ${process.env.SMTP_USER}`);
+
     transporter = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port: Number(process.env.SMTP_PORT) || 587,
@@ -21,9 +27,17 @@ try {
       requireTLS: String(process.env.SMTP_REQUIRE_TLS || 'true').toLowerCase() === 'true',
       tls: {
         rejectUnauthorized: String(process.env.SMTP_REJECT_UNAUTHORIZED || '').toLowerCase() !== 'false'
-      }
+      },
+      debug: true, // Enable nodemailer debug output
+      logger: true // Enable nodemailer logger
     });
   } else {
+    console.log('⚠️ Missing SMTP env vars, falling back to basic Gmail service (Port 465)');
+    console.log(`   SMTP_HOST present: ${!!process.env.SMTP_HOST}`);
+    console.log(`   SMTP_PORT present: ${!!process.env.SMTP_PORT}`);
+    console.log(`   SMTP_USER present: ${!!process.env.SMTP_USER}`);
+    console.log(`   SMTP_PASS present: ${!!process.env.SMTP_PASS}`);
+
     transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
