@@ -53,6 +53,7 @@
     "pdf-parse": "1.1.1",
     "pdfkit": "0.17.2",
     "protobufjs": "^7.2.5",
+    "resend": "6.6.0",
     "stripe": "20.1.0",
     "uuid": "13.0.0",
     "winston": "^3.8.2"
