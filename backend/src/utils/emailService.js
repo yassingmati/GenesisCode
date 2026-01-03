@@ -58,21 +58,34 @@ const isEmailConfigured = () => {
  * Helper générique pour envoyer un email
  */
 const sendEmail = async ({ to, subject, html, from }) => {
-  const fromAddress = from || process.env.EMAIL_FROM || 'onboarding@resend.dev'; // Resend Default
+  let fromAddress = from || process.env.EMAIL_FROM || 'onboarding@resend.dev'; // Resend Default
 
   if (resend) {
-    console.log(`📨 Sending via Resend to ${to}...`);
+    // Resend interdit les adresses @gmail.com ou yahoo etc. en expéditeur
+    if (fromAddress.includes('@gmail.com') || fromAddress.includes('@yahoo') || fromAddress.includes('@hotmail')) {
+      console.warn(`⚠️ Attention: Resend interdit l'envoi depuis ${fromAddress}. Utilisation de onboarding@resend.dev à la place.`);
+      fromAddress = 'onboarding@resend.dev';
+    }
+
+    console.log(`📨 Sending via Resend to ${to} from ${fromAddress}...`);
     try {
-      const data = await resend.emails.send({
+      const response = await resend.emails.send({
         from: fromAddress,
         to: to,
         subject: subject,
         html: html
       });
-      console.log('✅ Email envoyé avec succès via Resend:', data);
-      return data;
+
+      // Resend ne throw pas d'erreur, il renvoie un objet avec error
+      if (response.error) {
+        console.error('❌ Erreur API Resend:', response.error);
+        throw new Error(`Resend Error: ${response.error.message}`);
+      }
+
+      console.log('✅ Email envoyé avec succès via Resend:', response.data);
+      return response.data;
     } catch (error) {
-      console.error('❌ Erreur envoi Resend:', error);
+      console.error('❌ Erreur critique envoi Resend:', error);
       throw error;
     }
   }
