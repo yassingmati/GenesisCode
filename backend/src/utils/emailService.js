@@ -53,6 +53,15 @@ try {
       requireTLS: true
     });
   }
+  if (transporter) {
+    transporter.verify(function (error, success) {
+      if (error) {
+        console.log('❌ SMTP Connection Test Failed:', error);
+      } else {
+        console.log('✅ SMTP Connection Test Success! Server is ready to take our messages');
+      }
+    });
+  }
 } catch (e) {
   console.error('❌ Erreur création transporteur email:', e && e.message ? e.message : e);
   transporter = null;
@@ -73,6 +82,16 @@ const sendVerificationEmail = async (email, token) => {
   if (!isEmailConfigured()) {
     console.error('❌ Email non configuré - Credentials requis');
     throw new Error('Email service not configured. SMTP credentials are required.');
+  }
+
+  // Runtime Debug Logic
+  if (transporter && transporter.options) {
+    console.log('📨 Attempting to send verification email...');
+    console.log(`   Target: ${email}`);
+    console.log(`   SMTP Host: ${transporter.options.host}`);
+    console.log(`   SMTP Port: ${transporter.options.port}`);
+    console.log(`   SMTP Secure: ${transporter.options.secure}`);
+    console.log(`   SMTP User: ${transporter.options.auth?.user}`);
   }
 
   const verificationLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${token}`;
