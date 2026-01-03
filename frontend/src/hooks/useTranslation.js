@@ -340,7 +340,19 @@ const translations = {
       noFeatures: 'Aucune fonctionnalité listée',
       alreadyHasAccess: 'Vous avez déjà accès à ce plan !',
       freeAccessGranted: 'Accès gratuit accordé !',
-      redirecting: 'Redirection vers le paiement...'
+      redirecting: 'Redirection vers le paiement...',
+      oneTimePayment: 'Paiement unique',
+      features: {
+        unlimitedAccess: 'Accès illimité aux cours',
+        interactiveExercises: 'Exercices interactifs',
+        progressTracking: 'Suivi de progression',
+        prioritySupport: 'Support prioritaire'
+      },
+      plans: {
+        beginner: { name: 'Débutant', description: 'Accès complet aux cours de Débutant' },
+        intermediate: { name: 'Intermédiaire', description: 'Accès complet aux cours de Intermédiaire' },
+        advanced: { name: 'Avancé', description: 'Accès complet aux cours de Avancé' }
+      }
     },
 
     specificPaths: {
@@ -699,7 +711,19 @@ const translations = {
       noFeatures: 'No features listed',
       alreadyHasAccess: 'You already have access to this plan!',
       freeAccessGranted: 'Free access granted!',
-      redirecting: 'Redirecting to payment...'
+      redirecting: 'Redirecting to payment...',
+      oneTimePayment: 'One-time payment',
+      features: {
+        unlimitedAccess: 'Unlimited course access',
+        interactiveExercises: 'Interactive exercises',
+        progressTracking: 'Progress tracking',
+        prioritySupport: 'Priority support'
+      },
+      plans: {
+        beginner: { name: 'Beginner', description: 'Full access to Beginner courses' },
+        intermediate: { name: 'Intermediate', description: 'Full access to Intermediate courses' },
+        advanced: { name: 'Advanced', description: 'Full access to Advanced courses' }
+      }
     },
 
     specificPaths: {
@@ -1046,7 +1070,19 @@ const translations = {
       noFeatures: 'لا توجد ميزات مدرجة',
       alreadyHasAccess: 'لديك بالفعل حق الوصول إلى هذه الخطة!',
       freeAccessGranted: 'تم منح حق الوصول المجاني!',
-      redirecting: 'إعادة التوجيه للدفع...'
+      redirecting: 'إعادة التوجيه للدفع...',
+      oneTimePayment: 'دفعة واحدة',
+      features: {
+        unlimitedAccess: 'وصول غير محدود للدورات',
+        interactiveExercises: 'تمارين تفاعلية',
+        progressTracking: 'تتبع التقدم',
+        prioritySupport: 'دعم ذو أولوية'
+      },
+      plans: {
+        beginner: { name: 'مبتدئ', description: 'وصول كامل لدورات المبتدئين' },
+        intermediate: { name: 'متوسط', description: 'وصول كامل للدورات المتوسطة' },
+        advanced: { name: 'متقدم', description: 'وصول كامل للدورات المتقدمة' }
+      }
     },
 
     specificPaths: {

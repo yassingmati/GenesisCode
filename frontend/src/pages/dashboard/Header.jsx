@@ -131,7 +131,7 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
         <Navbar
             maxWidth="full"
             position="sticky"
-            className="bg-[#0f0c29]/90 backdrop-blur-md border-b border-white/10 h-20 transition-all duration-300"
+            className="bg-white/80 dark:bg-[#0f0c29]/90 backdrop-blur-xl border-b border-gray-100 dark:border-white/10 h-20 transition-all duration-300 shadow-[0_4px_20px_rgba(0,0,0,0.02)]"
             classNames={{
                 wrapper: "px-6"
             }}
@@ -139,14 +139,14 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
             {/* Mobile Menu Toggle */}
             <NavbarContent className="md:hidden" justify="start">
                 <Button isIconOnly variant="light" onPress={toggleMobileMenu}>
-                    <IconMenu2 className="text-white/70" />
+                    <IconMenu2 className="text-gray-600 dark:text-white/70" />
                 </Button>
             </NavbarContent>
 
             {/* Logo */}
             <NavbarContent justify="start" className="hidden lg:flex max-w-fit cursor-pointer" onClick={() => window.location.href = '/dashboard'}>
-                <p className="font-bold text-inherit text-xl bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 to-purple-400">
-                    CodeGenesis
+                <p className="font-bold text-inherit text-xl bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-cyan-400 dark:to-purple-400">
+                    GenesisCode
                 </p>
             </NavbarContent>
 
@@ -177,21 +177,21 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                 <NavbarItem>
                     <Dropdown placement="bottom-end">
                         <DropdownTrigger>
-                            <Button isIconOnly radius="full" variant="light" className="relative overflow-visible text-white/70 hover:text-white hover:bg-white/5">
-                                <Badge content={unreadCount > 0 ? unreadCount : null} color="danger" size="sm" shape="circle" className="border-2 border-[#0f0c29]">
+                            <Button isIconOnly radius="full" variant="light" className="relative overflow-visible text-gray-600 hover:text-gray-900 hover:bg-gray-100 dark:text-white/70 dark:hover:text-white dark:hover:bg-white/5">
+                                <Badge content={unreadCount > 0 ? unreadCount : null} color="danger" size="sm" shape="circle" className="border-2 border-white dark:border-[#0f0c29]">
                                     <IconBell size={24} />
                                 </Badge>
                             </Button>
                         </DropdownTrigger>
                         <DropdownMenu
                             aria-label="Notifications"
-                            className="w-80 max-h-96 overflow-y-auto dark:bg-slate-800 dark:text-white"
+                            className="w-80 max-h-96 overflow-y-auto bg-white dark:bg-slate-800 text-gray-800 dark:text-white border border-gray-200 dark:border-white/10"
                             itemClasses={{
-                                base: "gap-4",
+                                base: "gap-4 hover:bg-gray-100 dark:hover:bg-slate-700",
                             }}
                         >
                             <DropdownItem key="title" className="h-10 gap-2 opacity-100 cursor-default" isReadOnly>
-                                <p className="font-semibold">Notifications</p>
+                                <p className="font-semibold text-gray-900 dark:text-white">Notifications</p>
                             </DropdownItem>
 
                             {notifications.length > 0 ? (
@@ -199,16 +199,16 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                                     <DropdownItem
                                         key={notif._id}
                                         className={`py-3 ${!notif.read ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                                        description={new Date(notif.createdAt).toLocaleDateString()}
+                                        description={<span className="text-gray-500 dark:text-gray-400">{new Date(notif.createdAt).toLocaleDateString()}</span>}
                                         startContent={
-                                            <div className={`w-2 h-2 rounded-full ${!notif.read ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                                            <div className={`w-2 h-2 rounded-full ${!notif.read ? 'bg-blue-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
                                         }
                                         onPress={() => handleNotificationClick(notif)}
                                         textValue={notif.title || "Notification"}
                                     >
                                         <div className="flex flex-col gap-1">
-                                            <span className="font-semibold text-small">{notif.title}</span>
-                                            <span className="text-tiny text-default-500">{notif.message}</span>
+                                            <span className="font-semibold text-small text-gray-900 dark:text-white">{notif.title}</span>
+                                            <span className="text-tiny text-gray-600 dark:text-gray-400">{notif.message}</span>
                                         </div>
                                     </DropdownItem>
                                 ))
@@ -238,14 +238,14 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                         <DropdownMenu
                             aria-label="Profile Actions"
                             variant="flat"
-                            className="dark:bg-slate-800 dark:text-white"
+                            className="bg-white dark:bg-slate-800 text-gray-800 dark:text-white border border-gray-200 dark:border-white/10"
                             itemClasses={{
-                                base: "dark:hover:bg-slate-700 dark:text-slate-200",
+                                base: "hover:bg-gray-100 dark:hover:bg-slate-700 data-[hover=true]:bg-gray-100 dark:data-[hover=true]:bg-slate-700 text-gray-700 dark:text-slate-200",
                             }}
                         >
                             <DropdownItem key="profile" className="h-14 gap-2" textValue="Profil">
-                                <p className="font-semibold">Connecté en tant que</p>
-                                <p className="font-semibold">{user?.email}</p>
+                                <p className="font-semibold text-gray-900 dark:text-white">Connecté en tant que</p>
+                                <p className="font-semibold text-gray-700 dark:text-gray-300">{user?.email}</p>
                             </DropdownItem>
                             <DropdownItem key="settings" startContent={<IconUser size={18} />} onPress={() => setActivePage && setActivePage('profile')}>
                                 Mon Profil
@@ -253,7 +253,7 @@ export default function Header({ toggleSidebar, collapsed, toggleMobileMenu, set
                             <DropdownItem key="help_and_feedback" startContent={<IconHelp size={18} />}>
                                 Aide & Feedback
                             </DropdownItem>
-                            <DropdownItem key="logout" color="danger" startContent={<IconLogout size={18} />} onPress={doLogout}>
+                            <DropdownItem key="logout" className="text-red-500 dark:text-red-500 hover:text-red-600 dark:hover:text-red-400" color="danger" startContent={<IconLogout size={18} />} onPress={doLogout}>
                                 Déconnexion
                             </DropdownItem>
                         </DropdownMenu>

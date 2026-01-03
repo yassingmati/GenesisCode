@@ -1,17 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { getLevelsByPath, getPathsByCategory, getCategories } from '../../services/courseService';
-// import CategoryPaymentService from '../../services/categoryPaymentService'; // Deprecated for this view
 import AccessService from '../../services/accessService';
 import API_CONFIG from '../../config/api';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
 import {
-  Card, CardBody, CardFooter, Button, Progress, Chip,
+  Card, CardBody, Button, Chip,
   Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure
 } from "@nextui-org/react";
 import {
-  IconChevronRight, IconLock, IconLockOpen, IconTrophy,
-  IconPlayerPlay, IconFileText, IconBook, IconCheck, IconArrowRight
+  IconLock, IconLockOpen, IconTrophy,
+  IconPlayerPlay, IconFileText, IconBook, IconCheck, IconArrowRight, IconStar
 } from '@tabler/icons-react';
 import { useTranslation } from '../../hooks/useTranslation';
 
@@ -28,7 +28,7 @@ export default function SpecificPathLevels() {
 
   // Access & Progress State
   const [hasAccess, setHasAccess] = useState(false);
-  const [accessInfo, setAccessInfo] = useState({}); // New state for detailed access info
+  const [accessInfo, setAccessInfo] = useState({});
   const [userProgress, setUserProgress] = useState({ completedLevels: [] });
   const [previewLevel, setPreviewLevel] = useState(null);
 
@@ -50,11 +50,9 @@ export default function SpecificPathLevels() {
         setPath(currentPath);
         setCategory(currentCategory);
 
-        // Store access info (structure from checkAccess is { success, access: { hasAccess, ... } })
         setHasAccess(accessData?.access?.hasAccess || false);
         setAccessInfo(accessData?.access || {});
 
-        // Fetch User Progress
         const token = localStorage.getItem('token');
         const userId = localStorage.getItem('userId');
 
@@ -87,21 +85,15 @@ export default function SpecificPathLevels() {
   const categoryName = category?.translations?.[language]?.name || category?.translations?.fr?.name || 'Langage';
   const pathName = path?.translations?.[language]?.name || path?.translations?.fr?.name || 'Parcours';
 
-  // Calculate progress
   const completedCount = levels.filter(l => userProgress.completedLevels.includes(l._id)).length;
-  const progress = levels.length > 0 ? (completedCount / levels.length) * 100 : 0;
+  const progressPercent = levels.length > 0 ? (completedCount / levels.length) * 100 : 0;
 
   const isLevelCompleted = (id) => userProgress.completedLevels.includes(id);
 
   const isLevelUnlocked = (index) => {
-    if (!hasAccess) return false; // Category locked
-
-    // Admin Bypass: If access type is admin, everything is unlocked
-    if (accessInfo?.type === 'admin' || accessInfo?.id === 'admin_bypass') {
-      return true;
-    }
-
-    if (index === 0) return true; // First level always open if category access
+    if (!hasAccess) return false;
+    if (accessInfo?.type === 'admin' || accessInfo?.id === 'admin_bypass') return true;
+    if (index === 0) return true;
     const prevLevelId = levels[index - 1]._id;
     return isLevelCompleted(prevLevelId);
   };
@@ -114,10 +106,14 @@ export default function SpecificPathLevels() {
     onOpen();
   };
 
+  const openLevel = (id, unlocked) => {
+    if (unlocked) {
+      navigate(`/courses/levels/${id}`, { state: { fromSpecific: true, categoryId, pathId } });
+    }
+  };
+
   return (
     <ClientPageLayout
-      title={pathName}
-      subtitle={`Progresse étape par étape dans ton apprentissage de ${categoryName}.`}
       breadcrumbs={[
         { label: 'Langages', path: '/learning/choose-language' },
         { label: categoryName, path: `/learning/specific/${categoryId}` },
@@ -129,120 +125,85 @@ export default function SpecificPathLevels() {
       backPath={`/learning/specific/${categoryId}`}
       backLabel={language === 'ar' ? 'عودة' : "Retour aux parcours"}
     >
-      <div dir={language === 'ar' ? 'rtl' : 'ltr'}>
-        {/* Progress Overview */}
-        <Card className="mb-8 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-none shadow-sm">
-          <CardBody className="flex flex-row items-center justify-between p-6">
-            <div className="flex flex-col gap-2 w-full max-w-md">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                  <IconTrophy size={20} className="text-yellow-500" />
-                  {language === 'ar' ? 'التقدم' : 'Progression'}
-                </h3>
-                <span className="text-sm font-semibold text-indigo-600 dark:text-indigo-400">{levels.length} {language === 'ar' ? 'مستويات' : 'niveaux'}</span>
-              </div>
-              <Progress
-                value={progress}
-                className="max-w-md"
-                color="success"
-                size="sm"
-                classNames={{
-                  indicator: "bg-gradient-to-r from-green-400 to-emerald-600",
-                  track: "bg-gray-200 dark:bg-slate-700"
-                }}
-              />
+      <div dir={language === 'ar' ? 'rtl' : 'ltr'} className="space-y-12 pb-24">
+
+        {/* Header Section */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-gray-200 dark:border-gray-800 pb-8">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 uppercase tracking-wider">
+                {categoryName}
+              </span>
+              {completedCount === levels.length && levels.length > 0 && (
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 flex items-center gap-1">
+                  <IconCheck size={12} /> TERMINÉ
+                </span>
+              )}
             </div>
-          </CardBody>
-        </Card>
-
-        {/* Levels Grid */}
-        {levels.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 dark:text-gray-400 text-lg">Aucun niveau disponible pour ce parcours.</p>
+            <h1 className="text-4xl md:text-5xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 dark:from-blue-400 dark:via-purple-400 dark:to-indigo-400 bg-clip-text text-transparent mb-4">
+              {pathName}
+            </h1>
+            <p className="text-xl text-gray-500 dark:text-gray-400 max-w-2xl">
+              Progresse étape par étape dans ton apprentissage de {categoryName}.
+            </p>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {levels.map((level, index) => {
-              const unlocked = isLevelUnlocked(index);
-              const completed = isLevelCompleted(level._id);
-              const hasVideo = hasAnyVideo(level);
-              const hasPdf = hasAnyPdf(level);
 
-              return (
-                <Card
-                  key={level._id}
-                  isPressable={unlocked}
-                  onPress={() => unlocked && navigate(`/courses/levels/${level._id}`, { state: { fromSpecific: true, categoryId, pathId } })}
-                  className={`border-none shadow-md hover:shadow-xl transition-all duration-300 bg-white dark:bg-slate-800 ${!unlocked ? 'opacity-75 grayscale bg-gray-50 dark:bg-slate-900' : 'hover:-translate-y-1'}`}
-                >
-                  <CardBody className="p-0 relative overflow-hidden">
-                    {/* Status Indicator */}
-                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800" />
-                    {completed && <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-green-400 to-emerald-500" />}
-                    {unlocked && !completed && <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-blue-400 to-indigo-500" />}
-
-                    <div className="p-6 pl-8"> {/* Added padding-left for indicator */}
-                      <div className="flex justify-between items-start mb-4">
-                        <Chip
-                          size="sm"
-                          variant={completed ? "solid" : "flat"}
-                          color={completed ? "success" : unlocked ? "primary" : "default"}
-                          className="font-bold"
-                        >
-                          Niveau {index + 1}
-                        </Chip>
-                        <div className="flex gap-1">
-                          {completed ? (
-                            <IconCheck size={20} className="text-green-500" />
-                          ) : unlocked ? (
-                            <IconLockOpen size={20} className="text-blue-500" />
-                          ) : (
-                            <IconLock size={20} className="text-gray-400 dark:text-gray-500" />
-                          )}
-                        </div>
-                      </div>
-
-                      <h3 className={`text-xl font-bold mb-2 line-clamp-2 min-h-[3.5rem] ${!unlocked ? 'text-gray-500' : 'text-gray-800 dark:text-white'}`}>
-                        {level?.translations?.[language]?.title || level?.translations?.fr?.title || level.name}
-                      </h3>
-
-                      <div className="flex gap-2 mt-2 mb-4">
-                        {hasVideo && <IconPlayerPlay size={16} className={unlocked ? "text-secondary" : "text-gray-300"} />}
-                        {hasPdf && <IconFileText size={16} className={unlocked ? "text-warning" : "text-gray-300"} />}
-                      </div>
-                    </div>
-                  </CardBody>
-
-                  <CardFooter className="px-6 pb-6 pt-0 gap-2 pl-8 border-none bg-transparent">
-                    <Button
-                      size="sm"
-                      variant="light"
-                      fullWidth
-                      isDisabled={!unlocked && !hasAccess}
-                      onPress={(e) => {
-                        e.continuePropagation();
-                        handlePreview(level);
-                      }}
-                    >
-                      {language === 'en' ? 'Preview' : language === 'ar' ? 'معاينة' : 'Aperçu'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      className="font-semibold"
-                      color={unlocked ? "primary" : "default"}
-                      variant={unlocked ? "solid" : "flat"}
-                      isDisabled={!unlocked}
-                      fullWidth
-                      endContent={unlocked && <IconChevronRight size={18} />}
-                    >
-                      {unlocked ? (language === 'en' ? 'Start' : language === 'ar' ? 'بدء' : 'Commencer') : (language === 'en' ? 'Locked' : language === 'ar' ? 'مقفل' : 'Verrouillé')}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              );
-            })}
+          <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-800 w-full md:w-auto">
+            <div className="relative size-14 flex items-center justify-center">
+              <svg className="size-full -rotate-90" viewBox="0 0 36 36">
+                <path className="text-gray-200 dark:text-slate-800" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
+                <path className="text-blue-600 dark:text-blue-500 transition-all duration-1000 ease-out" strokeDasharray={`${progressPercent}, 100`} d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" strokeWidth="3" />
+              </svg>
+              <span className="absolute text-sm font-bold">{Math.round(progressPercent)}%</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base font-bold text-gray-900 dark:text-white">Votre Progression</span>
+              <span className="text-xs text-gray-500">{completedCount}/{levels.length} Niveaux complétés</span>
+            </div>
           </div>
-        )}
+        </div>
+
+        {/* Timeline Container */}
+        <div className="relative max-w-5xl mx-auto py-12 px-4 md:px-8">
+          {/* Central Timeline Line (Desktop) / Left Line (Mobile) */}
+          <div className="absolute left-8 md:left-1/2 top-0 bottom-0 w-1 bg-gray-100 dark:bg-slate-800 -translate-x-1/2 rounded-full">
+            <motion.div
+              initial={{ height: 0 }}
+              whileInView={{ height: `${progressPercent}%` }}
+              viewport={{ once: true }}
+              transition={{ duration: 1.5, ease: "easeInOut" }}
+              className="absolute top-0 w-full bg-gradient-to-b from-blue-500 via-purple-500 to-blue-500"
+            />
+          </div>
+
+          <div className="space-y-12 md:space-y-0 relative">
+            {levels.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                Aucun niveau disponible pour ce parcours actuellement.
+              </div>
+            ) : (
+              levels.map((lvl, index) => {
+                const unlocked = isLevelUnlocked(index);
+                const completed = isLevelCompleted(lvl._id);
+
+                return (
+                  <LevelNode
+                    key={lvl._id}
+                    level={lvl}
+                    index={index}
+                    lang={language}
+                    isUnlocked={unlocked}
+                    isCompleted={completed}
+                    openLevel={openLevel}
+                    onPreview={handlePreview}
+                    hasAnyVideo={hasAnyVideo}
+                    hasAnyPdf={hasAnyPdf}
+                  />
+                );
+              })
+            )}
+          </div>
+        </div>
 
         {/* Preview Modal */}
         <Modal
@@ -251,29 +212,34 @@ export default function SpecificPathLevels() {
           size="2xl"
           backdrop="blur"
           scrollBehavior="inside"
+          classNames={{
+            base: "bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800",
+            header: "border-b border-gray-100 dark:border-slate-800",
+            footer: "border-t border-gray-100 dark:border-slate-800"
+          }}
         >
           <ModalContent>
             {(onClose) => (
               <>
                 <ModalHeader className="flex flex-col gap-1">
-                  {previewLevel?.translations?.[language]?.title || previewLevel?.translations?.fr?.title || 'Aperçu'}
+                  <span className="text-2xl">{previewLevel?.translations?.[language]?.title || previewLevel?.translations?.fr?.title || 'Aperçu'}</span>
                 </ModalHeader>
-                <ModalBody>
-                  <p className="text-default-500">
+                <ModalBody className="py-6">
+                  <p className="text-gray-600 dark:text-gray-300 text-lg leading-relaxed">
                     {previewLevel?.translations?.[language]?.content || previewLevel?.translations?.fr?.content || 'Aucune description disponible.'}
                   </p>
-                  <div className="flex gap-2 mt-4">
-                    <Chip color="primary" variant="flat" startContent={<IconBook size={16} />}>
+                  <div className="flex gap-3 mt-6">
+                    <Chip color="primary" variant="flat" startContent={<IconBook size={18} />}>
                       {(previewLevel?.exercises || []).length} {language === 'en' ? 'exercises' : language === 'ar' ? 'تمارين' : 'exercices'}
                     </Chip>
                     {hasAnyVideo(previewLevel) && (
-                      <Chip color="secondary" variant="flat" startContent={<IconPlayerPlay size={16} />}>
+                      <Chip color="secondary" variant="flat" startContent={<IconPlayerPlay size={18} />}>
                         {language === 'en' ? 'Video' : language === 'ar' ? 'فيديو' : 'Vidéo'}
                       </Chip>
                     )}
                     {hasAnyPdf(previewLevel) && (
-                      <Chip color="warning" variant="flat" startContent={<IconFileText size={16} />}>
-                        PDF
+                      <Chip color="warning" variant="flat" startContent={<IconFileText size={18} />}>
+                        Guide PDF
                       </Chip>
                     )}
                   </div>
@@ -282,35 +248,25 @@ export default function SpecificPathLevels() {
                   <Button color="danger" variant="light" onPress={onClose}>
                     {language === 'en' ? 'Close' : language === 'ar' ? 'إغلاق' : 'Fermer'}
                   </Button>
-                  {/* Only allow starting if unlocked */}
-                  {
-                    (() => {
-                      const idx = levels.findIndex(l => l._id === previewLevel?._id);
-                      const unlocked = isLevelUnlocked(idx);
+                  {/* Start Button Logic */}
+                  {(() => {
+                    const idx = levels.findIndex(l => l._id === previewLevel?._id);
+                    const unlocked = isLevelUnlocked(idx);
 
-                      return (
-                        <Button
-                          color="primary"
-                          isDisabled={!unlocked}
-                          onPress={() => {
-                            if (unlocked) {
-                              navigate(`/courses/levels/${previewLevel._id}`, {
-                                state: {
-                                  fromSpecific: true,
-                                  categoryId,
-                                  pathId
-                                }
-                              });
-                              onClose();
-                            }
-                          }}
-                          endContent={<IconArrowRight size={16} />}
-                        >
-                          {language === 'en' ? 'Start' : language === 'ar' ? 'بدء' : 'Commencer'}
-                        </Button>
-                      )
-                    })()
-                  }
+                    return (
+                      <Button
+                        className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/30"
+                        isDisabled={!unlocked}
+                        onPress={() => {
+                          openLevel(previewLevel._id, unlocked);
+                          onClose();
+                        }}
+                        endContent={<IconArrowRight size={18} />}
+                      >
+                        {language === 'en' ? 'Start Adventure' : language === 'ar' ? 'ابدأ المغامرة' : "Commencer l'aventure"}
+                      </Button>
+                    )
+                  })()}
                 </ModalFooter>
               </>
             )}
@@ -318,5 +274,112 @@ export default function SpecificPathLevels() {
         </Modal>
       </div>
     </ClientPageLayout>
+  );
+}
+
+function LevelNode({ level, index, lang, isUnlocked, isCompleted, openLevel, onPreview, hasAnyVideo, hasAnyPdf }) {
+  const isLeft = index % 2 === 0;
+
+  // Determine title
+  const title = level?.translations?.[lang]?.title || level?.translations?.fr?.title || level.name;
+
+  return (
+    <div className={`relative flex items-center md:items-stretch md:justify-between ${isLeft ? 'md:flex-row' : 'md:flex-row-reverse'} mb-8 md:mb-[-40px] last:mb-0`}>
+
+      {/* Desktop Spacer */}
+      <div className="hidden md:block w-[45%]" />
+
+      {/* Central Node */}
+      <div className="absolute left-8 md:left-1/2 -translate-x-1/2 z-10 flex flex-col items-center justify-center">
+        <motion.div
+          initial={{ scale: 0 }}
+          whileInView={{ scale: 1 }}
+          viewport={{ once: true }}
+          className={`w-10 h-10 md:w-14 md:h-14 rounded-full flex items-center justify-center shadow-lg border-4 transition-colors duration-500 ${isCompleted
+              ? 'bg-green-500 border-green-100 dark:border-green-900 text-white'
+              : isUnlocked
+                ? 'bg-blue-600 border-blue-100 dark:border-blue-900 text-white animate-pulse-slow'
+                : 'bg-gray-200 dark:bg-slate-700 border-gray-100 dark:border-slate-800 text-gray-400'
+            }`}
+        >
+          {isCompleted ? <IconCheck size={24} stroke={3} /> : isUnlocked ? <IconLockOpen size={20} /> : <IconLock size={20} />}
+        </motion.div>
+
+        {/* Mobile Connecting Line */}
+        <div className="md:hidden h-full w-0.5 bg-gray-200 dark:bg-slate-700 absolute top-14 bottom-[-100px]" />
+      </div>
+
+      {/* Content Card */}
+      <div className={`ml-20 md:ml-0 w-full md:w-[45%] pl-4 md:pl-0 ${isLeft ? 'md:pr-12 md:text-right' : 'md:pl-12 md:text-left'}`}>
+        <motion.div
+          initial={{ opacity: 0, x: isLeft ? -50 : 50 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, margin: "-100px" }}
+          transition={{ duration: 0.5, delay: index * 0.1 }}
+        >
+          <Card
+            isPressable={isUnlocked}
+            onPress={() => openLevel(level._id, isUnlocked)}
+            className={`border transition-all duration-300 overflow-hidden transform group ${isUnlocked
+                ? 'hover:-translate-y-2 hover:shadow-xl hover:border-blue-500/50 cursor-pointer bg-white dark:bg-slate-800'
+                : 'opacity-70 bg-gray-50 dark:bg-slate-900 border-gray-200 dark:border-slate-800 cursor-not-allowed'
+              } ${isCompleted ? 'border-green-500/30' : ''}`}
+          >
+            <div className={`absolute top-0 w-1 h-full transition-all duration-300 ${isCompleted ? 'bg-green-500 left-0' : isUnlocked ? 'bg-blue-500 left-0 group-hover:w-2' : 'bg-gray-300 left-0'
+              }`} />
+
+            <CardBody className="p-6">
+              <div className="flex justify-between items-start mb-2">
+                <span className={`text-xs font-bold uppercase tracking-wider mb-2 block ${isCompleted ? 'text-green-600' : isUnlocked ? 'text-blue-600' : 'text-gray-400'
+                  }`}>
+                  {lang === 'ar' ? 'المستوى' : 'Niveau'} {index + 1}
+                </span>
+
+                <div className="flex gap-2">
+                  {hasAnyVideo(level) && <IconPlayerPlay size={16} className={isUnlocked ? "text-blue-400" : "text-gray-300"} />}
+                  {hasAnyPdf(level) && <IconFileText size={16} className={isUnlocked ? "text-orange-400" : "text-gray-300"} />}
+                </div>
+              </div>
+
+              <h4 className={`text-xl font-bold mb-3 leading-tight ${!isUnlocked ? 'text-gray-500' : 'text-gray-900 dark:text-white'}`}>
+                {title}
+              </h4>
+
+              {isUnlocked && (
+                <div className="flex justify-between items-center mt-4">
+                  <Button
+                    size="sm"
+                    variant="light"
+                    color="primary"
+                    className="font-medium px-0"
+                    onPress={(e) => {
+                      e.continuePropagation();
+                      onPreview(level);
+                    }}
+                  >
+                    {lang === 'en' ? 'Details' : lang === 'ar' ? 'تفاصيل' : 'Voir les détails'}
+                  </Button>
+                  <div className={`p-2 rounded-full ${isUnlocked ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 group-hover:bg-blue-600 group-hover:text-white transition-colors' : 'bg-gray-100 text-gray-400'}`}>
+                    <IconArrowRight size={18} />
+                  </div>
+                </div>
+              )}
+
+              {!isUnlocked && (
+                <div className="text-xs text-center text-gray-400 mt-2 font-medium bg-gray-100 dark:bg-slate-800 py-2 rounded-lg">
+                  {lang === 'ar' ? 'أكمل المستوى السابق' : 'Terminez le niveau précédent'}
+                </div>
+              )}
+
+              {isCompleted && (
+                <div className="absolute top-2 right-2 text-yellow-500 opacity-20 rotate-12">
+                  <IconStar size={64} fill="currentColor" />
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        </motion.div>
+      </div>
+    </div>
   );
 }

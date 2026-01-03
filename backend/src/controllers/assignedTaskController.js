@@ -174,13 +174,29 @@ exports.deleteAssignedTask = async (req, res) => {
 // @access  Admin
 exports.getAllAssignedTasks = async (req, res) => {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const skip = (page - 1) * limit;
+
+        console.time('fetchTasks');
         const tasks = await AssignedTask.find()
             .populate('templateId', 'title description')
             .populate('childId', 'firstName lastName email')
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .limit(limit)
+            .skip(skip);
 
-        res.json(tasks);
+        const total = await AssignedTask.countDocuments();
+        console.timeEnd('fetchTasks');
+
+        res.json({
+            tasks,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
+        console.error('Error fetching all tasks:', error);
         res.status(500).json({ message: error.message });
     }
 };

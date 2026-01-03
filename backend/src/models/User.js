@@ -80,6 +80,13 @@ userSchema.virtual('subscriptions', {
   foreignField: 'user'
 });
 
+// Virtual pour récupérer les accès aux catégories (considérés comme abonnements/achats)
+userSchema.virtual('categoryAccess', {
+  ref: 'CategoryAccess',
+  localField: '_id',
+  foreignField: 'user'
+});
+
 // Indexes utiles
 userSchema.index({ firebaseUid: 1 });
 userSchema.index({ totalXP: -1 });

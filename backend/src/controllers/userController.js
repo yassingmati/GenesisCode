@@ -17,8 +17,22 @@ exports.getProfile = async (req, res) => {
     const uid = req.user && (req.user.firebaseUid || req.user.id || req.user._id);
     if (!uid) return res.status(401).json({ error: 'Utilisateur non authentifié' });
 
-    const user = await User.findOne({ $or: [{ firebaseUid: uid }, { _id: uid }] }).lean();
+    const user = await User.findOne({ $or: [{ firebaseUid: uid }, { _id: uid }] })
+      .populate('parentAccount', 'firstName lastName email phone')
+      .populate({
+        path: 'subscriptions',
+        populate: { path: 'plan' }
+      })
+      .populate({
+        path: 'categoryAccess',
+        populate: { path: 'category' }
+      })
+      .lean();
     if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
+
+    console.log('DEBUG getProfile user:', user._id);
+    console.log('DEBUG subscriptions count:', user.subscriptions ? user.subscriptions.length : 0);
+    console.log('DEBUG subscriptions data:', JSON.stringify(user.subscriptions, null, 2));
 
     res.json({ message: 'Profil utilisateur', user });
   } catch (error) {

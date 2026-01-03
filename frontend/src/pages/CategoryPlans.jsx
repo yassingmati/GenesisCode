@@ -35,18 +35,40 @@ const CategoryPlans = () => {
 
       const response = await CategoryPaymentService.getCategoryPlans();
 
+      const getLocalizedPlanDetails = (plan, trans) => {
+        let name = trans.name || plan.name || 'Plan';
+        let description = trans.description || plan.description || '';
+
+        // Fallback translation for standard plans if no specific translation provided or if it matches standard French names
+        const normalizedName = (plan.name || '').toLowerCase().trim();
+
+        if (normalizedName.includes('débutant') || normalizedName.includes('beginner') || normalizedName.includes('مبتدئ')) {
+          name = t('categoryPlans.plans.beginner.name');
+          description = t('categoryPlans.plans.beginner.description');
+        } else if (normalizedName.includes('intermédiaire') || normalizedName.includes('intermediate') || normalizedName.includes('متوسط')) {
+          name = t('categoryPlans.plans.intermediate.name');
+          description = t('categoryPlans.plans.intermediate.description');
+        } else if (normalizedName.includes('avancé') || normalizedName.includes('advanced') || normalizedName.includes('premium') || normalizedName.includes('متقدم')) {
+          name = t('categoryPlans.plans.advanced.name');
+          description = t('categoryPlans.plans.advanced.description');
+        }
+
+        return { name, description };
+      };
+
       // Normaliser les plans pour gérer les différents formats
       const plansData = response?.plans || response || [];
       const normalizedPlans = plansData.map(plan => {
         const trans = plan.translations?.[language] || plan.translations?.fr || {};
+        const { name, description } = getLocalizedPlanDetails(plan, trans);
 
         return {
           ...plan,
           id: plan.id || plan._id,
           _id: plan._id || plan.id,
-          name: trans.name || plan.name || 'Plan',
-          description: trans.description || plan.description || '',
-          features: plan.features || []
+          name: name,
+          description: description,
+          features: trans.features || plan.features || []
         };
       });
 

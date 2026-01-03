@@ -46,7 +46,7 @@ export default function DashboardLayout({ children, activePage, setActivePage })
     const toggleMobileMenu = () => setIsMobileMenuOpen(!isMobileMenuOpen);
 
     return (
-        <div className="flex h-screen bg-[#0f0c29] bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white lg:overflow-hidden overflow-y-auto transition-colors duration-300">
+        <div className="flex h-screen bg-gradient-to-br from-blue-50/40 via-white to-purple-50/40 dark:from-[#0f0c29] dark:via-[#302b63] dark:to-[#24243e] text-gray-900 dark:text-white lg:overflow-hidden overflow-y-auto transition-colors duration-300">
             <TimeTracker />
 
             {/* Sidebar */}

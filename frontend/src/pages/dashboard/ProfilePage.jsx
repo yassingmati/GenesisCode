@@ -6,8 +6,9 @@ import ParentInvitationSection from '../../components/ParentInvitationSection';
 import AvatarSelector from '../../components/profile/AvatarSelector';
 import { Card, CardBody, CardHeader, Button, Input, Avatar, Tabs, Tab, Chip, Progress, Divider, Spacer, Tooltip } from "@nextui-org/react";
 import Badge from '../../components/gamification/Badge';
-import { IconUser, IconLock, IconTrophy, IconPremiumRights, IconUsers, IconEdit, IconCamera, IconDeviceFloppy, IconLogout, IconAlertTriangle } from "@tabler/icons-react";
+import { IconUser, IconLock, IconTrophy, IconPremiumRights, IconUsers, IconEdit, IconCamera, IconDeviceFloppy, IconLogout, IconAlertTriangle, IconCheck, IconListCheck } from "@tabler/icons-react";
 import { toast } from 'react-hot-toast';
+import { BADGES } from '../../config/badges';
 
 const API_BASE = getApiUrl('/api');
 
@@ -208,9 +209,16 @@ export default function ProfilePage() {
                 <Chip startContent={<IconTrophy size={16} />} color="warning" variant="solid" className="bg-yellow-500/90 text-black font-bold">
                   Niveau {Math.floor((progressData.reduce((acc, p) => acc + (p.xp || 0), 0) / 1000) + 1)}
                 </Chip>
-                <Chip startContent={<IconPremiumRights size={16} />} color={user?.subscription?.status === 'active' ? "success" : "default"} variant="flat" className="backdrop-blur-md bg-white/20 text-white">
-                  {user?.subscription?.status === 'active' ? 'Premium' : 'Gratuit'}
-                </Chip>
+                {(() => {
+                  const activeSubscription = user?.subscriptions?.find(sub =>
+                    sub.status === 'active' && new Date(sub.currentPeriodEnd) > new Date()
+                  );
+                  return (
+                    <Chip startContent={<IconPremiumRights size={16} />} color={activeSubscription ? "success" : "default"} variant="flat" className="backdrop-blur-md bg-white/20 text-white">
+                      {activeSubscription ? 'Premium' : 'Gratuit'}
+                    </Chip>
+                  );
+                })()}
               </div>
             </div>
 
@@ -380,43 +388,73 @@ export default function ProfilePage() {
                   {progressData.length > 0 ? (
                     <div className="divide-y divide-gray-100 dark:divide-gray-800">
                       {progressData.slice(0, 5).map((p, i) => (
-                        <div key={i} className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${p.completed ? 'bg-green-100 text-green-600' : 'bg-blue-100 text-blue-600'}`}>
-                              {p.completed ? '✓' : '⚡'}
+                        <div key={i} className="flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group">
+                          <div className="flex items-center gap-4">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110 ${p.completed ? 'bg-green-100 text-green-600 dark:bg-green-900/20' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/20'}`}>
+                              {p.completed ? <IconCheck size={24} /> : <IconTrophy size={24} />}
                             </div>
                             <div>
-                              <p className="font-medium text-gray-800 dark:text-gray-200">{p.exercise?.title || "Exercice"}</p>
-                              <p className="text-xs text-gray-500">{formatDate(p.updatedAt)}</p>
+                              <p className="font-semibold text-gray-800 dark:text-gray-100">
+                                {p.exercise?.title || `Exercice ${p.exercise?._id?.substring(0, 6) || '#' + (i + 1)}`}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-gray-500">{formatDate(p.updatedAt)}</span>
+                                {p.completed && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-600 border border-green-100 dark:bg-green-900/10 dark:text-green-400 dark:border-green-900/30">
+                                    Complété
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <Chip size="sm" color={p.completed ? "success" : "primary"} variant="flat">{p.xp || 0} XP</Chip>
+                          <div className="flex flex-col items-end gap-1">
+                            <Chip size="sm" color={p.completed ? "success" : "primary"} variant="flat" className="font-bold">
+                              {p.xp || 0} XP
+                            </Chip>
+                            {p.bestScore > 0 && (
+                              <span className="text-[10px] text-gray-400">Score: {p.bestScore}/{p.pointsMax}</span>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-gray-500">
-                      <p>Aucun progrès enregistré pour le moment.</p>
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-4">
+                        <IconListCheck size={32} className="text-gray-400" />
+                      </div>
+                      <h4 className="text-gray-900 dark:text-gray-100 font-medium mb-1">Aucune activité récente</h4>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm max-w-xs mx-auto">
+                        Commencez des exercices pour voir votre progression s'afficher ici !
+                      </p>
                     </div>
                   )}
                 </CardBody>
               </Card>
 
               <Card>
-                <CardHeader className="px-6 py-4 border-b border-divider">
+                <CardHeader className="px-6 py-4 border-b border-divider flex justify-between items-center">
                   <h3 className="text-lg font-semibold">Badges</h3>
+                  <Chip size="sm" variant="flat" color="secondary">
+                    {user?.badges?.length || 0} / {Object.keys(BADGES).length}
+                  </Chip>
                 </CardHeader>
-                <CardBody className="p-4 grid grid-cols-3 gap-2">
-                  {user?.badges?.length > 0 ? user.badges.map((b, i) => (
-                    <div key={i} className="flex justify-center">
-                      <Badge badgeId={b} size="md" showTitle={true} />
-                    </div>
-                  )) : (
-                    <div className="col-span-3 text-center py-8 text-gray-400">
-                      <IconTrophy size={48} className="mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Complétez des exercices pour gagner des badges !</p>
-                    </div>
-                  )}
+                <CardBody className="p-4">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+                    {Object.values(BADGES).map((badge) => {
+                      const isUnlocked = user?.badges?.includes(badge.id);
+                      return (
+                        <Tooltip key={badge.id} content={isUnlocked ? badge.description : "Verrouillé : " + badge.description}>
+                          <div className={`flex flex-col items-center gap-2 p-2 rounded-xl transition-all ${isUnlocked ? 'bg-content2 hover:bg-content3 cursor-pointer' : 'opacity-40 grayscale'}`}>
+                            <Badge badgeId={badge.id} size="md" showTitle={false} />
+                            <span className="text-[10px] text-center font-medium leading-tight line-clamp-2">
+                              {badge.title}
+                            </span>
+                          </div>
+                        </Tooltip>
+                      );
+                    })}
+                  </div>
                 </CardBody>
               </Card>
             </div>
@@ -431,29 +469,103 @@ export default function ProfilePage() {
               </div>
             }
           >
-            <div className="mt-4">
-              {/* We simply reuse the improved subscription logic but styled with NextUI */}
-              <Card className={`border-2 ${user?.subscription?.status === 'active' ? 'border-primary' : 'border-gray-200'}`}>
-                <CardBody className="p-8 flex flex-col items-center text-center">
-                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-4 text-primary">
-                    {user?.subscription?.status === 'active' ? <IconPremiumRights size={40} /> : <IconLock size={40} />}
-                  </div>
-                  <h2 className="text-2xl font-bold mb-2">
-                    {user?.subscription?.status === 'active' ? 'Abonnement Premium Actif' : 'Abonnement Gratuit'}
-                  </h2>
-                  <p className="text-gray-500 max-w-lg mb-8">
-                    {user?.subscription?.status === 'active'
-                      ? `Votre abonnement est actif jusqu'au ${formatDate(user?.subscription?.currentPeriodEnd)}. Profitez de l'accès illimité !`
-                      : "Débloquez tout le potentiel de la plateforme avec notre abonnement Premium. Accès illimité à tous les cours et exercices."}
-                  </p>
+            <div className="mt-4 flex flex-col gap-4">
+              {/* Logic to find all active subscriptions and category accesses */}
+              {(() => {
+                // 1. Plan Subscriptions
+                const activePlanSubs = user?.subscriptions?.filter(sub =>
+                  sub.status === 'active' && new Date(sub.currentPeriodEnd) > new Date()
+                ) || [];
 
-                  {user?.subscription?.status !== 'active' && (
-                    <Button color="primary" size="lg" className="font-bold shadow-lg shadow-primary/40">
-                      Voir les offres Premium
-                    </Button>
-                  )}
-                </CardBody>
-              </Card>
+                // 2. Category Accesses (considered as subscriptions)
+                const activeCategoryAccess = user?.categoryAccess?.filter(access =>
+                  access.status === 'active' && (!access.expiresAt || new Date(access.expiresAt) > new Date())
+                ) || [];
+
+                const allItems = [
+                  ...activePlanSubs.map(s => ({ ...s, type: 'subscription', title: s.plan?.name || s.plan?.title || 'Abonnement Premium' })),
+                  ...activeCategoryAccess.map(a => {
+                    // Category names are in translations.fr.name
+                    const catName = a.category?.translations?.fr?.name ||
+                      a.category?.translations?.en?.name ||
+                      a.category?.translations?.ar?.name ||
+                      'Accès Cours';
+                    return { ...a, type: 'access', title: catName, currentPeriodEnd: a.expiresAt };
+                  })
+                ];
+
+                if (allItems.length > 0) {
+                  return allItems.map((item, index) => (
+                    <div key={item._id || index} className="group relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/50 backdrop-blur-md transition-all hover:border-primary/50 hover:shadow-lg hover:shadow-primary/20">
+                      {/* Decorative Gradient Background */}
+                      <div className={`absolute inset-0 opacity-10 transition-opacity group-hover:opacity-20 bg-gradient-to-br ${item.type === 'subscription' ? 'from-purple-600 to-blue-600' : 'from-emerald-500 to-teal-500'}`} />
+
+                      {/* Content */}
+                      <div className="relative p-6 flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                        {/* Icon Container */}
+                        <div className={`shrink-0 w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-lg ${item.type === 'subscription' ? 'bg-gradient-to-br from-purple-500 to-blue-600 shadow-purple-500/20' : 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-500/20'}`}>
+                          {item.type === 'subscription' ? <IconPremiumRights size={32} /> : <IconTrophy size={32} />}
+                        </div>
+
+                        {/* Text Info */}
+                        <div className="flex-1 text-center sm:text-left">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <h3 className="text-xl font-bold text-white tracking-tight">
+                              {item.title}
+                            </h3>
+                            <Chip size="sm" variant="shadow" classNames={{ base: item.type === 'subscription' ? "bg-gradient-to-r from-purple-500 to-blue-500 border border-white/20" : "bg-gradient-to-r from-emerald-500 to-teal-500 border border-white/20", content: "font-bold text-white tracking-wide" }}>
+                              {item.currentPeriodEnd ? 'ACTIF' : 'À VIE'}
+                            </Chip>
+                          </div>
+
+                          <p className="text-slate-400 text-sm mb-4">
+                            {item.description || (item.type === 'subscription' ? "Accès illimité à toute la plateforme" : "Accès complet au contenu de ce cours")}
+                          </p>
+
+                          <div className="flex flex-wrap items-center justify-center sm:justify-start gap-4 text-xs font-medium text-slate-500">
+                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5">
+                              <IconDeviceFloppy size={14} className={item.type === 'subscription' ? "text-blue-400" : "text-emerald-400"} />
+                              <span>
+                                {item.currentPeriodEnd
+                                  ? `Expire le ${formatDate(item.currentPeriodEnd)}`
+                                  : 'Valide à perpétuité'}
+                              </span>
+                            </div>
+                            {item.autoRenew && (
+                              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/5 text-purple-300">
+                                <div className="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse" />
+                                <span>Renouvellement auto</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ));
+                }
+
+                return (
+                  <Card className="border-none bg-gradient-to-b from-gray-50 to-white dark:from-slate-800 dark:to-slate-900 shadow-xl">
+                    <CardBody className="p-8 flex flex-col items-center text-center">
+                      <div className="w-24 h-24 bg-gray-100 dark:bg-slate-700 rounded-full flex items-center justify-center mb-6 text-gray-400 ring-8 ring-gray-50 dark:ring-slate-800/50">
+                        <IconLock size={48} stroke={1.5} />
+                      </div>
+                      <h2 className="text-2xl font-bold mb-3 text-gray-900 dark:text-white">Aucun abonnement actif</h2>
+                      <p className="text-gray-500 dark:text-gray-400 max-w-md mb-8 leading-relaxed">
+                        Passez à la vitesse supérieure ! Débloquez l'accès illimité à tous nos parcours et exercices interactifs.
+                      </p>
+                      <Button
+                        color="primary"
+                        size="lg"
+                        className="font-bold shadow-lg shadow-indigo-500/30 bg-gradient-to-r from-indigo-600 to-purple-600"
+                        endContent={<IconPremiumRights />}
+                      >
+                        Découvrir les offres Premium
+                      </Button>
+                    </CardBody>
+                  </Card>
+                );
+              })()}
             </div>
           </Tab>
 

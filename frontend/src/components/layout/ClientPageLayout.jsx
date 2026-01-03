@@ -57,7 +57,7 @@ export default function ClientPageLayout({
                 <NavbarBrand className="gap-3 cursor-pointer" onClick={() => navigate('/dashboard')}>
                     <img src={require('../../assets/images/logo-removebg-preview.png')} alt="CodeGenesis" className="h-9 w-auto hover:scale-105 transition-transform" />
                     <p className="font-bold text-inherit text-xl bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-cyan-500 hidden sm:block">
-                        CodeGenesis
+                        GenesisCode
                     </p>
                 </NavbarBrand>
                 <NavbarContent justify="end">
