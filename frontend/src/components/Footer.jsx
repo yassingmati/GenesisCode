@@ -2,7 +2,7 @@
 import React from 'react';
 
 const Footer = () => {
-  const { t } = useTranslation(); // Initialize useTranslation hook
+  const { t } = useTranslation();
 
   return (
     <footer className="bg-dark text-white py-4 mt-auto">
