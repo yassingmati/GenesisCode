@@ -67,7 +67,7 @@ const sendEmail = async ({ to, subject, html, from }) => {
     if (fromAddress.includes('@gmail.com') || fromAddress.includes('@yahoo') || fromAddress.includes('@hotmail')) {
       console.warn(`⚠️ Attention: Resend interdit l'envoi depuis ${fromAddress}. Utilisation de onboarding@resend.dev à la place.`);
       // Use friendly name with the allowed email
-      fromAddress = 'CodeGenesis <onboarding@resend.dev>';
+      fromAddress = 'GenesisCode <onboarding@resend.dev>';
     }
 
     console.log(`📨 Sending via Resend to ${to} from ${fromAddress} (Reply-To: ${replyTo})...`);
@@ -122,11 +122,11 @@ const sendVerificationEmail = async (email, token) => {
   const html = `
       <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
         <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">CodeGenesis</h1>
+          <h1 style="color: white; margin: 0;">GenesisCode</h1>
         </div>
         <div style="padding: 40px 30px; background-color: #ffffff;">
           <h2 style="color: #1e293b; text-align: center;">Vérifiez votre email</h2>
-          <p style="color: #475569; text-align: center;">Merci de vous être inscrit sur CodeGenesis ! Cliquez ci-dessous pour vérifier votre compte.</p>
+          <p style="color: #475569; text-align: center;">Merci de vous être inscrit sur GenesisCode ! Cliquez ci-dessous pour vérifier votre compte.</p>
           <div style="text-align: center; margin: 35px 0;">
             <a href="${verificationLink}" 
                style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; text-decoration: none; border-radius: 50px; font-weight: 600;">
@@ -138,7 +138,7 @@ const sendVerificationEmail = async (email, token) => {
       </div>
   `;
 
-  await sendEmail({ to: email, subject: 'Vérification de votre email - CodeGenesis', html });
+  await sendEmail({ to: email, subject: 'Vérification de votre email - GenesisCode', html });
 };
 
 /**
@@ -166,7 +166,7 @@ const sendPasswordResetEmail = async (email, token) => {
       </div>
   `;
 
-  await sendEmail({ to: email, subject: 'Réinitialisation de votre mot de passe - CodeGenesis', html });
+  await sendEmail({ to: email, subject: 'Réinitialisation de votre mot de passe - GenesisCode', html });
 };
 
 /**
@@ -176,7 +176,7 @@ const sendSubscriptionConfirmationEmail = async (email, planName, amount, curren
   if (!isEmailConfigured()) return;
   const html = `<h2>Abonnement Confirmé !</h2><p>Merci pour votre abonnement au plan <strong>${planName}</strong> (${(amount / 100).toFixed(2)} ${currency}).</p>`;
   try {
-    await sendEmail({ to: email, subject: 'Confirmation de votre abonnement - CodeGenesis', html });
+    await sendEmail({ to: email, subject: 'Confirmation de votre abonnement - GenesisCode', html });
   } catch (e) { console.error('Erreur mail abonnement', e); }
 };
 
@@ -187,7 +187,7 @@ const sendRenewalReminderEmail = async (email, planName, renewalDate) => {
   if (!isEmailConfigured()) return;
   const html = `<h2>Renouvellement Prochain</h2><p>Votre abonnement <strong>${planName}</strong> sera renouvelé le ${new Date(renewalDate).toLocaleDateString()}.</p>`;
   try {
-    await sendEmail({ to: email, subject: 'Rappel de renouvellement - CodeGenesis', html });
+    await sendEmail({ to: email, subject: 'Rappel de renouvellement - GenesisCode', html });
   } catch (e) { console.error('Erreur mail rappel', e); }
 };
 
