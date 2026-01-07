@@ -59,19 +59,23 @@ const isEmailConfigured = () => {
  */
 const sendEmail = async ({ to, subject, html, from }) => {
   let fromAddress = from || process.env.EMAIL_FROM || 'onboarding@resend.dev'; // Resend Default
+  // Determine Reply-To using the *intended* from address (which might be the gmail one)
+  const replyTo = fromAddress.includes('@') ? fromAddress : 'noreply.genesiscode@gmail.com';
 
   if (resend) {
     // Resend interdit les adresses @gmail.com ou yahoo etc. en expéditeur
     if (fromAddress.includes('@gmail.com') || fromAddress.includes('@yahoo') || fromAddress.includes('@hotmail')) {
       console.warn(`⚠️ Attention: Resend interdit l'envoi depuis ${fromAddress}. Utilisation de onboarding@resend.dev à la place.`);
-      fromAddress = 'onboarding@resend.dev';
+      // Use friendly name with the allowed email
+      fromAddress = 'CodeGenesis <onboarding@resend.dev>';
     }
 
-    console.log(`📨 Sending via Resend to ${to} from ${fromAddress}...`);
+    console.log(`📨 Sending via Resend to ${to} from ${fromAddress} (Reply-To: ${replyTo})...`);
     try {
       const response = await resend.emails.send({
         from: fromAddress,
         to: to,
+        reply_to: replyTo,
         subject: subject,
         html: html
       });
@@ -95,6 +99,7 @@ const sendEmail = async ({ to, subject, html, from }) => {
     const mailOptions = {
       from: fromAddress,
       to: to,
+      replyTo: replyTo,
       subject: subject,
       html: html
     };
