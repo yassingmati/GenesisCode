@@ -359,7 +359,7 @@ const Auth = ({ type }) => {
               transition={{ delay: 0.2 }}
               className="mb-6"
             >
-              <img src={require('../../assets/icons/logo.png')} alt="CodeGenesis Logo" className="h-16 w-auto mx-auto lg:mx-0" />
+              <img src={require('../../assets/icons/logo.png')} alt="GenesisCode Logo" className="h-16 w-auto mx-auto lg:mx-0" />
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, x: -20 }}

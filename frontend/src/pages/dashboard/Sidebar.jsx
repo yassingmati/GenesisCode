@@ -84,7 +84,7 @@ export default function Sidebar({
       <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'} p-6 h-20`}>
         {!collapsed && (
           <div className="flex items-center gap-3 font-bold text-xl tracking-tight">
-            <img src={require('../../assets/icons/logo.png')} alt="CodeGenesis" className="h-10 w-auto drop-shadow-md" />
+            <img src={require('../../assets/icons/logo.png')} alt="GenesisCode" className="h-10 w-auto drop-shadow-md" />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-cyan-400 dark:to-purple-400">
               GenesisCode
             </span>

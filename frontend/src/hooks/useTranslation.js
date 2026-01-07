@@ -123,17 +123,35 @@ const translations = {
       hero: {
         badge: '🚀 La plateforme n°1 pour apprendre à coder',
         title: 'Deviens le héros de ton propre code !',
-        subtitle: 'Tu as entre 8 et 17 ans et tu rêves de créer tes propres jeux ou sites web ? CodeGenesis t\'accompagne dans une aventure numérique unique. Apprends à coder en t\'amusant avec nos tutoriels vidéo, gagne des badges d\'expert et grimpe dans le classement mondial. L\'aventure commence ici !',
+        subtitle: 'Tu as entre 8 et 17 ans et tu rêves de créer tes propres jeux ou sites web ? GenesisCode t\'accompagne dans une aventure numérique unique. Apprends à coder en t\'amusant avec nos tutoriels vidéo, gagne des badges d\'expert et grimpe dans le classement mondial. L\'aventure commence ici !',
         tryFree: 'Essayer gratuitement',
-        viewDemo: 'Voir la démo'
+        viewDemo: 'Voir la démo',
+        features: {
+          title: 'Pourquoi choisir GenesisCode ?',
+          items: [
+            { title: 'Adapté aux enfants', desc: 'Interface simple et ludique conçue pour les 8-17 ans.' },
+            { title: 'Apprentissage par la pratique', desc: 'Crée de vrais projets : jeux, sites web, applications.' },
+            { title: 'Suivi de progression', desc: 'Gagne des points, des badges et débloque des niveaux.' }
+          ]
+        },
+        cta: 'Commencer l\'aventure',
+        login: 'Se connecter',
+        footer: {
+          about: 'À propos',
+          contact: 'Contact',
+          privacyPolicy: 'Politique de confidentialité',
+          termsOfService: 'Conditions d\'utilisation',
+          allRightsReserved: 'Tous droits réservés',
+          description: 'Que vous soyez élève, parent ou administrateur, GenesisCode offre des outils adaptés à vos besoins.'
+        }
       },
       features: {
-        title: 'Pourquoi choisir CodeGenesis ?',
+        title: 'Pourquoi choisir GenesisCode ?',
         subtitle: 'Une approche pédagogique unique qui combine théorie, pratique et gamification pour un apprentissage efficace.'
       },
       scenarios: {
         title: 'Une expérience pour chacun',
-        subtitle: 'Que vous soyez élève, parent ou administrateur, CodeGenesis offre des outils adaptés à vos besoins.'
+        subtitle: 'Que vous soyez élève, parent ou administrateur, GenesisCode offre des outils adaptés à vos besoins.'
       },
       levels: {
         title: 'Niveaux de progression',
@@ -187,7 +205,7 @@ const translations = {
         { name: "Marc, Professeur", role: "Éducateur", text: "Une plateforme pédagogique très bien pensée qui rend la programmation accessible à tous." }
       ],
       faqList: [
-        { q: "À quel âge peut-on commencer ?", a: "CodeGenesis est conçu pour les enfants de 8 à 17 ans, avec des parcours adaptés à chaque tranche d'âge." },
+        { q: "À quel âge peut-on commencer ?", a: "GenesisCode est conçu pour les enfants de 8 à 17 ans, avec des parcours adaptés à chaque tranche d'âge." },
         { q: "Faut-il installer un logiciel ?", a: "Non, tout se passe dans le navigateur web. Une connexion internet suffit." },
         { q: "Est-ce sécurisé ?", a: "Oui, la sécurité est notre priorité. Pas de publicité, pas de liens externes non modérés, et les données sont protégées." },
         { q: "Puis-je annuler l'abonnement ?", a: "Oui, l'abonnement est sans engagement et peut être annulé à tout moment depuis l'espace parent." }
