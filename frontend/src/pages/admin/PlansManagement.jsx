@@ -229,12 +229,12 @@ export default function PlansManagement() {
                                         onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                                     >
                                         <SelectItem key="global" value="global">Global (Tout le site)</SelectItem>
-                                        <SelectItem key="category" value="category">Par Catégorie</SelectItem>
-                                        <SelectItem key="path" value="path">Par Parcours</SelectItem>
+                                        <SelectItem key="Category" value="Category">Par Catégorie</SelectItem>
+                                        <SelectItem key="Path" value="Path">Par Parcours</SelectItem>
                                     </Select>
 
                                     {/* DYNAMIC TARGET SELECTOR */}
-                                    {formData.type === 'category' && (
+                                    {formData.type === 'Category' && (
                                         <Select
                                             items={categories}
                                             label="Choisir la Catégorie"
@@ -250,7 +250,7 @@ export default function PlansManagement() {
                                         </Select>
                                     )}
 
-                                    {formData.type === 'path' && (
+                                    {formData.type === 'Path' && (
                                         <Select
                                             items={paths}
                                             label="Choisir le Parcours"

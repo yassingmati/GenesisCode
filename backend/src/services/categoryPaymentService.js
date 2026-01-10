@@ -18,9 +18,9 @@ class CategoryPaymentService {
       const Plan = require('../models/Plan');
       const Category = require('../models/Category');
 
-      console.log('🔍 Fetching plans from "plans" collection (type=Category)...');
-      // Retrieve plans with type 'Category' (must match schema enum)
-      const plans = await Plan.find({ type: 'Category', active: true }).lean();
+      console.log('🔍 Fetching plans from "plans" collection (type=Category/category)...');
+      // Retrieve plans with type 'Category' or 'category' to support both old and new plans
+      const plans = await Plan.find({ type: { $in: ['Category', 'category'] }, active: true }).lean();
 
       console.log(`✅ Found ${plans.length} plans in "plans" collection.`);
 

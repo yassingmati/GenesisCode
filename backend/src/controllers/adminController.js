@@ -356,7 +356,16 @@ exports.getAllPlans = async (req, res) => {
 exports.createPlan = async (req, res) => {
   try {
     const Plan = require('../models/Plan');
-    const { _id, name, priceMonthly, currency, type, targetId, interval, features, translations } = req.body;
+    const {
+      _id, name, priceMonthly, currency, type, targetId, interval,
+      features, translations
+    } = req.body;
+
+    // Normalize type for refPath/Enum (Category, Path, global)
+    let normalizedType = type;
+    if (type && type.toLowerCase() === 'category') normalizedType = 'Category';
+    if (type && type.toLowerCase() === 'path') normalizedType = 'Path';
+    if (type && type.toLowerCase() === 'global') normalizedType = 'global';
 
     const existing = await Plan.findById(_id);
     if (existing) return res.status(400).json({ message: 'ID du plan déjà utilisé' });
@@ -366,7 +375,7 @@ exports.createPlan = async (req, res) => {
       name,
       priceMonthly,
       currency,
-      type,
+      type: normalizedType,
       targetId,
       interval,
       features,
@@ -385,6 +394,13 @@ exports.updatePlan = async (req, res) => {
     const Plan = require('../models/Plan');
     const { id } = req.params;
     const updates = req.body;
+
+    // Normalize type if present
+    if (updates.type) {
+      if (updates.type.toLowerCase() === 'category') updates.type = 'Category';
+      if (updates.type.toLowerCase() === 'path') updates.type = 'Path';
+      if (updates.type.toLowerCase() === 'global') updates.type = 'global';
+    }
 
     // Prevent ID Update
     delete updates._id;

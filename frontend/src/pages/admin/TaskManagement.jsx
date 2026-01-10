@@ -100,7 +100,14 @@ const TaskManagement = () => {
     const fetchAssignedTasks = async () => {
         try {
             const tasks = await getAssignedTasks();
-            setAssignedTasks(tasks);
+            // Handle both array (legacy) and object (paginated) responses
+            if (Array.isArray(tasks)) {
+                setAssignedTasks(tasks);
+            } else if (tasks && tasks.tasks && Array.isArray(tasks.tasks)) {
+                setAssignedTasks(tasks.tasks);
+            } else {
+                setAssignedTasks([]);
+            }
         } catch (error) {
             console.error("Error fetching assigned tasks:", error);
         }
