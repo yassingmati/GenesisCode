@@ -21,13 +21,15 @@ export default function ClientPageLayout({
     backPath = null,
     backLabel = "Retour",
     heroContent = null,
-    isLite = false // For ExercisePage (less padding/hero)
+    isLite = false, // For ExercisePage (less padding/hero)
+    fullWidth = false,
+    className = ""
 }) {
     const navigate = useNavigate();
 
     if (loading) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+            <div className={`flex flex-col items-center justify-center min-h-[60vh] gap-4 ${className}`}>
                 <Spinner size="lg" color="primary" />
                 <p className="text-gray-500 font-medium">Chargement...</p>
             </div>
@@ -36,7 +38,7 @@ export default function ClientPageLayout({
 
     if (error) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-[50vh] p-6 text-center">
+            <div className={`flex flex-col items-center justify-center min-h-[50vh] p-6 text-center ${className}`}>
                 <div className="text-red-500 text-xl font-bold mb-4">{error}</div>
                 {onRetry && (
                     <Button color="primary" variant="flat" onPress={onRetry}>
@@ -48,7 +50,7 @@ export default function ClientPageLayout({
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 dark:bg-slate-900 pb-20 transition-colors duration-300 relative">
+        <div className={`min-h-screen bg-gray-50 dark:bg-slate-900 pb-20 transition-colors duration-300 relative ${className}`}>
             {/* Top Navigation Bar */}
             <Navbar
                 maxWidth="xl"
@@ -130,7 +132,7 @@ export default function ClientPageLayout({
             )}
 
             {/* Content Section */}
-            <div className={`max-w-7xl mx-auto px-4 md:px-8 relative z-20 ${!isLite ? '-mt-10' : 'pt-8'}`}>
+            <div className={`${fullWidth ? 'w-full px-0' : 'max-w-7xl mx-auto px-4 md:px-8'} relative z-20 ${!isLite ? '-mt-10' : ''}`}>
                 {children}
             </div>
         </div>

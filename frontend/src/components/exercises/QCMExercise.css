@@ -3,11 +3,13 @@
    ========================= */
 
 .qcm-exercise {
-  background: #ffffff;
+  background: #1a1b26;
+  /* Dark background to match the text options */
   border-radius: 12px;
   padding: 25px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  border: 1px solid #2e3c50;
+  color: #fff;
 }
 
 .qcm-exercise .options-list {
@@ -16,133 +18,160 @@
   gap: 15px;
 }
 
-.qcm-option {
-  display: flex;
-  align-items: flex-start;
-  padding: 15px 20px;
-  background: #ffffff;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+.option-content {
   position: relative;
-  overflow: hidden;
+  z-index: 2;
+  /* Ensure content stays above the hover background */
+  width: 100%;
 }
 
-.qcm-option::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 0;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  transition: width 0.3s ease;
-  z-index: 0;
+.qcm-option {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 0;
 }
 
 .qcm-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.qcm-option.selected {
+  background: rgba(102, 126, 234, 0.1);
   border-color: #667eea;
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
-  transform: translateY(-2px);
+  box-shadow: 0 0 0 1px #667eea, 0 4px 12px rgba(102, 126, 234, 0.2);
 }
 
-.qcm-option:hover::before {
-  width: 4px;
-}
-
-.qcm-option input[type="radio"],
-.qcm-option input[type="checkbox"] {
-  margin-right: 15px;
-  margin-top: 2px;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border: 2px solid #ccc;
-  border-radius: 50%;
-  outline: none;
-  cursor: pointer;
-  position: relative;
-  z-index: 1;
-  transition: all 0.3s ease;
-  flex-shrink: 0;
-}
-
-.qcm-option input[type="checkbox"] {
-  border-radius: 4px;
-}
-
-.qcm-option input[type="radio"]:checked,
-.qcm-option input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-color: #667eea;
-}
-
-.qcm-option input[type="radio"]:checked::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 6px;
-  height: 6px;
-  background: white;
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-}
-
-.qcm-option input[type="checkbox"]:checked::after {
-  content: '✓';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  color: white;
-  font-size: 12px;
-  font-weight: bold;
-  transform: translate(-50%, -50%);
-}
-
-.qcm-option input[type="radio"]:hover,
-.qcm-option input[type="checkbox"]:hover {
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+.option-header {
+  display: flex;
+  align-items: center;
+  width: 100%;
 }
 
 .option-text {
   flex: 1;
-  font-size: 1rem;
+  font-size: 1.05rem;
   line-height: 1.5;
-  color: #333;
+  color: #e2e8f0;
   position: relative;
-  z-index: 1;
-  font-weight: 500;
+  z-index: 2;
+  font-weight: 400;
+  padding-left: 16px;
+  transition: color 0.2s ease;
 }
 
-.qcm-option.selected {
+.qcm-option.selected .option-text {
+  color: #fff;
+  font-weight: 600;
+}
+
+.qcm-option .radio,
+.qcm-option .checkbox {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #586376;
+  background: transparent;
+  border-radius: 50%;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 0;
+  /* Handled by padding-left on text */
+  margin-top: 0;
+}
+
+.qcm-option .checkbox {
+  border-radius: 6px;
+}
+
+.qcm-option .radio.checked,
+.qcm-option .checkbox.checked {
+  background: #667eea;
   border-color: #667eea;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
-  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+  transform: scale(1.05);
+  /* Slight pop */
 }
 
-.qcm-option.selected::before {
-  width: 4px;
+.qcm-option:hover .radio,
+.qcm-option:hover .checkbox {
+  border-color: #7f9cf5;
 }
 
-/* =========================
-   MULTIPLE SELECTION STYLES
-   ========================= */
-
-.qcm-exercise.multiple-selection .qcm-option {
-  border-left: 4px solid transparent;
+/* Inner dot/checkmark handled by React but let's ensure it's centered white */
+.qcm-option .radio {
+  color: transparent;
+  font-size: 14px;
+  line-height: 1;
 }
 
-.qcm-exercise.multiple-selection .qcm-option.selected {
-  border-left-color: #667eea;
+.qcm-option .radio.checked {
+  color: #fff;
 }
 
-.qcm-exercise.multiple-selection .qcm-option input[type="checkbox"] {
-  border-radius: 4px;
+.qcm-option .checkbox {
+  color: transparent;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: bold;
+}
+
+.qcm-option .checkbox.checked {
+  color: #fff;
+}
+
+/* Radio (Single Choice) - Circle */
+.qcm-exercise.single-selection .qcm-option .radio {
+  border-radius: 50%;
+}
+
+.qcm-exercise.single-selection .qcm-option .radio::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: white;
+  border-radius: 50%;
+  transform: scale(0);
+  transition: transform 0.2s ease;
+}
+
+.qcm-exercise.single-selection .qcm-option .radio.checked::after {
+  transform: scale(1);
+}
+
+/* Checkbox (Multiple Choice) - Rounded Square */
+.qcm-exercise.multiple-selection .qcm-option .checkbox {
+  border-radius: 6px;
+}
+
+.qcm-exercise.multiple-selection .qcm-option .checkbox::after {
+  content: '✓';
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  transform: scale(0);
+  transition: transform 0.2s ease;
+}
+
+.qcm-exercise.multiple-selection .qcm-option .checkbox.checked::after {
+  transform: scale(1);
+}
+
+/* Remove text-based content since we use pseudo-elements now for cleaner icons */
+.qcm-option .radio,
+.qcm-option .checkbox {
+  font-size: 0 !important;
 }
 
 /* =========================
@@ -150,19 +179,20 @@
    ========================= */
 
 .qcm-option.disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
-  background: #f8f9fa;
+  background: rgba(255, 255, 255, 0.01);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 .qcm-option.disabled:hover {
   transform: none;
   box-shadow: none;
-  border-color: #e0e0e0;
 }
 
-.qcm-option.disabled input[type="radio"],
-.qcm-option.disabled input[type="checkbox"] {
+.qcm-option.disabled .radio,
+.qcm-option.disabled .checkbox {
+  border-color: #4a5568;
   cursor: not-allowed;
 }
 
@@ -175,6 +205,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -185,11 +216,25 @@
   animation: fadeInUp 0.3s ease-out;
 }
 
-.qcm-option:nth-child(1) { animation-delay: 0.1s; }
-.qcm-option:nth-child(2) { animation-delay: 0.2s; }
-.qcm-option:nth-child(3) { animation-delay: 0.3s; }
-.qcm-option:nth-child(4) { animation-delay: 0.4s; }
-.qcm-option:nth-child(5) { animation-delay: 0.5s; }
+.qcm-option:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.qcm-option:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.qcm-option:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.qcm-option:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+.qcm-option:nth-child(5) {
+  animation-delay: 0.5s;
+}
 
 /* =========================
    RESPONSIVE DESIGN
@@ -199,17 +244,17 @@
   .qcm-exercise {
     padding: 20px;
   }
-  
+
   .qcm-option {
     padding: 12px 15px;
   }
-  
+
   .option-text {
     font-size: 0.9rem;
   }
-  
-  .qcm-option input[type="radio"],
-  .qcm-option input[type="checkbox"] {
+
+  .qcm-option .radio,
+  .qcm-option .checkbox {
     width: 18px;
     height: 18px;
     margin-right: 12px;
@@ -220,21 +265,19 @@
   .qcm-exercise {
     padding: 15px;
   }
-  
+
   .qcm-option {
     padding: 10px 12px;
   }
-  
+
   .option-text {
     font-size: 0.85rem;
   }
-  
-  .qcm-option input[type="radio"],
-  .qcm-option input[type="checkbox"] {
+
+  .qcm-option .radio,
+  .qcm-option .checkbox {
     width: 16px;
     height: 16px;
     margin-right: 10px;
   }
 }
-
-

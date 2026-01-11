@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CodeEditor from './ui/CodeEditor';
 import ScratchEditor from './ui/ScratchEditor';
+import QCMExercise from './exercises/QCMExercise';
 import {
   Button,
   Checkbox,
@@ -91,7 +92,7 @@ export default function ExerciseAnswerInterface({
   const renderInterface = () => {
     switch (exercise.type) {
       case 'QCM':
-        return <QCMInterface exercise={exercise} answer={userAnswer} onAnswer={handleAnswerChange} />;
+        return <QCMExercise exercise={exercise} userAnswer={userAnswer} onAnswerChange={handleAnswerChange} />;
       case 'TextInput':
       case 'FillInTheBlank':
       case 'SpotTheError':

@@ -160,8 +160,39 @@ export default function ExercisesPanel({ onOpenCreate }) {
         fr_explanation: data.translations?.fr?.explanation || '',
         en_explanation: data.translations?.en?.explanation || '',
         ar_explanation: data.translations?.ar?.explanation || '',
-        options: data.options?.length ? data.options : ['', ''],
-        solutions: data.solutions || [],
+        options: Array.isArray(data.options)
+          ? data.options.map(opt => (opt && typeof opt === 'object' && opt.text) ? opt.text : String(opt || ''))
+          : ['', ''],
+        solutions: Array.isArray(data.solutions)
+          ? data.solutions.reduce((acc, s) => {
+            // 1. Try treating as direct numeric index
+            const asInt = parseInt(s, 10);
+            if (!isNaN(asInt) && String(asInt) === String(s)) {
+              acc.push(asInt);
+              return acc;
+            }
+
+            // Handle potential object value
+            const valueToMatch = (s && typeof s === 'object') ? (s.id || s._id || s.value) : s;
+
+            if (Array.isArray(data.options)) {
+              // 2. Try match by ID or Text
+              const idx = data.options.findIndex(opt => {
+                const optId = (opt && typeof opt === 'object') ? opt.id : null;
+                const optText = (opt && typeof opt === 'object') ? opt.text : opt;
+
+                // Match by ID
+                if (optId && optId === valueToMatch) return true;
+                // Match by Text
+                if (optText === valueToMatch) return true;
+
+                return false;
+              });
+              if (idx !== -1) acc.push(idx);
+            }
+            return acc;
+          }, [])
+          : [],
         elements: data.elements || [],
         targets: data.targets || [],
         testCases: data.testCases || [],
