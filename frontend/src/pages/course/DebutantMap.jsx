@@ -30,7 +30,8 @@ import {
   IconLock,
   IconLockOpen,
   IconCheck,
-  IconStar
+  IconStar,
+  IconTrophy
 } from '@tabler/icons-react';
 
 const API_BASE = `${API_CONFIG.BASE_URL}/api/courses`;
