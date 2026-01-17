@@ -1,19 +1,19 @@
-// src/components/CourseAccessGuard.jsx - Version améliorée
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from '../hooks/useTranslation';
 import SubscriptionModal from './SubscriptionModal';
+import LoadingSpinner from './ui/LoadingSpinner';
 import API_CONFIG from '../config/api';
 import './CourseAccessGuard.css';
 
-const CourseAccessGuard = ({ 
-  children, 
-  pathId, 
-  pathName, 
-  levelId = null, 
+const CourseAccessGuard = ({
+  children,
+  pathId,
+  pathName,
+  levelId = null,
   exerciseId = null,
-  showPreview = false 
+  showPreview = false
 }) => {
   const { currentUser, loading: authLoading } = useAuth();
   const { t } = useTranslation();
@@ -95,11 +95,11 @@ const CourseAccessGuard = ({
     } catch (err) {
       console.error('[CourseAccessGuard] Error checking access:', err);
       setError(t('accessCheckError') || 'Erreur de vérification d\'accès');
-      setAccess({ 
-        hasAccess: false, 
+      setAccess({
+        hasAccess: false,
         canView: false,
         canInteract: false,
-        reason: 'error' 
+        reason: 'error'
       });
     } finally {
       setLoading(false);
@@ -118,12 +118,13 @@ const CourseAccessGuard = ({
   // Loading state
   if (loading) {
     return (
-      <div className="access-guard-loading">
-        <div className="loading-spinner"></div>
-        <p>{t('checkingAccess') || 'Vérification de l\'accès...'}</p>
-      </div>
+      <LoadingSpinner
+        fullScreen={true}
+        message={t('checkingAccess') || "Vérification des accès..."}
+      />
     );
   }
+  // ...
 
   // Error state
   if (error) {
@@ -221,17 +222,17 @@ const CourseAccessGuard = ({
           transition={{ duration: 0.5 }}
         >
           <div className="blocked-icon">
-            {access?.reason === 'no_access' ? '🔒' : 
-             access?.reason === 'no_category_access' ? '📚' :
-             access?.reason === 'previous_level_not_completed' ? '🎯' :
-             access?.reason === 'level_not_unlocked' ? '🔐' :
-             access?.reason === 'plan_not_covering_path' ? '📦' : 
-             access?.reason === 'not_first_lesson' ? '🚪' : 
-             access?.reason === 'login_required' ? '🔑' : '🚫'}
+            {access?.reason === 'no_access' ? '🔒' :
+              access?.reason === 'no_category_access' ? '📚' :
+                access?.reason === 'previous_level_not_completed' ? '🎯' :
+                  access?.reason === 'level_not_unlocked' ? '🔐' :
+                    access?.reason === 'plan_not_covering_path' ? '📦' :
+                      access?.reason === 'not_first_lesson' ? '🚪' :
+                        access?.reason === 'login_required' ? '🔑' : '🚫'}
           </div>
-          
+
           <h3>{t('contentLocked') || 'Contenu Verrouillé'}</h3>
-          
+
           <div className="blocked-message">
             {access?.reason === 'no_access' && (
               <p>{t('needSubscription') || 'Ce contenu nécessite un abonnement pour y accéder.'}</p>
@@ -283,20 +284,20 @@ const CourseAccessGuard = ({
           )}
 
           <div className="blocked-actions">
-            {access?.reason !== 'previous_level_not_completed' && 
-             access?.reason !== 'level_not_unlocked' && 
-             access?.reason !== 'login_required' && (
-              <motion.button
-                onClick={handleSubscribe}
-                className="unlock-btn primary"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <span className="btn-icon">🔓</span>
-                {t('unlockAccess') || 'Débloquer l\'accès'}
-              </motion.button>
-            )}
-            
+            {access?.reason !== 'previous_level_not_completed' &&
+              access?.reason !== 'level_not_unlocked' &&
+              access?.reason !== 'login_required' && (
+                <motion.button
+                  onClick={handleSubscribe}
+                  className="unlock-btn primary"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <span className="btn-icon">🔓</span>
+                  {t('unlockAccess') || 'Débloquer l\'accès'}
+                </motion.button>
+              )}
+
             {access?.reason === 'login_required' && (
               <motion.button
                 onClick={() => window.location.href = '/auth'}

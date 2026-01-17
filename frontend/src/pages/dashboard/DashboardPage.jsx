@@ -150,28 +150,39 @@ const WelcomeCard = ({ onSelectOption, t, navigate }) => {
       {/* Dynamic Overlay Effects */}
       <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 mix-blend-overlay"></div>
 
-      {/* Glassmorphism Content Container */}
-      <div className="relative z-10 backdrop-blur-xl bg-white/40 dark:bg-white/5 border border-white/20 dark:border-white/10 p-4 md:p-6 lg:p-10 flex flex-col items-center text-center">
+      {/* Glassmorphism Content Container - Removed outer boxiness, now just a clean layout */}
+      <div className="relative z-10 py-2 sm:py-4 flex flex-col items-center text-center">
 
-        {/* Floating Abstract Shapes */}
-        <div className="absolute top-10 left-10 w-24 h-24 bg-purple-500/10 dark:bg-purple-500/30 rounded-full blur-3xl animate-blob"></div>
-        <div className="absolute bottom-10 right-10 w-32 h-32 bg-cyan-500/10 dark:bg-cyan-500/30 rounded-full blur-3xl animate-blob animation-delay-2000"></div>
+        {/* Floating Abstract Shapes - Adjusted for better blending */}
+        <div className="absolute -top-20 -left-20 w-64 h-64 bg-purple-500/20 dark:bg-purple-500/10 rounded-full blur-[100px] animate-blob"></div>
+        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-cyan-500/20 dark:bg-cyan-500/10 rounded-full blur-[100px] animate-blob animation-delay-2000"></div>
 
-        <div className="relative z-20 max-w-4xl mx-auto">
-          <div className="mb-2 inline-block px-4 py-1.5 rounded-full bg-gradient-to-r from-pink-500/10 to-purple-500/10 dark:from-pink-500/20 dark:to-purple-500/20 border border-pink-500/20 dark:border-pink-500/30 text-pink-600 dark:text-pink-300 text-xs font-medium tracking-wide shadow-sm animate-pulse-slow">
-            {currentT.adventure}
+        <div className="relative z-20 max-w-5xl mx-auto w-full px-4">
+
+          {/* Header Section */}
+          <div className="mb-8 md:mb-10">
+            <div className="mb-3 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/50 dark:bg-white/5 border border-white/20 dark:border-white/10 backdrop-blur-md shadow-sm animate-fade-in-up">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+              </span>
+              <span className="text-[10px] md:text-xs font-semibold tracking-wide bg-gradient-to-r from-gray-600 to-gray-900 dark:from-gray-300 dark:to-white bg-clip-text text-transparent uppercase">
+                {currentT.adventure}
+              </span>
+            </div>
+
+            <h1 className="text-3xl md:text-5xl lg:text-6xl font-black text-slate-800 dark:text-white drop-shadow-sm mb-4 leading-tight tracking-tight">
+              {currentT.welcome} <br className="hidden md:block" />
+              <span className="bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600 dark:from-cyan-400 dark:via-blue-500 dark:to-purple-500 bg-clip-text text-transparent animate-gradient-x">GenesisCode</span>
+            </h1>
+
+            <p className="text-sm md:text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto font-medium leading-relaxed">
+              {currentT.subtitle}
+            </p>
           </div>
 
-          <h1 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-transparent dark:bg-clip-text dark:bg-gradient-to-r dark:from-white dark:via-blue-100 dark:to-white drop-shadow-sm mb-4 leading-tight">
-            {currentT.welcome} <span className="bg-gradient-to-r from-cyan-600 to-purple-600 dark:from-cyan-400 dark:to-purple-400 bg-clip-text text-transparent">GenesisCode</span>
-          </h1>
-
-          <p className="text-base md:text-lg text-gray-600 dark:text-gray-300/90 max-w-2xl mx-auto font-light leading-relaxed mb-8">
-            {currentT.subtitle}
-          </p>
-
-          {/* Interactive Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+          {/* Interactive Cards Grid - Enhanced Option Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6 w-full max-w-4xl mx-auto">
             <OptionCard
               emoji="🚀"
               title={t('dashboard.chooseLanguage')}
@@ -219,16 +230,20 @@ const DashboardContent = ({ t, onSelectOption }) => {
   const userBadges = user?.badges || [];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-auto lg:h-full min-h-0">
-      <div className="lg:col-span-2 flex flex-col justify-center h-auto lg:h-full">
-        <WelcomeCard t={t} navigate={navigate} onSelectOption={onSelectOption} />
+    <div className="w-full flex flex-col lg:flex-row gap-6 h-auto lg:h-[calc(100vh-8rem)] min-h-0 overflow-hidden">
 
-        {/* Badges Section Removed */}
+      {/* Left Column: Welcome & Options (Scrollable if needed, but fitted) */}
+      <div className="flex-1 flex flex-col justify-center relative overflow-visible">
+        {/* Subtle background glow for the whole area */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-blue-500/5 blur-[120px] rounded-full pointing-events-none -z-10"></div>
+        <WelcomeCard t={t} navigate={navigate} onSelectOption={onSelectOption} />
       </div>
 
-      <div className="lg:col-span-1 h-[500px] lg:h-full min-h-0">
+      {/* Right Column: Leaderboard (Fixed height container) */}
+      <div className="w-full lg:w-[320px] xl:w-[360px] flex-none h-[400px] lg:h-full">
         <LeaderboardWidget />
       </div>
+
     </div>
   );
 };
@@ -236,49 +251,51 @@ const DashboardContent = ({ t, onSelectOption }) => {
 const OptionCard = ({ emoji, title, description, onClick, color, tag, startText, isRTL }) => {
   const isCyan = color === 'cyan';
   const gradient = isCyan ? 'from-cyan-500 to-blue-600' : 'from-purple-500 to-pink-600';
-  const glow = isCyan ? 'group-hover:shadow-[0_0_30px_rgba(6,182,212,0.4)]' : 'group-hover:shadow-[0_0_30px_rgba(168,85,247,0.4)]';
-  const border = isCyan ? 'group-hover:border-cyan-500/50' : 'group-hover:border-purple-500/50';
+  const glow = isCyan ? 'shadow-[0_0_20px_rgba(6,182,212,0.15)] group-hover:shadow-[0_0_40px_rgba(6,182,212,0.3)]' : 'shadow-[0_0_20px_rgba(168,85,247,0.15)] group-hover:shadow-[0_0_40px_rgba(168,85,247,0.3)]';
+  const border = isCyan ? 'border-cyan-200/50 dark:border-cyan-500/20 group-hover:border-cyan-400 dark:group-hover:border-cyan-400/50' : 'border-purple-200/50 dark:border-purple-500/20 group-hover:border-purple-400 dark:group-hover:border-purple-400/50';
+  const bg = isCyan ? 'bg-cyan-50/50 dark:bg-cyan-900/10' : 'bg-purple-50/50 dark:bg-purple-900/10';
 
   return (
     <button
       onClick={onClick}
-      className={`group relative h-full w-full text-left transition-all duration-500 hover:-translate-y-2 focus:outline-none`}
+      className={`group relative h-full w-full text-left transition-all duration-300 hover:-translate-y-1 focus:outline-none`}
     >
-      <div className={`active:scale-95 transition-transform duration-200 h-full`}>
-        {/* Main Card Background with blur */}
-        <div className={`relative h-full bg-white dark:bg-[#1a1b26]/60 backdrop-blur-md border border-gray-200 dark:border-white/5 rounded-3xl p-6 flex flex-col 
-                            transition-all duration-500 ${border} ${glow} overflow-hidden shadow-sm dark:shadow-none`}>
+      {/* Main Card */}
+      <div className={`relative h-full backdrop-blur-xl rounded-[2rem] p-5 md:p-6 flex flex-col 
+                            transition-all duration-300 border ${border} ${glow} ${bg} overflow-hidden`}>
 
-          {/* Hover Gradient Background */}
-          <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-500`}></div>
+        {/* Hover Gradient Overlay */}
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}></div>
 
-          {/* Tag */}
-          <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
-            <span className={`text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-md bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/50 group-hover:bg-white/20 group-hover:text-gray-900 dark:group-hover:text-white transition-colors`}>
-              {tag}
-            </span>
-          </div>
-
+        {/* Top Row: Icon & Tag */}
+        <div className={`flex justify-between items-start mb-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
           {/* Icon Circle */}
-          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${gradient} p-[1px] mb-6 shadow-lg transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-500`}>
-            <div className="w-full h-full rounded-[14px] bg-white dark:bg-[#1a1b26] flex items-center justify-center text-3xl group-hover:bg-transparent transition-colors duration-500">
+          <div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${gradient} p-[1px] shadow-lg transform transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3`}>
+            <div className="w-full h-full rounded-[15px] bg-white dark:bg-[#0f111a] flex items-center justify-center text-3xl">
               {emoji}
             </div>
           </div>
 
-          <h3 className={`text-xl font-bold text-gray-900 dark:text-white mb-2 group-hover:text-gray-900 dark:group-hover:text-white transition-colors relative z-10 ${isRTL ? 'text-right' : ''}`}>
-            {title}
-          </h3>
-
-          <p className={`text-gray-600 dark:text-gray-400 text-sm leading-relaxed group-hover:text-gray-900 dark:group-hover:text-gray-200 relative z-10 flex-grow ${isRTL ? 'text-right' : ''}`}>
-            {description}
-          </p>
-
-          {/* Arrow Icon */}
-          <div className={`mt-6 flex items-center text-sm font-semibold ${isCyan ? 'text-cyan-600 dark:text-cyan-400' : 'text-purple-600 dark:text-purple-400'} group-hover:text-gray-900 dark:group-hover:text-white transition-colors relative z-10 ${isRTL ? 'flex-row-reverse' : ''}`}>
-            {startText} <span className={`ml-2 transform group-hover:${isRTL ? '-translate-x-1' : 'translate-x-1'} transition-transform ${isRTL ? 'rotate-180 mr-2 ml-0' : ''}`}>→</span>
-          </div>
+          {/* Tag */}
+          <span className={`text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-full bg-white/60 dark:bg-white/10 border border-white/40 dark:border-white/5 text-slate-500 dark:text-slate-400 group-hover:bg-white dark:group-hover:bg-white/20 group-hover:text-slate-800 dark:group-hover:text-white transition-all`}>
+            {tag}
+          </span>
         </div>
+
+        <h3 className={`text-xl font-bold text-slate-800 dark:text-white mb-2 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r ${gradient} transition-all relative z-10 ${isRTL ? 'text-right' : ''}`}>
+          {title}
+        </h3>
+
+        <p className={`text-slate-600 dark:text-slate-400 text-xs md:text-sm font-medium leading-relaxed mb-6 flex-grow ${isRTL ? 'text-right' : ''}`}>
+          {description}
+        </p>
+
+        {/* Action Button Look */}
+        <div className={`mt-auto flex items-center justify-center w-full py-2.5 rounded-xl bg-white/50 dark:bg-white/5 border border-white/40 dark:border-white/10 group-hover:bg-gradient-to-r ${gradient} group-hover:text-white transition-all duration-300`}>
+          <span className="text-xs font-bold uppercase tracking-widest">{startText}</span>
+          <IconArrowRight size={14} className={`ml-2 transform group-hover:translate-x-1 transition-transform ${isRTL ? 'rotate-180 mr-2 ml-0' : ''}`} />
+        </div>
+
       </div>
     </button>
   );

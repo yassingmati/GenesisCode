@@ -22,6 +22,7 @@ import ScratchBlocksExercise from '../components/exercises/ScratchBlocksExercise
 import ConceptMappingExercise from '../components/exercises/ConceptMappingExercise';
 import CodeOutputExercise from '../components/exercises/CodeOutputExercise';
 import OptimizationExercise from '../components/exercises/OptimizationExercise';
+import WebProjectExercise from '../components/exercises/WebProjectExercise';
 
 // Composants UI
 import ExerciseHeader from '../components/ui/ExerciseHeader';
@@ -321,6 +322,9 @@ const ExerciseRenderer = ({ exercise, userAnswer, onAnswerChange, onCodeChange }
       case 'FillInTheBlank':
       case 'SpotTheError':
         return <CodeExercise {...commonProps} onCodeChange={onCodeChange} />;
+
+      case 'WebProject':
+        return <WebProjectExercise {...commonProps} />;
 
       default:
         return <div className="unsupported-type">

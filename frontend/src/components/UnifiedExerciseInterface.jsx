@@ -26,6 +26,7 @@ import TextInputExercise from './exercises/TextInputExercise';
 import CodeCompletionExercise from './exercises/CodeCompletionExercise';
 import CodeOutputExercise from './exercises/CodeOutputExercise';
 import AlgorithmStepsExercise from './exercises/AlgorithmStepsExercise';
+import WebProjectExercise from './exercises/WebProjectExercise';
 
 const Container = styled.div`
   max-width: 1000px;
@@ -162,7 +163,8 @@ export default function UnifiedExerciseInterface({
     'text-input': TextInputExercise,
     'code-completion': CodeCompletionExercise,
     'code-output': CodeOutputExercise,
-    'algorithm-steps': AlgorithmStepsExercise
+    'algorithm-steps': AlgorithmStepsExercise,
+    'WebProject': WebProjectExercise
   };
 
   const handleAnswerChange = useCallback((answer) => {

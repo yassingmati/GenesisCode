@@ -9,10 +9,8 @@ import {
   ActionIcon,
   Text,
   Box,
-  Stack,
   Code,
-  Tooltip,
-  Divider
+  Tooltip
 } from '@mantine/core';
 import {
   IconPlayerPlay,
@@ -29,10 +27,10 @@ const CodeEditor = ({
   language = 'javascript',
   readOnly = false,
   height = '400px',
-  theme = 'vs-dark',
   options = {},
   onMount = null,
   showToolbar = true,
+  showHeader = true,
   showLanguageSelector = false,
   onLanguageChange = null
 }) => {
@@ -161,59 +159,63 @@ Temps d'exécution: 0.001s`;
   };
 
   return (
-    <Paper withBorder radius="md" overflow="hidden" shadow="sm">
-      <Box p="xs" bg="dark.8" style={{ borderBottom: '1px solid #373A40' }}>
-        <Group justify="space-between">
-          <Group gap="xs">
-            {showLanguageSelector ? (
-              <Select
-                size="xs"
-                value={selectedLanguage}
-                onChange={handleLanguageChange}
-                disabled={readOnly}
-                data={Object.entries(languageMap).map(([key, lang]) => ({
-                  value: key,
-                  label: `${lang.icon} ${lang.name}`
-                }))}
-                styles={{ input: { backgroundColor: '#2C2E33', color: '#fff', border: '1px solid #373A40' } }}
-              />
-            ) : (
-              <Badge
-                variant="filled"
-                color="dark"
-                leftSection={<IconCode size={12} />}
-                size="lg"
-                radius="sm"
-              >
-                {languageMap[selectedLanguage]?.name || selectedLanguage.toUpperCase()}
-              </Badge>
-            )}
-            {readOnly && <Badge color="orange" variant="light">Lecture seule</Badge>}
+    <Paper withBorder radius="md" overflow="hidden" shadow="sm" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {showHeader && (
+        <Box p="xs" bg="dark.8" style={{ borderBottom: '1px solid #373A40' }}>
+          <Group justify="space-between">
+            <Group gap="xs">
+              {showLanguageSelector ? (
+                <Select
+                  size="xs"
+                  value={selectedLanguage}
+                  onChange={handleLanguageChange}
+                  disabled={readOnly}
+                  data={Object.entries(languageMap).map(([key, lang]) => ({
+                    value: key,
+                    label: `${lang.icon} ${lang.name}`
+                  }))}
+                  styles={{ input: { backgroundColor: '#2C2E33', color: '#fff', border: '1px solid #373A40' } }}
+                />
+              ) : (
+                <Badge
+                  variant="filled"
+                  color="dark"
+                  leftSection={<IconCode size={12} />}
+                  size="lg"
+                  radius="sm"
+                >
+                  {languageMap[selectedLanguage]?.name || selectedLanguage.toUpperCase()}
+                </Badge>
+              )}
+              {readOnly && <Badge color="orange" variant="light">Lecture seule</Badge>}
+            </Group>
+
+            <Button
+              size="xs"
+              variant="gradient"
+              gradient={{ from: 'green', to: 'teal' }}
+              leftSection={<IconPlayerPlay size={14} />}
+              onClick={handleExecute}
+              disabled={isExecuting || !value.trim()}
+              loading={isExecuting}
+            >
+              Exécuter
+            </Button>
           </Group>
+        </Box>
+      )}
 
-          <Button
-            size="xs"
-            variant="gradient"
-            gradient={{ from: 'green', to: 'teal' }}
-            leftSection={<IconPlayerPlay size={14} />}
-            onClick={handleExecute}
-            disabled={isExecuting || !value.trim()}
-            loading={isExecuting}
-          >
-            Exécuter
-          </Button>
-        </Group>
-      </Box>
-
-      <Editor
-        height={height}
-        language={selectedLanguage}
-        value={value}
-        onChange={onChange}
-        onMount={handleEditorDidMount}
-        options={defaultOptions}
-        theme="codegenesis-dark"
-      />
+      <div style={{ flex: 1, minHeight: 0 }}>
+        <Editor
+          height="100%"
+          language={selectedLanguage}
+          value={value}
+          onChange={onChange}
+          onMount={handleEditorDidMount}
+          options={defaultOptions}
+          theme="codegenesis-dark"
+        />
+      </div>
 
       {showToolbar && !readOnly && (
         <Box p="xs" bg="dark.8" style={{ borderTop: '1px solid #373A40' }}>

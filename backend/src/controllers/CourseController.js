@@ -112,7 +112,7 @@ const validateExercise = (ex, partial = false) => {
     // Nouveaux types pour algorithmes et programmation
     'Algorithm', 'FlowChart', 'Trace', 'Debug', 'CodeCompletion', 'PseudoCode', 'Complexity',
     'DataStructure', 'ScratchBlocks', 'VisualProgramming', 'AlgorithmSteps', 'ConceptMapping',
-    'CodeOutput', 'Optimization', 'Scratch'
+    'CodeOutput', 'Optimization', 'Scratch', 'WebProject'
   ];
 
   if (!partial || ('type' in ex)) {
@@ -298,6 +298,19 @@ const validateExercise = (ex, partial = false) => {
         throw err;
       }
       break;
+    case 'WebProject':
+      if ((!partial || 'files' in ex) && (!Array.isArray(ex.files))) {
+        const err = new Error('WebProject nécessite des fichiers (files) sous forme de tableau');
+        err.status = 400;
+        throw err;
+      }
+      // Optional: Check solutionImage format if present
+      if ((!partial || 'solutionImage' in ex) && ex.solutionImage && typeof ex.solutionImage !== 'string') {
+        const err = new Error('WebProject solutionImage doit être une URL (chaîne)');
+        err.status = 400;
+        throw err;
+      }
+      break;
 
     case 'Trace':
       if ((!partial || 'traceVariables' in ex) && (!Array.isArray(ex.traceVariables) || ex.traceVariables.length === 0)) {
@@ -471,10 +484,23 @@ const uploadPDFMiddleware = (req, res, next) => {
   });
 };
 
+const uploadImageMiddleware = (req, res, next) => {
+  const imageExt = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+  const upload = configureMulter({ allowedExt: imageExt, maxSize: 10 * 1024 * 1024, subdir: 'images' }).single('image');
+  upload(req, res, (err) => {
+    if (err instanceof multer.MulterError) return res.status(400).json({ error: err.message });
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+};
+
 /* ============================
    Controller class
    ============================ */
 class CourseController {
+  static uploadVideoMiddleware = uploadVideoMiddleware;
+  static uploadPDFMiddleware = uploadPDFMiddleware;
+  static uploadImageMiddleware = uploadImageMiddleware;
   /* -----------------------
       Catalog (Categories -> Paths -> Levels -> Exercises)
       ----------------------- */
@@ -806,7 +832,11 @@ class CourseController {
         dataStructureOperations: ex.dataStructureOperations || [],
         visualElements: ex.visualElements || [],
         concepts: ex.concepts || [],
-        definitions: ex.definitions || []
+
+        definitions: ex.definitions || [],
+        // WebProject specific
+        files: ex.files || [],
+        validationRules: ex.validationRules || []
       };
 
       // Ajouter testCases mais filtrer les informations sensibles
@@ -968,7 +998,18 @@ class CourseController {
       language: exercise.language,
       prompts: exercise.prompts || [],
       matches: exercise.matches || [],
-      level: exercise.level
+      level: exercise.level,
+      // Added fields for WebProject and Scratch
+      files: exercise.files || [],
+      validationRules: exercise.validationRules || [],
+      solutionImage: exercise.solutionImage,
+      solutions: exercise.solutions || [],
+      // Scratch / Code fields
+      scratchBlocks: exercise.scratchBlocks || [],
+      initialXml: exercise.initialXml,
+      solutionXml: exercise.solutionXml, // If exists
+      codeSnippet: exercise.codeSnippet,
+      testCases: exercise.testCases || []
     };
 
     // Ajouter testCases mais filtrer les informations sensibles
@@ -1097,7 +1138,7 @@ class CourseController {
     // Évaluer la réponse avec le service
     let evaluationResult;
     try {
-      evaluationResult = ExerciseService.evaluateAnswer(exercise, answer, {
+      evaluationResult = await ExerciseService.evaluateAnswer(exercise, answer, {
         passed,
         passedCount,
         totalCount,
@@ -1571,6 +1612,30 @@ class CourseController {
     }
   });
 
+  // Save Image (Generic)
+  static saveImage = catchErrors(async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Aucun fichier reçu' });
+    const filename = req.file.filename;
+
+    try {
+      // Construct URL
+      const protocol = req.protocol;
+      const host = req.get('host');
+      // Use proxyFile for unified access or direct gridfs route
+      const fileUrl = `${protocol}://${host}/api/files/${filename}`;
+
+      res.json({
+        message: 'Image enregistrée sur GridFS',
+        url: fileUrl,
+        filename: filename
+      });
+    } catch (error) {
+      console.error('GridFS save image error:', error);
+      await deleteGridFSFile(filename);
+      res.status(500).json({ error: 'Erreur lors de l\'enregistrement image' });
+    }
+  });
+
   // delete single language video
   static deleteLevelVideo = catchErrors(async (req, res) => {
     const lang = (req.body?.lang || req.query?.lang || '').toLowerCase();
@@ -1809,5 +1874,7 @@ module.exports = {
   catchErrors,
   configureMulter,
   uploadVideoMiddleware: CourseController.uploadVideoMiddleware,
-  uploadPDFMiddleware: CourseController.uploadPDFMiddleware
+  uploadPDFMiddleware: CourseController.uploadPDFMiddleware,
+  uploadImageMiddleware,
+  defaultVideoExt
 };

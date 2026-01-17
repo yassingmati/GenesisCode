@@ -143,6 +143,15 @@ router.get('/categories/:categoryId/paths',
 );
 
 /* ===========================
+   Upload Generic (Images)
+   =========================== */
+router.post('/upload/image',
+  protectUserOrAdmin,
+  CourseController.uploadImageMiddleware,
+  catchErrors(CourseController.saveImage)
+);
+
+/* ===========================
    Levels
    =========================== */
 router.post('/levels', protectUserOrAdmin, catchErrors(CourseController.createLevel));

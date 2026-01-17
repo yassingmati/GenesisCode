@@ -12,10 +12,14 @@ class ExerciseService {
    * @param {Object} options - Options supplémentaires (passed, passedCount, totalCount, tests)
    * @returns {Object} { isCorrect, pointsEarned, xp, details }
    */
-  static evaluateAnswer(exercise, answer, options = {}) {
+  static async evaluateAnswer(exercise, answer, options = {}) {
     const type = exercise.type;
     const pointsMax = exercise.points || 10;
     const allowPartial = exercise.allowPartial !== false; // default true
+
+    if (process.env.DEBUG_EXERCISE) {
+      console.log(`[ExerciseService] Evaluating type: "${type}" for exercise ${exercise._id}`);
+    }
 
     let isCorrect = false;
     let pointsEarned = 0;
@@ -85,7 +89,12 @@ class ExerciseService {
         case 'Optimization':
           return this.evaluateOptimization(exercise, answer, pointsMax);
 
+        case 'WebProject':
+          console.log('[ExerciseService] Dispatching WebProject evaluation...');
+          return await this.evaluateWebProject(exercise, answer, pointsMax);
+
         default:
+          console.error(`[ExerciseService] Unsupported type: "${type}" (Length: ${type?.length})`);
           throw new Error(`Type d'exercice non supporté: ${type}`);
       }
     } catch (error) {
@@ -820,6 +829,87 @@ class ExerciseService {
         pointsEarned,
         pointsMax
       }
+    };
+  }
+
+  /**
+   * Évalue WebProject
+   */
+  static evaluateWebProject(exercise, answer, pointsMax) {
+    const files = answer?.files || [];
+    const rules = exercise.validationRules || [];
+    let feedbackCallbacks = [];
+    let details = { rules: [] };
+    let pointsEarned = 0;
+
+    // 1. Rule Evaluation
+    if (rules.length > 0) {
+      let totalRuleWeight = 0;
+      let earnedRuleWeight = 0;
+
+      for (const rule of rules) {
+        const weight = rule.points || 10;
+        totalRuleWeight += weight;
+        let rulePassed = false;
+
+        // Concatenate all user code and search
+        const allUserCode = files.map(f => f.content).join('\n');
+
+        try {
+          if (rule.isRegex) {
+            const regex = new RegExp(rule.value, 'i');
+            rulePassed = regex.test(allUserCode);
+          } else {
+            rulePassed = allUserCode.toLowerCase().includes(rule.value.toLowerCase());
+          }
+        } catch (e) {
+          console.error(`Rule execution error for ${rule.value}:`, e);
+          rulePassed = false;
+        }
+
+        details.rules.push({
+          rule: rule.value,
+          passed: rulePassed,
+          message: rule.message
+        });
+
+        if (rulePassed) {
+          earnedRuleWeight += weight;
+        } else {
+          feedbackCallbacks.push(`❌ ${rule.message || `Manquant: "${rule.value}"`}`);
+        }
+      }
+
+      // Calculate final score
+      const ratio = totalRuleWeight > 0 ? (earnedRuleWeight / totalRuleWeight) : (files.length > 0 ? 1 : 0);
+      pointsEarned = Math.round(ratio * pointsMax);
+
+      if (ratio === 1) {
+        feedbackCallbacks.push("Excellent travail ! Tout le code requis est présent.");
+      } else if (ratio < 1 && ratio > 0) {
+        feedbackCallbacks.push(`Vous avez obtenu ${pointsEarned}/${pointsMax} points.`);
+      }
+
+    } else {
+      // Fallback (No rules)
+      if (files.length > 0 && files.some(f => f.content && f.content.length > 10)) {
+        pointsEarned = pointsMax;
+        feedbackCallbacks.push("Projet soumis avec succès.");
+      } else {
+        pointsEarned = 0;
+        feedbackCallbacks.push("Votre projet semble vide.");
+      }
+    }
+
+    return {
+      isCorrect: pointsEarned >= (pointsMax * 0.8),
+      pointsEarned,
+      xp: Math.floor(pointsEarned / 10),
+      details: {
+        ...details,
+        files: files.map(f => ({ name: f.name, language: f.language }))
+      },
+      feedback: feedbackCallbacks.join('\n')
     };
   }
 

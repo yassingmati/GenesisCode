@@ -52,7 +52,7 @@ const LeaderboardWidget = () => {
         setLoading(true);
         try {
             // Using axios api instance which handles base URL and auth token auto-magically
-            const res = await api.get(`/api/users/leaderboard?limit=10&period=${period}`);
+            const res = await api.get(`/api/users/leaderboard?limit=5&period=${period}`);
             const data = res.data;
             if (Array.isArray(data)) {
                 setUsers(data);
@@ -67,134 +67,116 @@ const LeaderboardWidget = () => {
     const getRankIcon = (rank) => {
         switch (rank) {
             case 1: return <TrophyIcon className="w-6 h-6 text-yellow-500" />;
-            case 2: return <TrophyIcon className="w-6 h-6 text-gray-400" />;
-            case 3: return <TrophyIcon className="w-6 h-6 text-amber-600" />;
-            default: return <span className="font-bold text-gray-500 w-6 text-center">{rank}</span>;
+            case 2: return <TrophyIcon className="w-6 h-6 text-gray-300" />;
+            case 3: return <TrophyIcon className="w-6 h-6 text-amber-700" />;
+            default: return <span className="font-bold text-gray-500 dark:text-gray-400 w-6 text-center">{rank}</span>;
         }
     };
 
     return (
-        <Card className="h-full flex flex-col bg-white/60 dark:bg-[#1a1b26]/60 backdrop-blur-xl border border-gray-200 dark:border-white/5 shadow-2xl overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
-            <CardHeader className="flex-none flex flex-col gap-3 pb-2 pt-6 px-6">
+        <Card className="h-full flex flex-col bg-white/10 dark:bg-black/20 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-2xl overflow-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
+            <CardHeader className="flex-none flex flex-col gap-3 pb-3 pt-4 px-4 bg-gradient-to-b from-white/5 to-transparent">
                 <div className="flex justify-between w-full items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-gradient-to-br from-amber-500/20 to-yellow-600/20 rounded-xl border border-amber-500/30">
-                            <TrophyIcon className="w-6 h-6 text-amber-500 dark:text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.5)]" />
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 bg-gradient-to-br from-amber-500/20 to-orange-600/20 rounded-lg border border-amber-500/30 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                            <TrophyIcon className="w-5 h-5 text-amber-500 dark:text-amber-400" />
                         </div>
-                        <h3 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400">{t.title}</h3>
+                        <div>
+                            <h3 className="text-lg font-black tracking-tight text-gray-900 dark:text-white">
+                                {t.title}
+                            </h3>
+                            <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-widest">Top 5</p>
+                        </div>
                     </div>
                 </div>
                 <Tabs
                     aria-label="Leaderboard Period"
                     color="warning"
-                    variant="underlined"
+                    variant="light"
                     classNames={{
-                        tabList: "gap-6 w-full relative rounded-none p-0 border-b border-gray-200 dark:border-white/10",
-                        cursor: "w-full bg-gradient-to-r from-amber-400 to-yellow-500 h-0.5",
-                        tab: "max-w-fit px-0 h-12",
-                        tabContent: "group-data-[selected=true]:text-amber-500 dark:group-data-[selected=true]:text-amber-400 text-gray-500 dark:text-gray-400 font-medium transition-colors"
+                        tabList: "gap-1 w-full bg-gray-100/50 dark:bg-white/5 p-1 rounded-lg",
+                        cursor: "w-full bg-white dark:bg-zinc-800 shadow-sm rounded-md",
+                        tab: "h-7 px-2 text-[10px] font-medium",
+                        tabContent: "group-data-[selected=true]:text-gray-900 dark:group-data-[selected=true]:text-white text-gray-500 dark:text-gray-400"
                     }}
                     selectedKey={period}
                     onSelectionChange={setPeriod}
                 >
-                    <Tab
-                        key="alltime"
-                        title={
-                            <div className="flex items-center space-x-2">
-                                <span>{t.global}</span>
-                            </div>
-                        }
-                    />
-                    <Tab
-                        key="monthly"
-                        title={
-                            <div className="flex items-center space-x-2">
-                                <CalendarIcon className="w-4 h-4" />
-                                <span>{t.month}</span>
-                            </div>
-                        }
-                    />
-                    <Tab
-                        key="daily"
-                        title={
-                            <div className="flex items-center space-x-2">
-                                <FireIcon className="w-4 h-4" />
-                                <span>{t.day}</span>
-                            </div>
-                        }
-                    />
+                    <Tab key="alltime" title={t.global} />
+                    <Tab key="monthly" title={t.month} />
+                    <Tab key="daily" title={t.day} />
                 </Tabs>
             </CardHeader>
-            <CardBody className="flex-1 overflow-y-auto min-h-0 py-4 px-4 custom-scrollbar">
+            <CardBody className="flex-1 overflow-y-auto min-h-0 py-2 px-3 custom-scrollbar">
                 {loading ? (
                     <div className="flex justify-center items-center h-full">
-                        <CircularProgress color="warning" aria-label="Loading..." size="lg" />
+                        <CircularProgress color="warning" aria-label="Loading..." size="md" />
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-1.5">
                         {users.map((user, index) => {
-                            let rankStyle = "bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/5";
+                            let rankStyle = "bg-white/40 dark:bg-zinc-800/40 border-transparent hover:bg-white/60 dark:hover:bg-zinc-800/60";
                             let rankGlow = "";
-                            let avatarRing = "border-gray-200 dark:border-white/10";
+                            let avatarRing = "border-gray-200 dark:border-zinc-700";
 
                             if (index === 0) { // Gold
-                                rankStyle = "bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-amber-500/30";
-                                rankGlow = "shadow-[0_0_15px_rgba(245,158,11,0.1)]";
-                                avatarRing = "border-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.4)]";
+                                rankStyle = "bg-gradient-to-r from-amber-500/10 to-yellow-500/5 border-amber-500/20 hover:from-amber-500/20";
+                                rankGlow = "shadow-[0_0_20px_rgba(245,158,11,0.1)]";
+                                avatarRing = "border-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.4)] ring-2 ring-amber-400/20";
                             } else if (index === 1) { // Silver
-                                rankStyle = "bg-gradient-to-r from-gray-400/10 to-slate-400/10 border border-gray-400/30";
-                                avatarRing = "border-gray-300 shadow-[0_0_10px_rgba(209,213,219,0.3)]";
+                                rankStyle = "bg-gradient-to-r from-slate-300/10 to-gray-300/5 border-slate-400/20 hover:from-slate-300/20";
+                                avatarRing = "border-slate-300 shadow-[0_0_10px_rgba(203,213,225,0.3)]";
                             } else if (index === 2) { // Bronze
-                                rankStyle = "bg-gradient-to-r from-orange-700/10 to-yellow-800/10 border border-orange-700/30";
-                                avatarRing = "border-orange-600 shadow-[0_0_10px_rgba(234,88,12,0.3)]";
+                                rankStyle = "bg-gradient-to-r from-orange-800/10 to-amber-900/5 border-orange-700/20 hover:from-orange-800/20";
+                                avatarRing = "border-orange-700 shadow-[0_0_10px_rgba(194,65,12,0.3)]";
                             }
 
                             return (
-                                <div key={user._id || index} className={`flex items-center justify-between p-3 rounded-2xl transition-all duration-300 hover:scale-[1.02] hover:bg-gray-100 dark:hover:bg-white/10 ${rankStyle} ${rankGlow} ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                    <div className={`flex items-center gap-4 ${isRTL ? 'flex-row-reverse' : ''}`}>
-                                        <div className="flex justify-center items-center w-8 font-black text-lg text-gray-700 dark:text-white/80">
+                                <div key={user._id || index} className={`group flex items-center justify-between p-2 rounded-xl border transition-all duration-300 ${rankStyle} ${rankGlow} ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                    <div className={`flex items-center gap-3 ${isRTL ? 'flex-row-reverse' : ''}`}>
+                                        <div className="flex justify-center items-center w-5 font-black text-sm text-gray-400">
                                             {getRankIcon(index + 1)}
                                         </div>
-                                        <div className={`relative rounded-full p-[2px] border-2 ${avatarRing}`}>
+                                        <div className={`relative rounded-full p-[1.5px] border-2 transition-transform duration-300 group-hover:scale-105 ${avatarRing}`}>
                                             <Avatar
                                                 src={user.avatar}
                                                 name={user.firstName?.charAt(0)}
-                                                className="w-10 h-10 text-large"
+                                                className="w-8 h-8 text-sm"
                                                 showFallback
                                             />
-                                            {index < 3 && <div className="absolute -top-1 -right-1 flex h-4 w-4">
-                                                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${index === 0 ? 'bg-amber-400' : index === 1 ? 'bg-gray-300' : 'bg-orange-500'}`}></span>
-                                                <span className={`relative inline-flex rounded-full h-4 w-4 ${index === 0 ? 'bg-amber-500' : index === 1 ? 'bg-gray-400' : 'bg-orange-600'}`}></span>
-                                            </div>}
-                                        </div>
-                                        <div className={`flex flex-col ${isRTL ? 'items-end' : ''}`}>
-                                            <span className={`text-sm font-bold truncate max-w-[120px] ${index === 0 ? 'text-amber-600 dark:text-amber-300' : 'text-gray-700 dark:text-gray-200'}`}>
-                                                {user.firstName} {user.lastName}
-                                            </span>
-                                            {user.rank > 0 && (
-                                                <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-white/40 tracking-wider">{t.rank} {user.rank}</span>
+                                            {index === 0 && (
+                                                <div className="absolute -top-1.5 -right-1.5 text-base">👑</div>
                                             )}
                                         </div>
+                                        <div className={`flex flex-col ${isRTL ? 'items-end' : ''}`}>
+                                            <span className={`text-xs font-bold truncate max-w-[100px] ${index === 0 ? 'text-amber-600 dark:text-amber-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                                                {user.firstName} {user.lastName}
+                                            </span>
+                                            <div className="flex items-center gap-1 mt-0">
+                                                {user.rank > 0 && (
+                                                    <span className={`text-[9px] font-bold px-1 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400`}>
+                                                        #{user.rank}
+                                                    </span>
+                                                )}
+                                                <span className="text-[9px] text-gray-400 dark:text-gray-500">Lvl {Math.floor(user.totalXP / 1000) + 1}</span>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <Chip
-                                        startContent={<StarIcon className="w-3 h-3 text-yellow-900" />}
-                                        variant="shadow"
-                                        classNames={{
-                                            base: "bg-gradient-to-r from-yellow-400 to-amber-500 border-none shadow-[0_0_10px_rgba(251,191,36,0.4)]",
-                                            content: "font-black text-yellow-950 px-2"
-                                        }}
-                                        size="sm"
-                                    >
-                                        {period === 'daily' ? (user.xpStats?.daily || 0) :
-                                            period === 'monthly' ? (user.xpStats?.monthly || 0) :
-                                                user.totalXP} {t.xp}
-                                    </Chip>
+                                    <div className="flex flex-col items-end">
+                                        <div className="flex items-center gap-1 text-amber-500 font-bold text-xs">
+                                            {period === 'daily' ? (user.xpStats?.daily || 0) :
+                                                period === 'monthly' ? (user.xpStats?.monthly || 0) :
+                                                    user.totalXP}
+                                            <span className="text-[9px] font-bold text-amber-600/70 dark:text-amber-500/70">XP</span>
+                                        </div>
+                                    </div>
                                 </div>
                             );
                         })}
                         {users.length === 0 && (
-                            <div className="text-center text-gray-500 py-10 italic">
-                                {t.empty}
+                            <div className="text-center py-8 flex flex-col items-center gap-2 opacity-60">
+                                <TrophyIcon className="w-10 h-10 text-gray-300 dark:text-gray-600" />
+                                <span className="text-xs font-medium text-gray-500 dark:text-gray-400">{t.empty}</span>
                             </div>
                         )}
                     </div>

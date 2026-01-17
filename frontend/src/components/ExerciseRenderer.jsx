@@ -17,8 +17,11 @@ import {
   VisualProgrammingExercise,
   ConceptMappingExercise,
   CodeOutputExercise,
+  CodeOutputExercise,
   OptimizationExercise
 } from '../pages/course/NewExerciseComponents';
+
+import WebProjectExercise from './exercises/WebProjectExercise';
 
 // Import des composants d'exercices classiques
 import QCMExercise from './exercises/QCMExercise';
@@ -147,6 +150,9 @@ const ExerciseRenderer = ({
 
       case 'Scratch':
         return <ScratchExercise {...commonProps} />;
+
+      case 'WebProject':
+        return <WebProjectExercise {...commonProps} />;
 
       default:
         return (

@@ -35,6 +35,14 @@ const matchingPairSchema = new Schema({
   content: { type: String, required: true }
 }, { _id: false });
 
+// Schéma pour les fichiers de projet web (WebProject)
+const projectFileSchema = new Schema({
+  name: { type: String, required: true },
+  content: { type: String, default: '' },
+  language: { type: String, required: true }, // 'html', 'css', 'javascript'
+  readOnly: { type: Boolean, default: false }
+}, { _id: false });
+
 // Schéma principal de l'exercice
 const exerciseSchema = new Schema({
   // Traductions multilingues
@@ -73,7 +81,9 @@ const exerciseSchema = new Schema({
       'ConceptMapping',     // Association concepts-définitions
       'CodeOutput',         // Prédiction de sortie de code
       'Optimization',       // Optimisation de code/algorithme
-      'Scratch'             // Programmation visuelle avec Blockly
+      'Optimization',       // Optimisation de code/algorithme
+      'Scratch',            // Programmation visuelle avec Blockly
+      'WebProject'          // Projet Web (HTML/CSS/JS)
     ],
     required: true
   },
@@ -121,7 +131,12 @@ const exerciseSchema = new Schema({
   definitions: { type: [matchingPairSchema], default: [] },       // ConceptMapping: définitions
   expectedOutput: { type: Schema.Types.Mixed },                   // CodeOutput: sortie attendue
   optimizationCriteria: { type: [String], default: [] },         // Optimization: critères (temps, espace...)
+  educationCriteria: { type: [String], default: [] },          // Optimization: critères (temps, espace...)    // Optimization: critères (temps, espace...)
   performanceMetrics: { type: Schema.Types.Mixed },               // Optimization: métriques de performance
+
+  // Champs pour WebProject
+  files: { type: [projectFileSchema], default: [] },              // WebProject: fichiers initiaux
+  solutionImage: { type: String, default: null },                 // WebProject: URL de l'image de solution attendue
 
   // Solutions (structure flexible selon le type)
   solutions: { type: [Schema.Types.Mixed], default: [] },

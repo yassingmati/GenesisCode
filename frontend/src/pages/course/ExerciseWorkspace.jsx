@@ -451,9 +451,10 @@ export default function ExerciseWorkspace() {
                     <IconBrain size={20} className="text-primary" />
                     Énoncé
                   </h3>
-                  <div className="whitespace-pre-wrap text-default-700 leading-relaxed">
-                    {exercise?.question}
-                  </div>
+                  <div
+                    className="text-default-700 leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: exercise?.question }} // Enable HTML for images
+                  />
                 </CardBody>
               </Card>
 
@@ -518,9 +519,15 @@ export default function ExerciseWorkspace() {
                         <h4 className={`font-bold text-lg ${submissionResult.correct ? 'text-success' : 'text-danger'}`}>
                           {submissionResult.correct ? 'Excellent travail !' : 'Pas tout à fait...'}
                         </h4>
-                        <p className="text-sm text-default-500">
-                          {submissionResult.message || (submissionResult.correct ? "Vous avez réussi cet exercice." : "Essayez encore, vous pouvez y arriver !")}
-                        </p>
+                        <div className="text-sm text-default-500">
+                          {(!submissionResult.correct && submissionResult.feedback) ? (
+                            <div className="whitespace-pre-wrap font-mono bg-default-100 dark:bg-default-50 p-2 rounded mt-1 border border-default-200 text-foreground">
+                              {submissionResult.feedback}
+                            </div>
+                          ) : (
+                            submissionResult.message || (submissionResult.correct ? "Vous avez réussi cet exercice." : "Essayez encore, vous pouvez y arriver !")
+                          )}
+                        </div>
                       </div>
                     </div>
 

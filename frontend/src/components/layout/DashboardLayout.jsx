@@ -7,9 +7,9 @@ import TimeTracker from '../TimeTracker';
 export default function DashboardLayout({ children, activePage, setActivePage }) {
     const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
         if (typeof window !== 'undefined') {
-            return window.innerWidth < 1024;
+            return window.innerWidth >= 1024 ? true : window.innerWidth < 1024; // Always start collapsed on desktop too
         }
-        return false;
+        return true;
     });
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const location = useLocation();
@@ -30,8 +30,8 @@ export default function DashboardLayout({ children, activePage, setActivePage })
                 // Tablet: Rail mode (Auto collapsed)
                 setSidebarCollapsed(true);
             } else {
-                // Desktop: Default expanded
-                setSidebarCollapsed(false);
+                // Desktop: Default collapsed (User request)
+                setSidebarCollapsed(true);
             }
         };
 

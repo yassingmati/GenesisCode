@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import SubscriptionService from '../../services/subscriptionService';
 import { toast } from 'react-toastify';
 import {
-  Card, CardBody, CardHeader, Button, Chip, Spinner, Divider, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell
+  Card, CardBody, CardHeader, Button, Chip, Divider, Table, TableHeader, TableColumn, TableBody, TableRow, TableCell
 } from "@nextui-org/react";
+import LoadingSpinner from '../../components/LoadingSpinner';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { IconPremiumRights, IconCalendarTime, IconHistory, IconDownload } from '@tabler/icons-react';
@@ -46,9 +47,7 @@ export default function MySubscriptions() {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[50vh]">
-        <Spinner size="lg" color="primary" label="Chargement des abonnements..." />
-      </div>
+      <LoadingSpinner fullScreen={false} message="Chargement des abonnements..." />
     );
   }
 

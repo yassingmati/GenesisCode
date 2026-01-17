@@ -15,6 +15,8 @@ import FormModal from '../components/FormModal';
 import ScratchEditor from '../../../components/ui/ScratchEditor';
 
 export default function ExercisesPanel({ onOpenCreate }) {
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [paths, setPaths] = useState([]);
   const [levels, setLevels] = useState([]);
   const [exercises, setExercises] = useState([]);
@@ -30,6 +32,7 @@ export default function ExercisesPanel({ onOpenCreate }) {
   const [form, setForm] = useState({
     level: '',
     type: 'QCM',
+    fr_name: '', en_name: '', ar_name: '',
     fr_question: '', en_question: '', ar_question: '',
     fr_explanation: '', en_explanation: '', ar_explanation: '',
     options: ['', ''],
@@ -37,20 +40,40 @@ export default function ExercisesPanel({ onOpenCreate }) {
     elements: [],
     targets: [],
     testCases: [],
-    testCases: [],
     initialXml: '',
     scratchBlocks: [],
     validationRules: [],
     language: 'javascript', // Code
     codeSnippet: '', // Code
-    solutionXml: '' // Scratch Solution
+    solutionXml: '', // Scratch Solution
+    dragDropSolutions: {},
+    files: [], // WebProject files
+    solutionImage: '' // WebProject solution image
   });
   const [scratchTab, setScratchTab] = useState('initial'); // 'initial' or 'solution'
   const [confirm, setConfirm] = useState({ open: false, id: null });
 
   useEffect(() => {
-    fetchPaths();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [pathsRes, catsRes] = await Promise.all([
+        api.get('/paths'),
+        api.get('/categories')
+      ]);
+      setPaths(Array.isArray(pathsRes.data) ? pathsRes.data : []);
+      setCategories(Array.isArray(catsRes.data) ? catsRes.data : []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filteredPaths = useMemo(() => {
+    if (!selectedCategory) return paths;
+    return paths.filter(p => p.category === selectedCategory || p.category?._id === selectedCategory);
+  }, [paths, selectedCategory]);
 
   useEffect(() => {
     if (selectedPath) {
@@ -138,7 +161,10 @@ export default function ExercisesPanel({ onOpenCreate }) {
       language: 'javascript',
       codeSnippet: '',
       solutionXml: '',
-      dragDropSolutions: {} // DragDrop solutions map
+      solutionXml: '',
+      dragDropSolutions: {}, // DragDrop solutions map
+      files: [{ name: 'index.html', content: '<h1>Hello</h1>', language: 'html' }, { name: 'style.css', content: 'h1 { color: red; }', language: 'css' }],
+      solutionImage: ''
     });
     setScratchTab('initial');
     setModalOpen(true);
@@ -202,7 +228,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
         language: data.language || 'javascript',
         codeSnippet: data.codeSnippet || '',
         solutionXml: data.solutions?.[0] && typeof data.solutions[0] === 'string' ? data.solutions[0] : '',
-        dragDropSolutions: data.solutions?.[0] || {} // Extract DragDrop map
+        dragDropSolutions: data.solutions?.[0] || {}, // Extract DragDrop map
+        files: data.files || [],
+        solutionImage: data.solutionImage || ''
       });
       setScratchTab('initial');
       setModalOpen(true);
@@ -272,8 +300,13 @@ export default function ExercisesPanel({ onOpenCreate }) {
       }
     } else if (form.type === 'ScratchBlocks') {
       payload.scratchBlocks = form.scratchBlocks;
+      payload.scratchBlocks = form.scratchBlocks;
       // Par défaut, l'ordre de création définit la solution pour ScratchBlocks
       payload.solutions = form.scratchBlocks;
+    } else if (form.type === 'WebProject') {
+      payload.files = form.files;
+      payload.validationRules = form.validationRules;
+      // payload.solutionImage = form.solutionImage; // Deprecated
     }
 
     try {
@@ -375,6 +408,22 @@ export default function ExercisesPanel({ onOpenCreate }) {
     validationRules: f.validationRules.filter((_, i) => i !== idx)
   }));
 
+  // WebProject Helpers
+  const addFile = () => setForm(f => ({
+    ...f,
+    files: [...f.files, { name: 'new.html', content: '', language: 'html' }]
+  }));
+
+  const updateFile = (idx, field, value) => setForm(f => ({
+    ...f,
+    files: f.files.map((file, i) => i === idx ? { ...file, [field]: value } : file)
+  }));
+
+  const removeFile = (idx) => setForm(f => ({
+    ...f,
+    files: f.files.filter((_, i) => i !== idx)
+  }));
+
   // Helper to ensure block is an object for rendering
   const getBlockObject = (block) => {
     if (typeof block === 'string') return { text: block, category: 'motion', type: 'command' };
@@ -383,16 +432,30 @@ export default function ExercisesPanel({ onOpenCreate }) {
 
   return (
     <>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-        <div className="flex flex-col md:flex-row gap-4 flex-1 w-full">
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 w-full">
           <Select
-            placeholder="Sélectionner un parcours"
-            selectedKeys={selectedPath ? [selectedPath] : []}
-            onChange={e => setSelectedPath(e.target.value)}
-            className="max-w-xs"
+            label="1. Catégorie"
+            placeholder="Toutes"
+            selectedKeys={selectedCategory ? [selectedCategory] : []}
+            onChange={e => { setSelectedCategory(e.target.value); setSelectedPath(''); setSelectedLevel(''); }}
             size="sm"
           >
-            {paths.map(path => (
+            {categories.map(cat => (
+              <SelectItem key={cat._id} value={cat._id}>
+                {pickTitle(cat)}
+              </SelectItem>
+            ))}
+          </Select>
+
+          <Select
+            label="2. Parcours"
+            placeholder="Sélectionner"
+            selectedKeys={selectedPath ? [selectedPath] : []}
+            onChange={e => { setSelectedPath(e.target.value); setSelectedLevel(''); }}
+            size="sm"
+          >
+            {filteredPaths.map(path => (
               <SelectItem key={path._id} value={path._id}>
                 {pickTitle(path)}
               </SelectItem>
@@ -400,10 +463,10 @@ export default function ExercisesPanel({ onOpenCreate }) {
           </Select>
 
           <Select
-            placeholder="Sélectionner un niveau"
+            label="3. Niveau"
+            placeholder="Sélectionner"
             selectedKeys={selectedLevel ? [selectedLevel] : []}
             onChange={e => setSelectedLevel(e.target.value)}
-            className="max-w-xs"
             size="sm"
             isDisabled={!selectedPath}
           >
@@ -417,12 +480,15 @@ export default function ExercisesPanel({ onOpenCreate }) {
           <SearchBar
             value={query}
             onChange={v => setQuery(v)}
-            placeholder="Rechercher exercices..."
+            placeholder="Chercher exercice..."
+            className="w-full"
           />
         </div>
-        <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => openCreate()}>
-          Nouvel exercice
-        </Button>
+        <div className="flex justify-end">
+          <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => openCreate()}>
+            Nouvel exercice
+          </Button>
+        </div>
       </div>
 
       <div className="mt-4">
@@ -532,7 +598,9 @@ export default function ExercisesPanel({ onOpenCreate }) {
                   <SelectItem key="DragDrop" value="DragDrop">Glisser-déposer</SelectItem>
                   <SelectItem key="Code" value="Code">Code</SelectItem>
                   <SelectItem key="Scratch" value="Scratch">Scratch</SelectItem>
+                  <SelectItem key="Scratch" value="Scratch">Scratch</SelectItem>
                   <SelectItem key="ScratchBlocks" value="ScratchBlocks">Scratch Blocks</SelectItem>
+                  <SelectItem key="WebProject" value="WebProject">Projet Web</SelectItem>
                 </Select>
 
                 <div className="col-span-2">
@@ -561,6 +629,7 @@ export default function ExercisesPanel({ onOpenCreate }) {
                 <div className="col-span-2">
                   <Textarea
                     label="Question (Français)"
+                    placeholder="Contenu de l'exercice. Markdown et HTML (images) supportés."
                     value={form.fr_question}
                     onValueChange={v => setForm(f => ({ ...f, fr_question: v }))}
                   />
@@ -923,10 +992,135 @@ export default function ExercisesPanel({ onOpenCreate }) {
                   })}
                 </div>
               )}
-            </Tab>
-          </Tabs>
-        </div>
-      </FormModal>
+
+
+              {form.type === 'WebProject' && (
+                <div className="col-span-2 border p-4 rounded-lg">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="text-small font-bold">Fichiers du projet</span>
+                    <Button size="sm" variant="flat" onPress={addFile}>Ajouter fichier</Button>
+                  </div>
+
+                  <div className="mb-4 space-y-4 border-t pt-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-small font-bold">Règles de Validation (Mots-clés/Code)</span>
+                      <Button size="sm" variant="flat" onPress={() => setForm(f => ({
+                        ...f,
+                        validationRules: [...(f.validationRules || []), { value: '', message: '', points: 10, isRegex: false }]
+                      }))}>
+                        + Ajouter Règle
+                      </Button>
+                    </div>
+
+                    {(form.validationRules || []).map((rule, idx) => (
+                      <div key={idx} className="flex gap-2 items-start bg-default-50 p-2 rounded-lg border">
+                        <div className="flex-1 grid grid-cols-12 gap-2">
+                          <div className="col-span-12 md:col-span-5">
+                            <Input
+                              size="sm"
+                              label="Code/Mot-clé"
+                              placeholder="ex: background-color: red"
+                              value={rule.value}
+                              onChange={(e) => {
+                                const newRules = [...form.validationRules];
+                                newRules[idx].value = e.target.value;
+                                setForm({ ...form, validationRules: newRules });
+                              }}
+                            />
+                          </div>
+                          <div className="col-span-12 md:col-span-5">
+                            <Input
+                              size="sm"
+                              label="Feedback"
+                              placeholder="ex: Le bouton doit être rouge"
+                              value={rule.message}
+                              onChange={(e) => {
+                                const newRules = [...form.validationRules];
+                                newRules[idx].message = e.target.value;
+                                setForm({ ...form, validationRules: newRules });
+                              }}
+                            />
+                          </div>
+                          <div className="col-span-12 md:col-span-2">
+                            <Input
+                              size="sm"
+                              type="number"
+                              label="Pts"
+                              value={rule.points}
+                              onChange={(e) => {
+                                const newRules = [...form.validationRules];
+                                newRules[idx].points = parseInt(e.target.value) || 0;
+                                setForm({ ...form, validationRules: newRules });
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <Button isIconOnly size="sm" color="danger" variant="light" onPress={() => {
+                          const newRules = form.validationRules.filter((_, i) => i !== idx);
+                          setForm({ ...form, validationRules: newRules });
+                        }}>
+                          <IconTrash size={16} />
+                        </Button>
+                      </div>
+                    ))}
+
+                    {(form.validationRules || []).length === 0 && (
+                      <div className="text-tiny text-default-400 italic">
+                        Aucune règle définie. L'exercice validera tout code non vide.
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col gap-6">
+                    {form.files.map((file, idx) => (
+                      <div key={idx} className="border p-3 rounded-lg bg-default-50">
+                        <div className="flex gap-2 mb-2">
+                          <Input
+                            label="Nom"
+                            value={file.name}
+                            onValueChange={v => updateFile(idx, 'name', v)}
+                            size="sm"
+                            className="flex-1"
+                          />
+                          <Select
+                            label="Langage"
+                            selectedKeys={[file.language]}
+                            onChange={e => updateFile(idx, 'language', e.target.value)}
+                            size="sm"
+                            className="w-32"
+                          >
+                            <SelectItem key="html" value="html">HTML</SelectItem>
+                            <SelectItem key="css" value="css">CSS</SelectItem>
+                            <SelectItem key="javascript" value="javascript">JS</SelectItem>
+                          </Select>
+                          <Button isIconOnly color="danger" variant="light" onPress={() => removeFile(idx)}>
+                            <IconTrash size={18} />
+                          </Button>
+                        </div>
+                        <Textarea
+                          label="Contenu initial"
+                          value={file.content}
+                          onValueChange={v => updateFile(idx, 'content', v)}
+                          minRows={5}
+                          className="font-mono text-sm"
+                        />
+                        <Checkbox
+                          isSelected={file.readOnly}
+                          onValueChange={v => updateFile(idx, 'readOnly', v)}
+                          className="mt-2"
+                        >
+                          Lecture seule
+                        </Checkbox>
+                      </div>
+                    ))}
+                  </div>
+                </div >
+              )
+              }
+            </Tab >
+          </Tabs >
+        </div >
+      </FormModal >
 
       <ConfirmDialog
         open={confirm.open}

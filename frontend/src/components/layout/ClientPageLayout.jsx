@@ -9,6 +9,12 @@ import LanguageSelector from '../LanguageSelector';
  * ClientPageLayout - Shared layout for all client-facing learning pages
  * Ensures consistent gradient branding, typography, and spacing.
  */
+import LoadingSpinner from '../ui/LoadingSpinner';
+
+/**
+ * ClientPageLayout - Shared layout for all client-facing learning pages
+ * Ensures consistent gradient branding, typography, and spacing.
+ */
 export default function ClientPageLayout({
     children,
     title,
@@ -29,10 +35,7 @@ export default function ClientPageLayout({
 
     if (loading) {
         return (
-            <div className={`flex flex-col items-center justify-center min-h-[60vh] gap-4 ${className}`}>
-                <Spinner size="lg" color="primary" />
-                <p className="text-gray-500 font-medium">Chargement...</p>
-            </div>
+            <LoadingSpinner fullScreen={true} message="Chargement du contenu..." />
         );
     }
 

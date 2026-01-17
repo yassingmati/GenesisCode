@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import CodeEditor from './ui/CodeEditor';
 import ScratchEditor from './ui/ScratchEditor';
+
 import QCMExercise from './exercises/QCMExercise';
+import WebProjectExercise from './exercises/WebProjectExercise';
 import {
   Button,
   Checkbox,
@@ -83,7 +85,9 @@ export default function ExerciseAnswerInterface({
       case 'Matching': return {};
       case 'Algorithm':
       case 'AlgorithmSteps': return exercise.algorithmSteps?.map((_, i) => i) || [];
+
       case 'ScratchBlocks': return [];
+      case 'WebProject': return { files: [] };
       default: return null;
     }
   };
@@ -122,6 +126,8 @@ export default function ExerciseAnswerInterface({
         return <CodeCompletionInterface exercise={exercise} answer={userAnswer} onAnswer={handleAnswerChange} />;
       case 'PseudoCode':
         return <PseudoCodeInterface exercise={exercise} answer={userAnswer} onAnswer={handleAnswerChange} />;
+      case 'WebProject':
+        return <WebProjectExercise exercise={exercise} userAnswer={userAnswer} onAnswerChange={handleAnswerChange} />;
       default:
         return (
           <div className="bg-danger-50 text-danger p-4 rounded-lg border border-danger-200">

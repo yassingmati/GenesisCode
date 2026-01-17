@@ -92,13 +92,11 @@ export default function LevelPage() {
   // ResizeObserver for PDF container
   const onResize = useCallback(debounce((entries) => {
     if (entries && entries[0]) {
-      // Use contentRect to get width excluding padding/border if box-sizing is content-box,
-      // but ResizeObserver contentRect behavior with padding can be browser specific. 
-      // safer is generally checking contentBoxSize or clientWidth of target
+      // Use contentRect OR clientWidth for better reliability
       const width = entries[0].contentRect.width;
       setContainerWidth(width);
     }
-  }, 100), []);
+  }, 20), []);
 
   const resizeObserverRef = useRef(null);
   const pdfContainerRef = useRef(null);
@@ -142,6 +140,10 @@ export default function LevelPage() {
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
+      // Force immediate update
+      if (pdfContainerRef.current) {
+        setContainerWidth(pdfContainerRef.current.clientWidth);
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -253,6 +255,44 @@ export default function LevelPage() {
     return () => mounted = false;
   }, [levelId]);
 
+  // Determine Back Path Logic
+  const [backPath, setBackPath] = useState('/courses');
+
+  useEffect(() => {
+    let mounted = true;
+    const resolveBackPath = async () => {
+      if (!pathInfo?._id || pathInfo._id === 'default') return;
+
+      try {
+        const token = localStorage.getItem('token');
+        // 1. Fetch Path Detail
+        const pathRes = await fetch(`${API_BASE}/paths/${pathInfo._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!pathRes.ok) return;
+        const pathData = await pathRes.json();
+
+        // 2. Fetch Category to check type
+        if (pathData?.category?._id) {
+          const catRes = await fetch(`${API_BASE}/categories/${pathData.category._id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (!catRes.ok) return;
+          const catData = await catRes.json();
+
+          if (mounted) {
+            if (catData.type === 'specific') {
+              setBackPath(`/learning/specific/${catData._id}/paths/${pathInfo._id}`);
+            } else {
+              setBackPath('/courses');
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error resolving back path:", err);
+      }
+    };
+
+    resolveBackPath();
+    return () => mounted = false;
+  }, [pathInfo]);
+
   // PDF Probe
   useEffect(() => {
     setPdfEffectiveUrl(null);
@@ -317,7 +357,7 @@ export default function LevelPage() {
         loading={loading}
         error={error}
         onRetry={() => window.location.reload()}
-        backPath={-1}
+        backPath={backPath}
         backLabel="Retour"
         className="bg-[#0a0a0c] min-h-screen"
         fullWidth={true}
@@ -542,7 +582,7 @@ export default function LevelPage() {
                     <Button
                       className="w-full bg-[#27272a] hover:bg-[#3f3f46] text-gray-300 hover:text-white border border-white/5 h-14 justify-start px-4 group transition-all"
                       radius="lg"
-                      onPress={() => navigate(-1)}
+                      onPress={() => navigate(backPath)}
                     >
                       <div className="w-8 h-8 rounded-lg bg-black/20 flex items-center justify-center mr-3 group-hover:bg-white/10 transition-colors">
                         <IconArrowLeft size={16} />

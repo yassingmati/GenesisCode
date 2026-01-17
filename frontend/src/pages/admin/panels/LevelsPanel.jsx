@@ -24,6 +24,8 @@ const getApiUrl = (path) => {
 };
 
 export default function LevelsPanel({ onOpenCreate }) {
+  const [categories, setCategories] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [paths, setPaths] = useState([]);
   const [levels, setLevels] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -56,8 +58,26 @@ export default function LevelsPanel({ onOpenCreate }) {
   const API_BASE_URL = getApiUrl('');
 
   useEffect(() => {
-    fetchPaths();
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [pathsRes, catsRes] = await Promise.all([
+        api.get('/paths'),
+        api.get('/categories')
+      ]);
+      setPaths(Array.isArray(pathsRes.data) ? pathsRes.data : []);
+      setCategories(Array.isArray(catsRes.data) ? catsRes.data : []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filteredPaths = useMemo(() => {
+    if (!selectedCategory) return paths;
+    return paths.filter(p => p.category === selectedCategory || p.category?._id === selectedCategory);
+  }, [paths, selectedCategory]);
 
   useEffect(() => {
     if (selectedPath) {
@@ -405,30 +425,49 @@ export default function LevelsPanel({ onOpenCreate }) {
 
   return (
     <>
-      <div className="flex justify-between items-center gap-4 mb-6">
-        <div className="flex gap-4 flex-1">
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col md:flex-row gap-4">
           <Select
-            placeholder="Choisir un parcours"
-            selectedKeys={selectedPath ? [selectedPath] : []}
-            onChange={e => { setSelectedPath(e.target.value); setPage(1); }}
-            className="max-w-xs"
+            label="Filtrer par catégorie"
+            placeholder="Toutes les catégories"
+            selectedKeys={selectedCategory ? [selectedCategory] : []}
+            onChange={e => { setSelectedCategory(e.target.value); setSelectedPath(''); }}
+            className="md:max-w-xs"
             size="sm"
           >
-            {paths.map(path => (
+            {categories.map(cat => (
+              <SelectItem key={cat._id} value={cat._id}>
+                {pickTitle(cat)}
+              </SelectItem>
+            ))}
+          </Select>
+
+          <Select
+            label="Choisir un parcours"
+            placeholder="Sélectionner"
+            selectedKeys={selectedPath ? [selectedPath] : []}
+            onChange={e => { setSelectedPath(e.target.value); setPage(1); }}
+            className="md:max-w-xs"
+            size="sm"
+            isDisabled={!selectedCategory && paths.length > 50} // Optional UX hint
+          >
+            {filteredPaths.map(path => (
               <SelectItem key={path._id} value={path._id}>
                 {pickTitle(path)}
               </SelectItem>
             ))}
           </Select>
+
           <SearchBar
             value={query}
             onChange={v => { setQuery(v); setPage(1); }}
             placeholder="Rechercher niveaux..."
+            className="flex-1"
           />
+          <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => openCreate()} className="h-12 self-end md:self-auto">
+            Nouveau
+          </Button>
         </div>
-        <Button color="primary" startContent={<IconPlus size={18} />} onPress={() => openCreate()}>
-          Nouveau niveau
-        </Button>
       </div>
 
       <div className="mt-4">

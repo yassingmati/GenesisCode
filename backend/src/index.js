@@ -1,4 +1,4 @@
-// server.js // Restart triggered
+// server.js // Restart triggered // Force nodemon restart
 // Charger les variables d'environnement depuis le fichier .env dans le dossier backend
 const path = require('path');
 const envPath = path.join(__dirname, '..', '.env');
