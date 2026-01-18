@@ -1,0 +1,44 @@
+services:
+  # Frontend Service (Static Site)
+  - type: static
+    name: codegenesis-frontend
+    repo: https://github.com/yassingmaty/GenesisCode # Optional, Render infers from context usually, but good to have if needed. Removing for generic file.
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    publishDir: build
+    plan: free
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_API_URL
+        fromService:
+          type: web
+          name: codegenesis-backend
+          property: url
+
+  # Backend Service (Web Service) - Configuration preserved from backend/render.yaml
+  - type: web
+    name: codegenesis-backend
+    rootDir: backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: MONGODB_URI
+        sync: false # User must provide this in Dashboard
+      - key: JWT_SECRET
+        sync: false # User must provide this in Dashboard
+      - key: JWT_ADMIN_SECRET
+        sync: false # User must provide this in Dashboard
+      - key: CLIENT_ORIGIN
+        fromService:
+          type: static
+          name: codegenesis-frontend
+          property: url
