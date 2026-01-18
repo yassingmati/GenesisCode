@@ -213,9 +213,14 @@ const allowedOrigins = [
   'http://localhost:5000'  // Pour le développement local uniquement
 ].filter(Boolean);
 
-// Ajouter CLIENT_ORIGIN seulement s'il n'est pas localhost en production
-if (CLIENT_ORIGIN && !(process.env.NODE_ENV === 'production' && CLIENT_ORIGIN.includes('localhost'))) {
-  allowedOrigins.push(CLIENT_ORIGIN);
+// Ajouter CLIENT_ORIGIN (supporte les valeurs multiples séparées par des virgules)
+if (CLIENT_ORIGIN) {
+  if (CLIENT_ORIGIN.includes(',')) {
+    const origins = CLIENT_ORIGIN.split(',').map(o => o.trim());
+    allowedOrigins.push(...origins);
+  } else if (!(process.env.NODE_ENV === 'production' && CLIENT_ORIGIN.includes('localhost'))) {
+    allowedOrigins.push(CLIENT_ORIGIN);
+  }
 }
 
 // Log pour debug
