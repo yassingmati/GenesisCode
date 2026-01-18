@@ -1,11 +1,11 @@
 services:
   # Frontend Service (Static Site)
-  - type: static
+  - type: web
     name: codegenesis-frontend
-    repo: https://github.com/yassingmaty/GenesisCode # Optional, Render infers from context usually, but good to have if needed. Removing for generic file.
+    runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
-    publishDir: build
+    staticPublishPath: ./build
     plan: free
     routes:
       - type: rewrite
