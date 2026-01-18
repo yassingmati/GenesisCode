@@ -58,19 +58,23 @@ const isEmailConfigured = () => {
  * Helper générique pour envoyer un email
  */
 const sendEmail = async ({ to, subject, html, from }) => {
-  let fromAddress = from || process.env.EMAIL_FROM || 'onboarding@resend.dev'; // Resend Default
-  // Determine Reply-To using the *intended* from address (which might be the gmail one)
-  const replyTo = fromAddress.includes('@') ? fromAddress : 'noreply.genesiscode@gmail.com';
+  // UTILISATION DU DOMAINE VÉRIFIÉ
+  // Si from n'est pas spécifié, on utilise le domaine vérifié par défaut
+  let fromAddress = from || process.env.EMAIL_FROM || 'GenesisCode <noreply@genesiscode-platform.com>';
+
+  // Si on utilise Resend, on force le domaine vérifié si l'adresse actuelle n'est pas compatible
+  if (resend && !fromAddress.includes('genesiscode-platform.com') && !fromAddress.includes('resend.dev')) {
+    console.warn(`⚠️ Override: ${fromAddress} n'est pas un domaine vérifié Resend. Utilisation de noreply@genesiscode-platform.com`);
+    fromAddress = 'GenesisCode <noreply@genesiscode-platform.com>';
+  } else if (!fromAddress.includes('genesiscode-platform.com') && !process.env.EMAIL_FROM) {
+    // Fallback générique si aucune config
+    fromAddress = 'GenesisCode <onboarding@resend.dev>';
+  }
+
+  const replyTo = 'noreply@genesiscode-platform.com';
 
   if (resend) {
-    // Resend interdit les adresses @gmail.com ou yahoo etc. en expéditeur
-    if (fromAddress.includes('@gmail.com') || fromAddress.includes('@yahoo') || fromAddress.includes('@hotmail')) {
-      console.warn(`⚠️ Attention: Resend interdit l'envoi depuis ${fromAddress}. Utilisation de onboarding@resend.dev à la place.`);
-      // Use friendly name with the allowed email
-      fromAddress = 'GenesisCode <onboarding@resend.dev>';
-    }
-
-    console.log(`📨 Sending via Resend to ${to} from ${fromAddress} (Reply-To: ${replyTo})...`);
+    console.log(`📨 Sending via Resend to ${to} from ${fromAddress}...`);
     try {
       const response = await resend.emails.send({
         from: fromAddress,
@@ -80,7 +84,6 @@ const sendEmail = async ({ to, subject, html, from }) => {
         html: html
       });
 
-      // Resend ne throw pas d'erreur, il renvoie un objet avec error
       if (response.error) {
         console.error('❌ Erreur API Resend:', response.error);
         throw new Error(`Resend Error: ${response.error.message}`);
@@ -110,6 +113,73 @@ const sendEmail = async ({ to, subject, html, from }) => {
 };
 
 /**
+ * TEMPLATE EMAIL BASE (Style Premium)
+ */
+const getBaseEmailTemplate = (title, content, actionUrl = null, actionText = null) => {
+  return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+          body { font-family: 'Segoe UI', 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 0; -webkit-font-smoothing: antialiased; }
+          .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0; }
+          .header { background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); padding: 40px 0; text-align: center; }
+          .logo { font-size: 28px; font-weight: 800; color: white; margin: 0; letter-spacing: -0.5px; text-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+          .content { padding: 40px 32px; color: #334155; }
+          .title { color: #0f172a; font-size: 24px; font-weight: 700; margin-bottom: 20px; margin-top: 0; line-height: 1.3; }
+          .text { font-size: 16px; line-height: 1.6; margin-bottom: 32px; color: #475569; }
+          .button-container { text-align: center; margin: 32px 0; }
+          .button { display: inline-block; padding: 14px 32px; background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%); color: white; text-decoration: none; border-radius: 99px; font-weight: 600; font-size: 16px; box-shadow: 0 4px 6px -1px rgba(99, 102, 241, 0.3); transition: all 0.2s; }
+          .footer { background-color: #f1f5f9; padding: 32px; text-align: center; border-top: 1px solid #e2e8f0; }
+          .footer-text { color: #94a3b8; font-size: 12px; line-height: 1.5; margin-bottom: 16px; }
+          .social-links { margin-bottom: 20px; }
+          .social-link { display: inline-block; margin: 0 8px; text-decoration: none; color: #64748b; font-weight: 600; font-size: 12px; }
+          .link-fallback { margin-top: 24px; font-size: 12px; color: #94a3b8; word-break: break-all; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+          @media only screen and (max-width: 600px) {
+            .container { margin: 0; border-radius: 0; border: none; }
+            .content { padding: 32px 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="logo">GenesisCode</div>
+          </div>
+          <div class="content">
+            <h2 class="title">${title}</h2>
+            <div class="text">${content}</div>
+            
+            ${actionUrl ? `
+              <div class="button-container">
+                <a href="${actionUrl}" class="button">${actionText}</a>
+              </div>
+              <div class="link-fallback">
+                Si le bouton ne fonctionne pas, copiez et collez ce lien dans votre navigateur :<br/>
+                <a href="${actionUrl}" style="color: #6366f1; text-decoration: none;">${actionUrl}</a>
+              </div>
+            ` : ''}
+          </div>
+          <div class="footer">
+            <div class="social-links">
+              <a href="${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}" class="social-link">Site Web</a> •
+              <a href="#" class="social-link">Support</a> •
+              <a href="#" class="social-link">Twitter</a>
+            </div>
+            <div class="footer-text">
+              &copy; ${new Date().getFullYear()} GenesisCode inc. Tous droits réservés.<br/>
+              Vous recevez cet email car vous avez créé un compte sur GenesisCode.
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+};
+
+/**
  * Envoyer un email de vérification
  */
 const sendVerificationEmail = async (email, token) => {
@@ -119,26 +189,14 @@ const sendVerificationEmail = async (email, token) => {
 
   const verificationLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${token}`;
 
-  const html = `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0;">
-        <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px 20px; text-align: center;">
-          <h1 style="color: white; margin: 0;">GenesisCode</h1>
-        </div>
-        <div style="padding: 40px 30px; background-color: #ffffff;">
-          <h2 style="color: #1e293b; text-align: center;">Vérifiez votre email</h2>
-          <p style="color: #475569; text-align: center;">Merci de vous être inscrit sur GenesisCode ! Cliquez ci-dessous pour vérifier votre compte.</p>
-          <div style="text-align: center; margin: 35px 0;">
-            <a href="${verificationLink}" 
-               style="display: inline-block; padding: 16px 32px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: white; text-decoration: none; border-radius: 50px; font-weight: 600;">
-              Vérifier mon email
-            </a>
-          </div>
-          <p style="text-align: center; font-size: 12px; color: #94a3b8;">Si le bouton ne marche pas : ${verificationLink}</p>
-        </div>
-      </div>
-  `;
+  const html = getBaseEmailTemplate(
+    'Vérifiez votre adresse email',
+    'Bienvenue sur GenesisCode ! Pour sécuriser votre compte et accéder à toutes les fonctionnalités, veuillez confirmer votre adresse email.',
+    verificationLink,
+    'Confirmer mon compte'
+  );
 
-  await sendEmail({ to: email, subject: 'Vérification de votre email - GenesisCode', html });
+  await sendEmail({ to: email, subject: 'Bienvenue sur GenesisCode !', html });
 };
 
 /**
@@ -149,24 +207,14 @@ const sendPasswordResetEmail = async (email, token) => {
 
   const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password?token=${token}`;
 
-  const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #4a90e2 0%, #7b61ff 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0;">CodeGenesis</h1>
-        </div>
-        <div style="background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;">
-          <h2 style="color: #333; margin-top: 0;">Réinitialisation de mot de passe</h2>
-          <p style="margin: 30px 0; text-align: center;">
-            <a href="${resetLink}" 
-               style="display: inline-block; padding: 15px 30px; background-color: #4a90e2; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
-              Réinitialiser mon mot de passe
-            </a>
-          </p>
-        </div>
-      </div>
-  `;
+  const html = getBaseEmailTemplate(
+    'Réinitialisation de mot de passe',
+    'Nous avons reçu une demande de réinitialisation pour votre compte GenesisCode. Si vous n\'êtes pas à l\'origine de cette demande, vous pouvez ignorer cet email.',
+    resetLink,
+    'Réinitialiser le mot de passe'
+  );
 
-  await sendEmail({ to: email, subject: 'Réinitialisation de votre mot de passe - GenesisCode', html });
+  await sendEmail({ to: email, subject: 'Réinitialisation mot de passe - GenesisCode', html });
 };
 
 /**
@@ -174,9 +222,16 @@ const sendPasswordResetEmail = async (email, token) => {
  */
 const sendSubscriptionConfirmationEmail = async (email, planName, amount, currency) => {
   if (!isEmailConfigured()) return;
-  const html = `<h2>Abonnement Confirmé !</h2><p>Merci pour votre abonnement au plan <strong>${planName}</strong> (${(amount / 100).toFixed(2)} ${currency}).</p>`;
+
+  const html = getBaseEmailTemplate(
+    'Abonnement Confirmé ! 🚀',
+    `Merci de votre confiance. Votre abonnement au plan <strong>${planName}</strong> est maintenant actif. <br/><br/>Montant: <strong>${(amount / 100).toFixed(2)} ${currency}</strong>`,
+    `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/dashboard`,
+    'Accéder à mon Dashboard'
+  );
+
   try {
-    await sendEmail({ to: email, subject: 'Confirmation de votre abonnement - GenesisCode', html });
+    await sendEmail({ to: email, subject: 'Confirmation Abonnement - GenesisCode', html });
   } catch (e) { console.error('Erreur mail abonnement', e); }
 };
 
@@ -185,9 +240,18 @@ const sendSubscriptionConfirmationEmail = async (email, planName, amount, curren
  */
 const sendRenewalReminderEmail = async (email, planName, renewalDate) => {
   if (!isEmailConfigured()) return;
-  const html = `<h2>Renouvellement Prochain</h2><p>Votre abonnement <strong>${planName}</strong> sera renouvelé le ${new Date(renewalDate).toLocaleDateString()}.</p>`;
+
+  const dateStr = new Date(renewalDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const html = getBaseEmailTemplate(
+    'Renouvellement Prochain',
+    `Votre abonnement <strong>${planName}</strong> sera renouvelé automatiquement le <strong>${dateStr}</strong>. Assurez-vous que vos informations de paiement sont à jour.`,
+    `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/dashboard/subscription`,
+    'Gérer mon abonnement'
+  );
+
   try {
-    await sendEmail({ to: email, subject: 'Rappel de renouvellement - GenesisCode', html });
+    await sendEmail({ to: email, subject: 'Rappel Renouvellement - GenesisCode', html });
   } catch (e) { console.error('Erreur mail rappel', e); }
 };
 
