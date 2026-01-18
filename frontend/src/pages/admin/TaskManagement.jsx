@@ -128,7 +128,7 @@ const TaskManagement = () => {
     };
 
     const handleDeleteTemplate = async (templateId) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer ce modèle ? Cela n\'affectera pas les tâches déjà assignées.')) {
+        if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce modèle ? Cela n\'affectera pas les tâches déjà assignées.')) {
             return;
         }
 
