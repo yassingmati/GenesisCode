@@ -61,12 +61,8 @@ export default function VerifyEmail() {
   }, [token]);
 
   const handleContinue = () => {
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
-    if (user.token || localStorage.getItem('token')) {
-      navigate('/dashboard');
-    } else {
-      navigate('/login');
-    }
+    // Force redirection to the custom domain
+    window.location.href = 'https://genesiscode-platform.com/login';
   };
 
   return (
