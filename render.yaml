@@ -6,7 +6,6 @@ services:
     rootDir: frontend
     buildCommand: export REACT_APP_API_URL="https://$BACKEND_HOST" && npm install && npm run build
     staticPublishPath: ./build
-    plan: free
     routes:
       - type: rewrite
         source: /*
