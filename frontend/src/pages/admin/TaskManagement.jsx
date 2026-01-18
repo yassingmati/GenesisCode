@@ -114,7 +114,7 @@ const TaskManagement = () => {
     };
 
     const handleDeleteTask = async (taskId) => {
-        if (!confirm('Êtes-vous sûr de vouloir supprimer cette tâche assignée ?')) {
+        if (!window.confirm('Êtes-vous sûr de vouloir supprimer cette tâche assignée ?')) {
             return;
         }
 

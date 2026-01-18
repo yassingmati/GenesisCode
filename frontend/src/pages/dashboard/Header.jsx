@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useTranslation } from '../../hooks/useTranslation';
 import LanguageSelector from '../../components/LanguageSelector';
 import { getApiUrl } from '../../utils/apiConfig';
+import ThemeToggle from '../../components/ThemeToggle';
+import SubscriptionButton from '../../components/SubscriptionButton';
 import {
     Navbar,
     NavbarContent,
@@ -34,9 +36,6 @@ function getAuthHeader() {
     const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
-
-import ThemeToggle from '../../components/ThemeToggle';
-import SubscriptionButton from '../../components/SubscriptionButton';
 
 // ... imports
 

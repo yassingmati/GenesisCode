@@ -4,6 +4,7 @@ import { useTranslation } from '../../hooks/useTranslation';
 import CourseAccessGuard from '../../components/CourseAccessGuard';
 import { getApiUrl } from '../../utils/apiConfig';
 import ClientPageLayout from '../../components/layout/ClientPageLayout';
+import { Document, Page, pdfjs } from 'react-pdf';
 import {
   Button, Select, SelectItem, Card, CardBody,
   Tooltip, Progress, Spinner,
@@ -16,6 +17,8 @@ import {
 } from '@tabler/icons-react';
 import { motion } from 'framer-motion';
 import Logo from '../../assets/images/logo-removebg-preview.png';
+
+pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 const API_BASE = getApiUrl('/api/courses');
 const LANGS = [{ code: 'fr', label: 'Français', flag: '🇫🇷' }, { code: 'en', label: 'English', flag: '🇺🇸' }, { code: 'ar', label: 'العربية', flag: '🇹🇳' }];
@@ -51,10 +54,6 @@ async function findLevelInAccessiblePaths(levelId, token) {
     return null;
   } catch (error) { return null; }
 }
-
-import { Document, Page, pdfjs } from 'react-pdf';
-
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 export default function LevelPage() {
   const { levelId } = useParams();
@@ -188,7 +187,7 @@ export default function LevelPage() {
         const vids = {};
         const pdfs = {};
         // Helper to sanitize URLs
-        const sanitizeUrl = (url, type) => {
+        const sanitizeUrl = (url, type, langCode) => {
           if (!url) return null;
           // If it's a localhost URL, replace with current API_BASE (without /api/courses suffix if needed)
           if (url.includes('localhost:5000')) {
@@ -196,22 +195,16 @@ export default function LevelPage() {
             const baseUrl = getApiUrl('').replace(/\/$/, '');
             return url.replace('http://localhost:5000', baseUrl);
           }
-          return url.startsWith('http') ? url : `${API_BASE}/levels/${levelId}/${type}?lang=${k}`;
+          return url.startsWith('http') ? url : `${API_BASE}/levels/${levelId}/${type}?lang=${langCode}`;
         };
 
         ['fr', 'en', 'ar'].forEach(k => {
           if (l.videos?.[k]) {
             // Logic adjusted to use helper
-            const videoUrl = l.videos[k];
-            vids[k] = videoUrl.includes('localhost:5000')
-              ? videoUrl.replace('http://localhost:5000', getApiUrl('').replace(/\/$/, ''))
-              : (videoUrl.startsWith('http') ? videoUrl : `${API_BASE}/levels/${levelId}/video?lang=${k}`);
+            vids[k] = sanitizeUrl(l.videos[k], 'video', k);
           }
           if (l.pdfs?.[k]) {
-            const pdfUrl = l.pdfs[k];
-            pdfs[k] = pdfUrl.includes('localhost:5000')
-              ? pdfUrl.replace('http://localhost:5000', getApiUrl('').replace(/\/$/, ''))
-              : (pdfUrl.startsWith('http') ? pdfUrl : `${API_BASE}/levels/${levelId}/pdf?lang=${k}`);
+            pdfs[k] = sanitizeUrl(l.pdfs[k], 'pdf', k);
           }
         });
         if (l.video && !l.videos) {

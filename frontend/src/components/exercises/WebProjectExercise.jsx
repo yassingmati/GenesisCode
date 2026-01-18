@@ -244,7 +244,7 @@ const WebProjectExercise = ({
             alert('Vous devez garder au moins un fichier');
             return;
         }
-        if (confirm(`Voulez-vous vraiment supprimer ${files[index].name} ?`)) {
+        if (window.confirm('Êtes-vous sûr de vouloir réinitialiser tout le code ?')) {
             const updatedFiles = files.filter((_, i) => i !== index);
             setFiles(updatedFiles);
             onAnswerChange({ files: updatedFiles });
