@@ -207,7 +207,9 @@ const sendVerificationEmail = async (email, token) => {
 const sendPasswordResetEmail = async (email, token) => {
   if (!isEmailConfigured()) throw new Error('Email service not configured');
 
-  const resetLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/reset-password?token=${token}`;
+  // Sanitize CLIENT_ORIGIN
+  const clientOrigin = (process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
+  const resetLink = `${clientOrigin}/reset-password?token=${token}`;
 
   const html = getBaseEmailTemplate(
     'Réinitialisation de mot de passe',
@@ -228,7 +230,7 @@ const sendSubscriptionConfirmationEmail = async (email, planName, amount, curren
   const html = getBaseEmailTemplate(
     'Abonnement Confirmé ! 🚀',
     `Merci de votre confiance. Votre abonnement au plan <strong>${planName}</strong> est maintenant actif. <br/><br/>Montant: <strong>${(amount / 100).toFixed(2)} ${currency}</strong>`,
-    `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/dashboard`,
+    `${(process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim()}/dashboard`,
     'Accéder à mon Dashboard'
   );
 
@@ -248,7 +250,7 @@ const sendRenewalReminderEmail = async (email, planName, renewalDate) => {
   const html = getBaseEmailTemplate(
     'Renouvellement Prochain',
     `Votre abonnement <strong>${planName}</strong> sera renouvelé automatiquement le <strong>${dateStr}</strong>. Assurez-vous que vos informations de paiement sont à jour.`,
-    `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/dashboard/subscription`,
+    `${(process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim()}/dashboard/subscription`,
     'Gérer mon abonnement'
   );
 
