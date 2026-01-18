@@ -55,6 +55,22 @@ const isEmailConfigured = () => {
 };
 
 /**
+ * Helper pour obtenir l'URL du client (Frontend)
+ * Priorise le domaine personnalisé 'genesiscode-platform.com' s'il est disponible
+ */
+const getClientOrigin = () => {
+  const envOrigin = process.env.CLIENT_ORIGIN || 'http://localhost:3000';
+  const origins = envOrigin.split(',').map(u => u.trim());
+
+  // 1. Chercher le domaine officiel
+  const officialDomain = origins.find(u => u.includes('genesiscode-platform.com'));
+  if (officialDomain) return officialDomain;
+
+  // 2. Sinon retourner le premier (défaut)
+  return origins[0];
+};
+
+/**
  * Helper générique pour envoyer un email
  */
 const sendEmail = async ({ to, subject, html, from }) => {
@@ -164,7 +180,7 @@ const getBaseEmailTemplate = (title, content, actionUrl = null, actionText = nul
           </div>
           <div class="footer">
             <div class="social-links">
-              <a href="${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}" class="social-link">Site Web</a> •
+              <a href="${getClientOrigin()}" class="social-link">Site Web</a> •
               <a href="#" class="social-link">Support</a> •
               <a href="#" class="social-link">Twitter</a>
             </div>
@@ -187,8 +203,8 @@ const sendVerificationEmail = async (email, token) => {
     throw new Error('Email service not configured.');
   }
 
-  // Sanitize CLIENT_ORIGIN: take the first URL if multiple are comma-separated
-  const clientOrigin = (process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
+  // Sanitize CLIENT_ORIGIN
+  const clientOrigin = getClientOrigin();
   const verificationLink = `${clientOrigin}/verify-email?token=${token}`;
 
   const html = getBaseEmailTemplate(
@@ -208,7 +224,7 @@ const sendPasswordResetEmail = async (email, token) => {
   if (!isEmailConfigured()) throw new Error('Email service not configured');
 
   // Sanitize CLIENT_ORIGIN
-  const clientOrigin = (process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
+  const clientOrigin = getClientOrigin();
   const resetLink = `${clientOrigin}/reset-password?token=${token}`;
 
   const html = getBaseEmailTemplate(
@@ -230,7 +246,8 @@ const sendSubscriptionConfirmationEmail = async (email, planName, amount, curren
   const html = getBaseEmailTemplate(
     'Abonnement Confirmé ! 🚀',
     `Merci de votre confiance. Votre abonnement au plan <strong>${planName}</strong> est maintenant actif. <br/><br/>Montant: <strong>${(amount / 100).toFixed(2)} ${currency}</strong>`,
-    `${(process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim()}/dashboard`,
+    `Merci de votre confiance. Votre abonnement au plan <strong>${planName}</strong> est maintenant actif. <br/><br/>Montant: <strong>${(amount / 100).toFixed(2)} ${currency}</strong>`,
+    `${getClientOrigin()}/dashboard`,
     'Accéder à mon Dashboard'
   );
 
@@ -250,7 +267,8 @@ const sendRenewalReminderEmail = async (email, planName, renewalDate) => {
   const html = getBaseEmailTemplate(
     'Renouvellement Prochain',
     `Votre abonnement <strong>${planName}</strong> sera renouvelé automatiquement le <strong>${dateStr}</strong>. Assurez-vous que vos informations de paiement sont à jour.`,
-    `${(process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim()}/dashboard/subscription`,
+    `Votre abonnement <strong>${planName}</strong> sera renouvelé automatiquement le <strong>${dateStr}</strong>. Assurez-vous que vos informations de paiement sont à jour.`,
+    `${getClientOrigin()}/dashboard/subscription`,
     'Gérer mon abonnement'
   );
 
