@@ -4,7 +4,7 @@ services:
     name: codegenesis-frontend
     runtime: static
     rootDir: frontend
-    buildCommand: npm install && npm run build
+    buildCommand: export REACT_APP_API_URL="https://$BACKEND_HOST" && npm install && npm run build
     staticPublishPath: ./build
     plan: free
     routes:
@@ -12,33 +12,33 @@ services:
         source: /*
         destination: /index.html
     envVars:
-      - key: REACT_APP_API_URL
+      - key: BACKEND_HOST
         fromService:
           type: web
           name: codegenesis-backend
-          property: url
+          property: host
 
-  # Backend Service (Web Service) - Configuration preserved from backend/render.yaml
+  # Backend Service (Web Service)
   - type: web
     name: codegenesis-backend
     rootDir: backend
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: npm start
+    startCommand: export CLIENT_ORIGIN="https://$FRONTEND_HOST" && npm start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
       - key: MONGODB_URI
-        sync: false # User must provide this in Dashboard
+        sync: false
       - key: JWT_SECRET
-        sync: false # User must provide this in Dashboard
+        sync: false
       - key: JWT_ADMIN_SECRET
-        sync: false # User must provide this in Dashboard
-      - key: CLIENT_ORIGIN
+        sync: false
+      - key: FRONTEND_HOST
         fromService:
-          type: static
+          type: web
           name: codegenesis-frontend
-          property: url
+          property: host
