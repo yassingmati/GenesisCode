@@ -24,7 +24,7 @@ services:
     env: node
     plan: free
     buildCommand: npm install
-    startCommand: export CLIENT_ORIGIN="https://$FRONTEND_HOST" && npm start
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -36,8 +36,5 @@ services:
         sync: false
       - key: JWT_ADMIN_SECRET
         sync: false
-      - key: FRONTEND_HOST
-        fromService:
-          type: web
-          name: codegenesis-frontend
-          property: host
+      - key: CLIENT_ORIGIN
+        sync: false
