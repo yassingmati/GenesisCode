@@ -177,8 +177,6 @@ export const taskService = {
     assignTasks,
     getAssignedTasks,
     deleteAssignedTask,
-    getAssignedTasks,
-    deleteAssignedTask,
     getChildTasks,
     getChildProgress,
     getTasks,
