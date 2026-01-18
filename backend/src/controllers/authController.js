@@ -177,7 +177,11 @@ exports.register = async (req, res) => {
         if (error.code === 'auth/weak-password') {
             return res.status(400).json({ message: 'Password must be at least 6 characters long.' });
         }
-        res.status(500).json({ message: 'Failed to create account.' });
+        res.status(500).json({
+            message: 'Failed to create account.',
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
     }
 };
 
