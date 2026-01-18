@@ -187,7 +187,9 @@ const sendVerificationEmail = async (email, token) => {
     throw new Error('Email service not configured.');
   }
 
-  const verificationLink = `${process.env.CLIENT_ORIGIN || 'http://localhost:3000'}/verify-email?token=${token}`;
+  // Sanitize CLIENT_ORIGIN: take the first URL if multiple are comma-separated
+  const clientOrigin = (process.env.CLIENT_ORIGIN || 'http://localhost:3000').split(',')[0].trim();
+  const verificationLink = `${clientOrigin}/verify-email?token=${token}`;
 
   const html = getBaseEmailTemplate(
     'Vérifiez votre adresse email',
