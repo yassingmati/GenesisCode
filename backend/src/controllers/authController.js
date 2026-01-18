@@ -61,6 +61,14 @@ exports.register = async (req, res) => {
             return res.status(400).json({ message: 'Email and password are required.' });
         }
 
+        // Password Validation: Min 6 chars, 1 Uppercase
+        const passwordRegex = /(?=.*[A-Z]).{6,}/;
+        if (!passwordRegex.test(password)) {
+            return res.status(400).json({
+                message: 'Password must be at least 6 characters long and contain at least one uppercase letter.'
+            });
+        }
+
         // Si Firebase n'est pas disponible, créer directement dans MongoDB (Fallback Sécurisé)
         if (!isFirebaseAvailable()) {
             console.warn('Firebase non disponible - création directe dans MongoDB (Mode Fallback)');
@@ -168,7 +176,7 @@ exports.register = async (req, res) => {
 
     } catch (error) {
         console.error('Registration Error:', error);
-        if (error.code === 'auth/email-already-in-use') {
+        if (error.code === 'auth/email-already-in-use' || error.message.includes('email address is already in use')) {
             return res.status(409).json({ message: 'This email is already in use.' });
         }
         if (error.code === 'auth/invalid-email') {

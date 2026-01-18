@@ -56,6 +56,8 @@ const Auth = ({ type }) => {
       newErrors.password = 'Le mot de passe est requis';
     } else if (formData.password.length < 6) {
       newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
+    } else if (!/(?=.*[A-Z])/.test(formData.password)) {
+      newErrors.password = 'Le mot de passe doit contenir au moins une lettre majuscule';
     }
 
     if (type === 'register' && formData.password !== formData.confirmPassword) {
@@ -159,7 +161,8 @@ const Auth = ({ type }) => {
           mappedError = { general: t('auth.errors.missingFields') };
           break;
         case 'Password must be at least 6 characters long.':
-          mappedError = { password: t('auth.errors.weakPassword') };
+        case 'Password must be at least 6 characters long and contain at least one uppercase letter.':
+          mappedError = { password: 'Le mot de passe doit avoir au moins 6 caractères et une majuscule.' };
           break;
         case 'This account has been disabled.':
         case 'USER_DISABLED': // Firebase
@@ -438,6 +441,24 @@ const Auth = ({ type }) => {
                   {showPassword ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
                 </button>
                 {errors.password && <span className="text-[10px] text-red-500 dark:text-red-400 mt-0.5 ml-1 block">{errors.password}</span>}
+
+                {/* Password Requirements Checklist (Only show during registration or if password has content) */}
+                {(type === 'register' || (formData.password && formData.password.length > 0)) && (
+                  <div className="mt-2 ml-1 flex flex-wrap gap-2">
+                    <div className={`text-[10px] flex items-center gap-1 ${formData.password.length >= 6 ? 'text-green-500 font-medium' : 'text-slate-400'}`}>
+                      <span className={`w-3 h-3 rounded-full flex items-center justify-center border ${formData.password.length >= 6 ? 'bg-green-500 border-green-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                        {formData.password.length >= 6 && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                      </span>
+                      Min. 6 caractères
+                    </div>
+                    <div className={`text-[10px] flex items-center gap-1 ${/(?=.*[A-Z])/.test(formData.password) ? 'text-green-500 font-medium' : 'text-slate-400'}`}>
+                      <span className={`w-3 h-3 rounded-full flex items-center justify-center border ${/(?=.*[A-Z])/.test(formData.password) ? 'bg-green-500 border-green-500' : 'border-slate-300 dark:border-slate-600'}`}>
+                        {/(?=.*[A-Z])/.test(formData.password) && <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                      </span>
+                      Une majuscule
+                    </div>
+                  </div>
+                )}
               </div>
 
               {type === 'register' && (
